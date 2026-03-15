@@ -62,6 +62,7 @@ alpha-pilot/
 ├── frontend/                  # Next.js（按前端规范）
 ├── docker/                    # Docker Compose、部署配置
 ├── Makefile                   # 统一命令入口
+├── .env.example               # 环境变量模板（含所有必填项说明）
 └── docs/
 ```
 
@@ -120,12 +121,15 @@ alpha-pilot/
 #### 持仓监控循环（每 5~10 秒触发）
 
 ```
-检查止损价是否被穿透   → 立即平仓
-检查日内亏损是否超限   → 触发熔断
-检查 ATR/波动率异常   → 降级或暂停
-检查 API 连接状态     → 异常停机
-→ Redis Pub/Sub       → 推送告警给前端
+检查止损价是否被穿透        → 立即市价平仓（主动平仓）
+检查止盈委托单是否已成交     → 同步状态，写入 trades 记录
+检查日内亏损是否超限        → 触发熔断
+检查 ATR/波动率异常        → 降级或暂停
+检查 API 连接状态          → 异常停机
+→ Redis Pub/Sub            → 推送告警给前端
 ```
+
+> **止盈处理说明**：开仓时在 Binance 侧挂止盈委托单，持仓监控循环轮询订单状态。止盈委托成交后，监控循环负责同步持仓状态并写入 `trades` 记录。止损由监控循环主动触发市价平仓（不依赖交易所委托），确保秒级响应。
 
 ### Testnet / Mainnet 切换
 
@@ -140,20 +144,27 @@ TRADING_MODE=mainnet  → Binance Mainnet（api.binance.com）+ 真实 Key
 
 ## 6. 手动操作能力
 
-前端提供人工兜底操作面板，跳过 AI 决策直接执行，经过执行守卫：
+前端提供人工兜底操作面板，跳过 AI 决策直接执行。每类操作对应不同的风控规则集：
 
-| 类别 | 操作 |
-|------|------|
-| 紧急操作 | 一键全部平仓、一键停机、一键恢复 |
-| 仓位管理 | 手动平仓指定持仓、调整止损止盈、部分平仓 |
-| 手动下单 | 手动开仓（市价/限价） |
-| 风控干预 | 手动触发熔断、手动解除熔断 |
+| 类别 | 操作 | 执行守卫规则 |
+|------|------|------------|
+| 紧急操作 | 一键全部平仓 | **绕过所有风控**，直接执行 |
+| 紧急操作 | 一键停机 | 立即中断所有循环，不下单 |
+| 紧急操作 | 一键恢复 | 恢复循环，不下单 |
+| 仓位管理 | 手动平仓指定持仓 | 绕过 AI 风控，直接执行平仓 |
+| 仓位管理 | 调整止损止盈价格 | 校验价格合理性（不能超出 ATR 范围） |
+| 仓位管理 | 部分平仓 | 绕过 AI 风控，直接执行 |
+| 手动下单 | 手动开仓（市价/限价） | 受日亏损熔断、仓位上限约束 |
+| 风控干预 | 手动触发熔断 | 直接写入熔断状态 |
+| 风控干预 | 手动解除熔断 | 直接清除熔断状态 |
 
-**原则**：一键停机和一键全平优先级最高，立即中断所有自动循环。所有手动操作写入审计日志。
+**原则**：一键停机和一键全平优先级最高，立即中断所有自动循环。所有手动操作写入审计日志（含操作人、时间、理由）。
 
 ---
 
 ## 7. AI 决策 Schema
+
+> **V0.1 仅支持现货做多**，不支持做空。合约交易在 V0.2+ 版本考虑。
 
 ```json
 {
@@ -172,7 +183,7 @@ TRADING_MODE=mainnet  → Binance Mainnet（api.binance.com）+ 真实 Key
 }
 ```
 
-**兜底机制**：JSON 解析失败、字段缺失、止损缺失、动作非法 → 统一回退 `HOLD`。
+**兜底机制**：JSON 解析失败、字段缺失、止损缺失、动作非法（如 OPEN_SHORT）→ 统一回退 `HOLD`。
 
 ---
 
@@ -194,8 +205,13 @@ TRADING_MODE=mainnet  → Binance Mainnet（api.binance.com）+ 真实 Key
 
 **关键设计原则**：
 - 所有表含 `trading_mode`（testnet/mainnet），数据完全隔离
-- 所有下单使用 `trace_id` 保证幂等，防止重复下单
+- 所有下单使用 `trace_id` 保证幂等，防止重复下单；`trace_id` 由 `decision_id + symbol + action` 确定性哈希生成，重启后可复现
 - `ai_decisions` 保存完整 prompt 输入和 JSON 输出，便于审计
+
+**`positions` → `trades` 状态流转**：
+- 开仓成功 → 写入 `positions`（status=open）
+- 止盈/止损/平仓成功 → 更新 `positions`（status=closed）+ 写入 `trades`（完整链路记录）
+- 部分平仓 → 更新 `positions` 剩余仓位 + 写入 `trades`（部分平仓记录）
 
 ---
 
@@ -204,12 +220,12 @@ TRADING_MODE=mainnet  → Binance Mainnet（api.binance.com）+ 真实 Key
 | 层级 | 故障场景 | 处理方式 |
 |------|---------|---------|
 | Binance API | 超时/限频/断线 | 指数退避重试，失败暂停循环 |
-| LLM 调用 | 超时/解析失败/字段缺失 | 统一回退 HOLD，记录异常 |
+| LLM 调用 | 超时/解析失败/字段缺失 | 超时上限 30 秒，统一回退 HOLD，记录异常 |
 | 指标计算 | 数据不足/计算异常 | 跳过本轮，等待下一周期 |
 | 执行守卫 | 风控拦截 | 返回 REJECT/DEGRADE，记录原因 |
 | 下单执行 | 下单失败/部分成交 | 幂等重试（trace_id 防重），失败告警 |
 | 持仓监控 | 止损穿透/波动异常 | 秒级触发紧急平仓，熔断保护 |
-| WebSocket | 前端断线 | 自动重连，断线期间事件缓冲到 Redis |
+| WebSocket | 前端断线 | 自动重连，断线期间事件缓冲到 Redis（TTL 5 分钟，最多 500 条） |
 
 ### 熔断规则（最高优先级，不可被覆盖）
 
@@ -250,16 +266,47 @@ TRADING_MODE=mainnet  → Binance Mainnet（api.binance.com）+ 真实 Key
 9. 双循环架构（策略循环 + 秒级持仓监控）
 10. 持仓与收益监控（实时推送）
 11. 交易日志与复盘记录
-12. 经验库（基础版）
+12. 经验库（基础版）：仅记录已平仓交易的结果、指标快照和退出原因；V0.1 不做 LLM 摘要生成，直接存储结构化字段
 13. 前端 Dashboard（实时监控 + 手动操作面板）
 
 ---
 
-## 12. 版本路线图
+## 12. 关键环境变量
+
+```env
+# 交易模式
+TRADING_MODE=testnet              # testnet | mainnet
+
+# Binance
+BINANCE_API_KEY=
+BINANCE_API_SECRET=
+
+# LLM（可配置）
+LLM_PROVIDER=claude               # claude | openai | local
+LLM_API_KEY=
+LLM_MODEL=claude-opus-4-6
+LLM_TIMEOUT_SECONDS=30
+
+# 数据库
+DATABASE_URL=postgresql://user:password@postgres:5432/alphapilot
+
+# Redis
+REDIS_URL=redis://redis:6379/0
+
+# 风控默认参数（可被配置中心覆盖）
+MAX_POSITION_SIZE_PCT=0.20
+MAX_DAILY_LOSS_PCT=0.03
+MAX_CONSECUTIVE_LOSSES=3
+MAX_SINGLE_RISK_PCT=0.01
+```
+
+---
+
+## 13. 版本路线图
 
 | 版本 | 目标 |
 |------|------|
-| V0.1 | 跑通自动交易闭环 + 全栈 Dashboard |
+| V0.1 | 跑通自动交易闭环 + 全栈 Dashboard（仅现货做多） |
 | V0.2 | 监控面板增强、风控中心、告警通知、策略评分器 |
-| V0.3 | 参数优化器、Shadow Mode、自动回滚、更多币种 |
+| V0.3 | 参数优化器、Shadow Mode、自动回滚、更多币种、合约支持 |
 | V1.0 | 完整受控自进化闭环 |
