@@ -9,3 +9,4 @@
 
 ## Feedback Memories
 - [feedback_auto_push.md](feedback_auto_push.md) — 每次 commit 后必须立即 git push
+- [feedback_no_coauthor.md](feedback_no_coauthor.md) — commit 消息中不加 Co-Authored-By 行
