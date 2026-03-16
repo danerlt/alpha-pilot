@@ -39,7 +39,7 @@ export default function Home() {
     setError(null)
     try {
       const [h, a, p] = await Promise.all([
-        fetchJson<HealthData>('/api/health'),
+        fetchJson<HealthData>('/health'),
         fetchJson<AccountData>('/account').catch(() => null),
         fetchJson<unknown[]>('/positions').catch(() => []),
       ])
