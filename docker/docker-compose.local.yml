@@ -1,0 +1,65 @@
+# 本地开发环境（Windows / Linux 本机）
+# 访问方式: http://localhost:3000（前端） http://localhost:8000（后端 API）
+# 无需 Nginx，直接通过端口访问
+
+name: ap-local
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: alphapilot
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-alphapilot}
+      POSTGRES_DB: alphapilot_dev
+    volumes:
+      - postgres_local_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alphapilot"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: ../docker/Dockerfile.backend
+    env_file:
+      - ../.env.local
+    environment:
+      DATABASE_URL: postgresql://alphapilot:${DB_PASSWORD:-alphapilot}@postgres:5432/alphapilot_dev
+      REDIS_URL: redis://redis:6379/0
+      ROOT_PATH: ""
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: ../docker/Dockerfile.frontend
+      args:
+        BASE_PATH: ""
+        NEXT_PUBLIC_API_BASE: /api
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_local_data:

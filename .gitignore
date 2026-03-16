@@ -14,10 +14,17 @@ build/
 venv/
 env/
 
-# Environment files
+# Environment files（含真实 key，不提交）
 .env
-.env.*
+.env.local
+.env.dev-server
+.env.test
+.env.prod
+# 模板文件保留（可提交）
 !.env.example
+!.env.local.example
+!.env.dev-server.example
+!.env.prod.example
 
 # IDE
 .idea/
