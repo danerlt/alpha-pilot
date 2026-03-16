@@ -106,6 +106,18 @@ function fmtHolding(seconds: number) {
   return `${Math.floor(seconds / 86400)}d`
 }
 
+function getEnvLabel(basePath: string) {
+  if (!basePath || basePath === 'local') return 'local'
+  if (basePath === '/ap-dev') return 'dev'
+  if (basePath === '/ap-test') return 'test'
+  if (basePath === '/ap') return 'prod'
+  return basePath.replace(/^\//, '')
+}
+
+function isProductionEnv(basePath: string, tradingMode?: string) {
+  return basePath === '/ap' || tradingMode === 'mainnet'
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function Home() {
@@ -201,7 +213,18 @@ export default function Home() {
     return () => clearInterval(t)
   }, [loadData])
 
-  const handleClosePosition = async (id: number) => {
+  const envBasePath = process.env.NEXT_PUBLIC_BASE_PATH || 'local'
+  const env = getEnvLabel(envBasePath)
+  const prodLike = isProductionEnv(envBasePath, health?.trading_mode)
+
+  const handleClosePosition = async (id: number, symbol: string) => {
+    const confirmed = confirm(
+      prodLike
+        ? `⚠️ 当前为高风险环境（${health?.trading_mode?.toUpperCase() || env.toUpperCase()}）。确认手动平仓 ${symbol}？`
+        : `确认手动平仓 ${symbol}？`
+    )
+    if (!confirmed) return
+
     setClosingId(id)
     try {
       await postJson(`/positions/${id}/close`)
@@ -214,7 +237,21 @@ export default function Home() {
   }
 
   const handleCloseAll = async () => {
-    if (!confirm('确认一键平仓所有持仓？此操作不可撤销。')) return
+    const firstConfirm = confirm(
+      prodLike
+        ? '⚠️ 当前为高风险环境。确认一键平仓所有持仓？此操作不可撤销。'
+        : '确认一键平仓所有持仓？此操作不可撤销。'
+    )
+    if (!firstConfirm) return
+
+    if (prodLike) {
+      const typed = window.prompt('请输入 CLOSE ALL 确认执行一键平仓')
+      if (typed !== 'CLOSE ALL') {
+        alert('已取消：确认口令不匹配')
+        return
+      }
+    }
+
     setClosingAll(true)
     try {
       const result = await postJson<{ count: number }>('/positions/close-all')
@@ -227,7 +264,14 @@ export default function Home() {
     }
   }
 
-  const handleResolveRisk = async (id: number) => {
+  const handleResolveRisk = async (id: number, description: string) => {
+    const confirmed = confirm(
+      prodLike
+        ? `⚠️ 当前为高风险环境。确认解除该风控事件？\n${description}`
+        : `确认解除该风控事件？\n${description}`
+    )
+    if (!confirmed) return
+
     setResolvingId(id)
     try {
       await postJson(`/risk-events/${id}/resolve`)
@@ -239,7 +283,6 @@ export default function Home() {
     }
   }
 
-  const env = process.env.NEXT_PUBLIC_BASE_PATH || 'local'
   const unresolvedRisk = riskEvents.filter((r) => !r.resolved).length
 
   return (
@@ -262,6 +305,16 @@ export default function Home() {
       </header>
 
       <div className={styles.content}>
+        {prodLike && (
+          <section className={styles.alertBanner}>
+            <strong>高风险环境</strong>
+            <span>
+              当前控制台连接到 {health?.trading_mode?.toUpperCase() || env.toUpperCase()} 环境。
+              手动平仓、解除熔断、一键操作都应视为危险动作。
+            </span>
+          </section>
+        )}
+
         {/* 系统状态 */}
         <div className={styles.row2}>
           <section className={styles.card}>
@@ -372,7 +425,7 @@ export default function Home() {
                       <td>
                         <button
                           className={styles.smallDangerBtn}
-                          onClick={() => handleClosePosition(p.id)}
+                          onClick={() => handleClosePosition(p.id, p.symbol)}
                           disabled={closingId === p.id}
                         >
                           {closingId === p.id ? '…' : '平仓'}
@@ -415,7 +468,7 @@ export default function Home() {
                         {!r.resolved && (
                           <button
                             className={styles.smallBtn}
-                            onClick={() => handleResolveRisk(r.id)}
+                            onClick={() => handleResolveRisk(r.id, r.description)}
                             disabled={resolvingId === r.id}
                           >
                             {resolvingId === r.id ? '…' : '解除熔断'}
