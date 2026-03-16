@@ -78,6 +78,14 @@ backend/src/
 
 TRADING_MODE, BINANCE_API_KEY, BINANCE_API_SECRET, LLM_PROVIDER, LLM_API_KEY, LLM_MODEL, DATABASE_URL, REDIS_URL, MAX_POSITION_SIZE_PCT, MAX_DAILY_LOSS_PCT, MAX_CONSECUTIVE_LOSSES, MAX_SINGLE_RISK_PCT
 
+## 工程过程记录
+
+除了 git 历史外，自动推进的工程性工作需要同步记录到 `docs/ENGINEERING_LOG.md`，尤其是：
+- 测试/迁移/部署收口
+- 文档状态校正
+- 低风险控制台保护增强
+- 其他不直接体现在 PRD 但会影响后续接手效率的工作
+
 ## 开发命令
 
 ```bash
