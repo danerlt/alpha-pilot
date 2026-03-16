@@ -154,8 +154,10 @@ export default function Home() {
   // WebSocket setup
   useEffect(() => {
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const wsBase = process.env.NEXT_PUBLIC_WS_BASE || `${proto}//${window.location.host}`
-    const wsPath = process.env.NEXT_PUBLIC_WS_PATH || '/ws'
+    const wsBase = `${proto}//${window.location.host}`
+    // 从 API base 推导 WS 路径：/ap-dev/api → /ap-dev/ws，/api → /ws
+    const apiBase = process.env.NEXT_PUBLIC_API_BASE || '/api'
+    const wsPath = apiBase.replace(/\/api$/, '/ws')
     const url = `${wsBase}${wsPath}`
 
     let ws: WebSocket
