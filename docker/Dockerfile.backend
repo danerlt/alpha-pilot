@@ -16,8 +16,9 @@ COPY src/ ./src/
 COPY migrations/ ./migrations/
 COPY alembic.ini .
 COPY scripts/ ./scripts/
+RUN chmod +x scripts/start.sh
 
 EXPOSE 8000
 
-# ROOT_PATH 由 docker-compose 注入（服务器环境如 /ap-dev，本地为空）
-CMD ["sh", "-c", "uvicorn src.app.main:app --host 0.0.0.0 --port 8000 --root-path ${ROOT_PATH:-}"]
+# 启动时自动跑迁移再启动 uvicorn
+CMD ["bash", "scripts/start.sh"]
