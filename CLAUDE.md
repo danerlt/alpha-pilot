@@ -131,6 +131,17 @@ MAX_SINGLE_RISK_PCT=0.01
 
 ---
 
+## 自动提交 & 推送规则
+
+**每次完成一个实现块后，必须依次执行：**
+
+1. `git commit` — 提交代码
+2. `git push` — **立即推送到远程，无需询问用户**
+
+这确保代码在远程始终最新，换机器后直接 `git pull` 即可继续开发。
+
+---
+
 ## 记忆文件
 
 Claude 项目记忆存储在 `.claude/memory/`（已提交到 git）：
@@ -138,5 +149,6 @@ Claude 项目记忆存储在 `.claude/memory/`（已提交到 git）：
 - `MEMORY.md` — 记忆索引
 - `project_alphapilot.md` — 项目架构和全局概览
 - `project_phase2_services.md` — 实现进度追踪
+- `feedback_auto_push.md` — 自动 push 规则
 
 新会话开始时，让 Claude 读取这些文件即可恢复完整上下文。

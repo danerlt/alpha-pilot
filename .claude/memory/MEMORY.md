@@ -8,4 +8,4 @@
 (none yet)
 
 ## Feedback Memories
-(none yet)
+- [feedback_auto_push.md](feedback_auto_push.md) — 每次 commit 后必须立即 git push
