@@ -2,32 +2,29 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# BASE_PATH 由 docker-compose build args 注入
 ARG BASE_PATH=""
 ARG NEXT_PUBLIC_API_BASE="/api"
 
+ENV NEXT_PUBLIC_BASE_PATH=${BASE_PATH}
 ENV NEXT_PUBLIC_API_BASE=${NEXT_PUBLIC_API_BASE}
 
+# build context = frontend/
 COPY package*.json ./
-RUN npm ci
+RUN npm ci --prefer-offline
 
 COPY . .
-
-# 将 BASE_PATH 写入 next.config.js 构建参数
-ENV NEXT_PUBLIC_BASE_PATH=${BASE_PATH}
 RUN npm run build
 
 # ── 运行时镜像 ──────────────────────────────────────────────────
 FROM node:20-alpine AS runner
 
 WORKDIR /app
-
 ENV NODE_ENV=production
 
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
+# public 目录可选
+COPY --from=builder /app/public ./public 2>/dev/null || true
 
 EXPOSE 3000
-
 CMD ["node", "server.js"]
