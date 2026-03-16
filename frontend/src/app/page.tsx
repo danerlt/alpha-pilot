@@ -82,6 +82,28 @@ interface LiveEvent {
   [key: string]: unknown
 }
 
+interface RuntimeConfig {
+  trading_mode: 'testnet' | 'mainnet'
+  llm_provider: string
+  llm_model: string
+  max_position_size_pct: number
+  max_daily_loss_pct: number
+  max_consecutive_losses: number
+  max_single_risk_pct: number
+  binance_testnet_configured: boolean
+  binance_mainnet_configured: boolean
+  llm_api_key_configured: boolean
+  config_source: string
+}
+
+interface RuntimeConfigForm {
+  trading_mode: 'testnet' | 'mainnet'
+  binance_testnet_api_key: string
+  binance_testnet_api_secret: string
+  binance_mainnet_api_key: string
+  binance_mainnet_api_secret: string
+}
+
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || '/api'
 
 async function fetchJson<T>(path: string): Promise<T> {
@@ -90,8 +112,13 @@ async function fetchJson<T>(path: string): Promise<T> {
   return res.json()
 }
 
-async function postJson<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, { method: 'POST', cache: 'no-store' })
+async function postJson<T>(path: string, body?: unknown): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    cache: 'no-store',
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
 }
@@ -128,6 +155,16 @@ export default function Home() {
   const [decisions, setDecisions] = useState<Decision[]>([])
   const [riskEvents, setRiskEvents] = useState<RiskEvent[]>([])
   const [liveEvents, setLiveEvents] = useState<LiveEvent[]>([])
+  const [runtimeConfig, setRuntimeConfig] = useState<RuntimeConfig | null>(null)
+  const [configForm, setConfigForm] = useState<RuntimeConfigForm>({
+    trading_mode: 'testnet',
+    binance_testnet_api_key: '',
+    binance_testnet_api_secret: '',
+    binance_mainnet_api_key: '',
+    binance_mainnet_api_secret: '',
+  })
+  const [savingConfig, setSavingConfig] = useState(false)
+  const [configMessage, setConfigMessage] = useState<string | null>(null)
   const [wsStatus, setWsStatus] = useState<'connecting' | 'open' | 'closed'>('connecting')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -141,13 +178,14 @@ export default function Home() {
     setLoading(true)
     setError(null)
     try {
-      const [h, a, p, t, d, r] = await Promise.all([
+      const [h, a, p, t, d, r, c] = await Promise.all([
         fetchJson<HealthData>('/health'),
         fetchJson<AccountData>('/account').catch(() => null),
         fetchJson<Position[]>('/positions').catch(() => []),
         fetchJson<Trade[]>('/trades?limit=20').catch(() => []),
         fetchJson<Decision[]>('/decisions?limit=20').catch(() => []),
         fetchJson<RiskEvent[]>('/risk-events?limit=20').catch(() => []),
+        fetchJson<RuntimeConfig>('/config/runtime').catch(() => null),
       ])
       setHealth(h)
       setAccount(a)
@@ -155,6 +193,13 @@ export default function Home() {
       setTrades(t)
       setDecisions(d)
       setRiskEvents(r)
+      setRuntimeConfig(c)
+      if (c) {
+        setConfigForm((prev) => ({
+          ...prev,
+          trading_mode: c.trading_mode,
+        }))
+      }
       setLastRefresh(new Date())
     } catch (e) {
       setError(e instanceof Error ? e.message : '连接后端失败')
@@ -283,6 +328,41 @@ export default function Home() {
     }
   }
 
+  const handleConfigChange = (field: keyof RuntimeConfigForm, value: string) => {
+    setConfigForm((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const handleSaveRuntimeConfig = async () => {
+    setSavingConfig(true)
+    setConfigMessage(null)
+    try {
+      const payload: Record<string, string> = {
+        trading_mode: configForm.trading_mode,
+      }
+      if (configForm.binance_testnet_api_key.trim()) payload.binance_testnet_api_key = configForm.binance_testnet_api_key.trim()
+      if (configForm.binance_testnet_api_secret.trim()) payload.binance_testnet_api_secret = configForm.binance_testnet_api_secret.trim()
+      if (configForm.binance_mainnet_api_key.trim()) payload.binance_mainnet_api_key = configForm.binance_mainnet_api_key.trim()
+      if (configForm.binance_mainnet_api_secret.trim()) payload.binance_mainnet_api_secret = configForm.binance_mainnet_api_secret.trim()
+
+      const updated = await postJson<RuntimeConfig>('/config/runtime', payload)
+      setRuntimeConfig(updated)
+      setConfigForm((prev) => ({
+        ...prev,
+        trading_mode: updated.trading_mode,
+        binance_testnet_api_key: '',
+        binance_testnet_api_secret: '',
+        binance_mainnet_api_key: '',
+        binance_mainnet_api_secret: '',
+      }))
+      setConfigMessage('运行时配置已保存，并已热更新到当前进程')
+      await loadData()
+    } catch (e) {
+      setConfigMessage(`保存失败: ${e instanceof Error ? e.message : e}`)
+    } finally {
+      setSavingConfig(false)
+    }
+  }
+
   const unresolvedRisk = riskEvents.filter((r) => !r.resolved).length
 
   return (
@@ -314,6 +394,82 @@ export default function Home() {
             </span>
           </section>
         )}
+
+        <section className={styles.card}>
+          <div className={styles.cardHeader}>
+            <h2 className={styles.cardTitle}>运行时配置中心</h2>
+            {runtimeConfig && <span className={styles.badge}>{runtimeConfig.config_source}</span>}
+          </div>
+
+          <div className={styles.configGrid}>
+            <div className={styles.configBlock}>
+              <label className={styles.fieldLabel}>当前模式</label>
+              <select
+                className={styles.input}
+                value={configForm.trading_mode}
+                onChange={(e) => handleConfigChange('trading_mode', e.target.value)}
+              >
+                <option value="testnet">TESTNET</option>
+                <option value="mainnet">MAINNET</option>
+              </select>
+              <p className={styles.fieldHint}>切换后新的运行时配置会立即生效。</p>
+            </div>
+
+            <div className={styles.configBlock}>
+              <label className={styles.fieldLabel}>Testnet API Key</label>
+              <input
+                className={styles.input}
+                type="password"
+                placeholder={runtimeConfig?.binance_testnet_configured ? '已配置，留空则不改' : '输入新的 Testnet API Key'}
+                value={configForm.binance_testnet_api_key}
+                onChange={(e) => handleConfigChange('binance_testnet_api_key', e.target.value)}
+              />
+              <label className={styles.fieldLabel}>Testnet API Secret</label>
+              <input
+                className={styles.input}
+                type="password"
+                placeholder={runtimeConfig?.binance_testnet_configured ? '已配置，留空则不改' : '输入新的 Testnet API Secret'}
+                value={configForm.binance_testnet_api_secret}
+                onChange={(e) => handleConfigChange('binance_testnet_api_secret', e.target.value)}
+              />
+            </div>
+
+            <div className={styles.configBlock}>
+              <label className={styles.fieldLabel}>Mainnet API Key</label>
+              <input
+                className={styles.input}
+                type="password"
+                placeholder={runtimeConfig?.binance_mainnet_configured ? '已配置，留空则不改' : '输入新的 Mainnet API Key'}
+                value={configForm.binance_mainnet_api_key}
+                onChange={(e) => handleConfigChange('binance_mainnet_api_key', e.target.value)}
+              />
+              <label className={styles.fieldLabel}>Mainnet API Secret</label>
+              <input
+                className={styles.input}
+                type="password"
+                placeholder={runtimeConfig?.binance_mainnet_configured ? '已配置，留空则不改' : '输入新的 Mainnet API Secret'}
+                value={configForm.binance_mainnet_api_secret}
+                onChange={(e) => handleConfigChange('binance_mainnet_api_secret', e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className={styles.configStatusRow}>
+            <span className={styles.statusPill} data-on={runtimeConfig?.binance_testnet_configured ? 'true' : 'false'}>
+              Testnet 凭据 {runtimeConfig?.binance_testnet_configured ? '已配置' : '未配置'}
+            </span>
+            <span className={styles.statusPill} data-on={runtimeConfig?.binance_mainnet_configured ? 'true' : 'false'}>
+              Mainnet 凭据 {runtimeConfig?.binance_mainnet_configured ? '已配置' : '未配置'}
+            </span>
+          </div>
+
+          <div className={styles.configActionRow}>
+            <button className={styles.primaryBtn} onClick={handleSaveRuntimeConfig} disabled={savingConfig}>
+              {savingConfig ? '保存中…' : '保存并热更新'}
+            </button>
+            {configMessage && <span className={styles.fieldHint}>{configMessage}</span>}
+          </div>
+        </section>
 
         {/* 系统状态 */}
         <div className={styles.row2}>
