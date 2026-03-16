@@ -101,6 +101,12 @@ make test-unit      # 仅运行单元测试
 
 ---
 
+## 环境变量访问规则
+
+- 禁止主动读取真实环境文件：如 `.env`、`.env.local`、`.env.dev-server`、`.env.test`、`.env.prod`
+- 允许读取模板/示例文件：如 `.env.example`、`.env.local.example`、`.env.prod.example`
+- 如需调整配置结构，应基于 example 文件、代码结构和数据库配置中心推进，避免接触真实密钥
+
 ## 环境变量配置
 
 复制 `.env.example` 为 `.env` 并填写：
@@ -135,9 +141,10 @@ MAX_SINGLE_RISK_PCT=0.01
 
 **每次完成一个实现块后，必须依次执行：**
 
-1. `git commit` — 提交代码
-2. `git push` — **立即推送到远程，无需询问用户**
-3. Linux 服务器开发环境可用时，再执行 `bash scripts/deploy-dev.sh` 做自动部署
+1. 运行相关测试 / build 验收
+2. `git commit` — 提交代码
+3. `git push` — **立即推送到远程，无需询问用户**
+4. 测试验收通过后，自动执行 `bash scripts/deploy-dev.sh` 部署 dev server
 
 这确保代码在远程始终最新，换机器后直接 `git pull` 即可继续开发。
 

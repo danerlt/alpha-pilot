@@ -74,6 +74,12 @@ backend/src/
 - JSON 解析失败/字段缺失/动作非法 → 统一回退 HOLD
 - 熔断规则不可被 LLM 覆盖（日亏损超限、连续亏损3笔、API异常）
 
+## 环境变量规则
+
+- 不读取真实 env 文件：`.env`、`.env.local`、`.env.dev-server`、`.env.test`、`.env.prod`
+- 仅允许读取模板/示例文件：如 `.env.example`
+- 后续配置迁移与收口，优先依据 example 文件、代码和数据库配置中心完成
+
 ## 环境变量（.env.example 已在根目录）
 
 TRADING_MODE, BINANCE_API_KEY, BINANCE_API_SECRET, LLM_PROVIDER, LLM_API_KEY, LLM_MODEL, DATABASE_URL, REDIS_URL, MAX_POSITION_SIZE_PCT, MAX_DAILY_LOSS_PCT, MAX_CONSECUTIVE_LOSSES, MAX_SINGLE_RISK_PCT
@@ -87,6 +93,8 @@ TRADING_MODE, BINANCE_API_KEY, BINANCE_API_SECRET, LLM_PROVIDER, LLM_API_KEY, LL
 - 其他不直接体现在 PRD 但会影响后续接手效率的工作
 
 建议按日期/主题拆分文件，例如：`docs/worklog/2026-03-17-phase3-closeout.md`
+
+补充规则：每个实现块在相关测试 / build 通过并 push 后，应自动部署 `dev server`（`bash scripts/deploy-dev.sh`）。
 
 ## 开发命令
 
