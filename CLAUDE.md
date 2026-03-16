@@ -145,7 +145,8 @@ MAX_SINGLE_RISK_PCT=0.01
 
 ## 工程过程记录
 
-- 除了 git 历史，自动执行的工程性推进过程也要同步写入 `docs/ENGINEERING_LOG.md`
+- 除了 git 历史，自动执行的工程性推进过程也要同步写入 `docs/worklog/` 目录
+- 建议按日期/主题拆分文件，例如：`docs/worklog/2026-03-17-phase3-closeout.md`
 - 适用范围：测试修复、迁移收口、部署一致性、文档对齐、低风险控制台改进
 - 记录格式建议包含：做了什么、为什么做、如何验证、对应 commit
 

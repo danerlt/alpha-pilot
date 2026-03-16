@@ -80,11 +80,13 @@ TRADING_MODE, BINANCE_API_KEY, BINANCE_API_SECRET, LLM_PROVIDER, LLM_API_KEY, LL
 
 ## 工程过程记录
 
-除了 git 历史外，自动推进的工程性工作需要同步记录到 `docs/ENGINEERING_LOG.md`，尤其是：
+除了 git 历史外，自动推进的工程性工作需要同步记录到 `docs/worklog/` 目录，尤其是：
 - 测试/迁移/部署收口
 - 文档状态校正
 - 低风险控制台保护增强
 - 其他不直接体现在 PRD 但会影响后续接手效率的工作
+
+建议按日期/主题拆分文件，例如：`docs/worklog/2026-03-17-phase3-closeout.md`
 
 ## 开发命令
 
