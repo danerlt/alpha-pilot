@@ -10,6 +10,7 @@ from src.shared.models.trade import Trade
 from src.shared.models.risk_event import RiskEvent
 from src.shared.models.experience import ExperienceRecord
 from src.shared.models.report import DailyReport
+from src.shared.models.system_setting import SystemSetting
 
 __all__ = [
     "Base",
@@ -24,4 +25,5 @@ __all__ = [
     "RiskEvent",
     "ExperienceRecord",
     "DailyReport",
+    "SystemSetting",
 ]

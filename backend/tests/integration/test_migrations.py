@@ -24,7 +24,7 @@ def test_all_tables_created(migrated_db):
     expected = [
         "candles", "account_snapshots", "indicator_snapshots",
         "regime_snapshots", "positions", "ai_decisions",
-        "orders", "trades", "risk_events", "experience_store", "daily_reports",
+        "orders", "trades", "risk_events", "experience_store", "daily_reports", "system_settings",
     ]
     for table in expected:
         assert table in tables, f"Table '{table}' not found in DB"
@@ -55,3 +55,10 @@ def test_orders_trace_id_unique_constraint(migrated_db):
     unique_constraints = inspector.get_unique_constraints("orders")
     columns = [tuple(c["column_names"]) for c in unique_constraints]
     assert ("trace_id",) in columns
+
+
+def test_system_settings_unique_key_constraint(migrated_db):
+    inspector = inspect(migrated_db)
+    unique_constraints = inspector.get_unique_constraints("system_settings")
+    columns = [tuple(c["column_names"]) for c in unique_constraints]
+    assert ("key",) in columns

@@ -10,8 +10,9 @@ from fastapi import FastAPI, WebSocket
 
 from src.app.router import router
 from src.app.websocket import redis_subscriber, websocket_endpoint
-from src.shared.config import get_settings
+from src.shared.config import get_base_settings, get_settings
 from src.shared.db import get_session_factory
+from src.shared.runtime_config import apply_runtime_settings_refresh
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,18 @@ def _monitor_job() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _scheduler
+    base_settings = get_base_settings()
+    SessionLocal = get_session_factory()
+    db = SessionLocal()
+    try:
+        apply_runtime_settings_refresh(
+            db,
+            master_key=base_settings.APP_CONFIG_MASTER_KEY,
+            default_trading_mode=base_settings.TRADING_MODE,
+        )
+    finally:
+        db.close()
+
     settings = get_settings()
 
     _scheduler = BackgroundScheduler()

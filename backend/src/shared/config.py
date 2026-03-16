@@ -4,6 +4,7 @@ from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from src.shared.enums import TradingMode
+from src.shared.runtime_config import get_runtime_config_manager
 
 # .env 位于项目根目录（backend/src/shared/config.py 上三级）
 _ENV_FILE = Path(__file__).parent.parent.parent.parent / ".env"
@@ -36,6 +37,9 @@ class Settings(BaseSettings):
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
 
+    # 配置加密主密钥（Fernet）
+    APP_CONFIG_MASTER_KEY: str = "2QJd4n6s8h4R2Q9UjH4o9v1Q0s9PzD8YQkW2M4q8LxA="
+
     # 风控参数（默认值可被 .env 覆盖）
     MAX_POSITION_SIZE_PCT: float = 0.20    # 单币最大持仓占账户比例
     MAX_DAILY_LOSS_PCT: float = 0.03       # 日最大亏损占账户比例
@@ -48,5 +52,11 @@ class Settings(BaseSettings):
 
 
 @lru_cache
-def get_settings() -> Settings:
+def get_base_settings() -> Settings:
     return Settings()
+
+
+def get_settings() -> Settings:
+    base = get_base_settings().model_dump()
+    base.update(get_runtime_config_manager().get_overrides())
+    return Settings(_env_file=None, **base)
