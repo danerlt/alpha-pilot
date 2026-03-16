@@ -1,8 +1,9 @@
 import os
 import sys
 from logging.config import fileConfig
-from sqlalchemy import engine_from_config, pool
+
 from alembic import context
+from sqlalchemy import engine_from_config, pool
 
 # 将 src/ 加入路径，确保模型可导入
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -18,10 +19,17 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 
+def _get_database_url() -> str:
+    """优先使用 Alembic 显式传入的 URL；否则回退到应用配置。"""
+    configured_url = config.get_main_option("sqlalchemy.url")
+    if configured_url and configured_url != "driver://user:pass@localhost/dbname":
+        return configured_url
+    return get_settings().DATABASE_URL
+
+
 def run_migrations_offline() -> None:
-    settings = get_settings()
     context.configure(
-        url=settings.DATABASE_URL,
+        url=_get_database_url(),
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -31,9 +39,8 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    settings = get_settings()
     configuration = config.get_section(config.config_ini_section, {})
-    configuration["sqlalchemy.url"] = settings.DATABASE_URL
+    configuration["sqlalchemy.url"] = _get_database_url()
 
     connectable = engine_from_config(
         configuration,

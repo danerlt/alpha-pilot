@@ -1,6 +1,8 @@
 from functools import lru_cache
 from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
 from src.shared.enums import TradingMode
 
 # .env 位于项目根目录（backend/src/shared/config.py 上三级）
@@ -18,20 +20,21 @@ class Settings(BaseSettings):
     TRADING_MODE: TradingMode = TradingMode.TESTNET
 
     # Binance
-    BINANCE_API_KEY: str
-    BINANCE_API_SECRET: str
+    # 默认占位值用于本地测试 / 健康检查；真实运行必须由 .env 覆盖
+    BINANCE_API_KEY: str = "test-binance-api-key"
+    BINANCE_API_SECRET: str = "test-binance-api-secret"
 
     # LLM
     LLM_PROVIDER: str = "claude"
-    LLM_API_KEY: str
+    LLM_API_KEY: str = "test-llm-api-key"
     LLM_MODEL: str = "claude-opus-4-6"
     LLM_TIMEOUT_SECONDS: int = 30
 
     # 数据库
-    DATABASE_URL: str
+    DATABASE_URL: str = "sqlite:///./alphapilot.db"
 
     # Redis
-    REDIS_URL: str
+    REDIS_URL: str = "redis://localhost:6379/0"
 
     # 风控参数（默认值可被 .env 覆盖）
     MAX_POSITION_SIZE_PCT: float = 0.20    # 单币最大持仓占账户比例

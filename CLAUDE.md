@@ -33,7 +33,7 @@
 |------|------|------|
 | Phase 1 | DB 模型（11张表）、FastAPI 骨架、Docker、Alembic | ✅ 完成 |
 | Phase 2 | 全部核心服务 + APScheduler Worker + REST API | ✅ 完成 |
-| Phase 3 | WebSocket Handler、Next.js 前端、数据库迁移、单元测试 | 🔲 待实现 |
+| Phase 3 | WebSocket Handler、Next.js 前端、数据库迁移、测试回归 | 🟡 已基本落地，进入收口阶段 |
 
 ---
 
@@ -122,12 +122,12 @@ MAX_SINGLE_RISK_PCT=0.01
 
 ---
 
-## 下一步（Phase 3）
+## 下一步（Phase 3 收口）
 
-1. **生成并运行数据库迁移**：`make init-db && make upgrade-db`
-2. **WebSocket Handler**：`backend/src/app/websocket.py`（Redis Pub/Sub → WS 推送前端）
-3. **Next.js 前端**：`frontend/` 目录（实时 Dashboard + 手动操作面板）
-4. **单元测试**：守卫规则、LLM 解析边界情况、指标计算
+1. **验证并维护数据库迁移链**：首个 Alembic 初始迁移已补齐，后续 schema 变更统一走 migration
+2. **继续稳固 WebSocket/子路径部署**：重点关注 `/api` 与 `/ws` 在 dev/test/prod 下的一致性
+3. **完善前端 Dashboard**：在现有实时面板基础上补空态/错误态、危险操作保护和环境提示
+4. **持续回归测试**：当前 backend 测试已跑通（53 passed），后续优先补前后端联调与更强的执行链路验证
 
 ---
 
