@@ -52,6 +52,7 @@ All core services committed to git (commits 1ad3acd and 6c6a8ec on `main`).
 - 收口部署路径与 WebSocket 稳定性
 - 加强危险操作保护与审计
 - 继续补前端/集成级回归测试
+- 将运行入口彻底统一到 Alembic migration 链，避免 `create_tables` 与迁移并存
 - 对齐 README / CLAUDE / 记忆文件与真实代码状态
 
 ## Auto-commit Policy

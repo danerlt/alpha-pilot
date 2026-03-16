@@ -137,6 +137,7 @@ MAX_SINGLE_RISK_PCT=0.01
 
 1. `git commit` — 提交代码
 2. `git push` — **立即推送到远程，无需询问用户**
+3. Linux 服务器开发环境可用时，再执行 `bash scripts/deploy-dev.sh` 做自动部署
 
 这确保代码在远程始终最新，换机器后直接 `git pull` 即可继续开发。
 
