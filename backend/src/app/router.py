@@ -22,6 +22,7 @@ async def root():
 
 
 @router.get("/health")
+@router.get("/api/health")
 async def health_check():
     settings = get_settings()
     return {

@@ -32,14 +32,14 @@ export default function Home() {
   const [positions, setPositions] = useState<unknown[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
 
   const loadData = async () => {
     setLoading(true)
     setError(null)
     try {
       const [h, a, p] = await Promise.all([
-        fetchJson<HealthData>('/health'),
+        fetchJson<HealthData>('/api/health'),
         fetchJson<AccountData>('/account').catch(() => null),
         fetchJson<unknown[]>('/positions').catch(() => []),
       ])
@@ -179,7 +179,7 @@ export default function Home() {
 
         {/* 刷新时间 */}
         <p className={styles.footer}>
-          最后刷新：{lastRefresh.toLocaleTimeString('zh-CN')} · 每 15 秒自动刷新
+          {lastRefresh && `最后刷新：${lastRefresh.toLocaleTimeString('zh-CN')} · 每 15 秒自动刷新`}
         </p>
       </div>
     </main>
