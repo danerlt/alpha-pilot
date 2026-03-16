@@ -84,9 +84,10 @@ def calculate_indicators(df: pd.DataFrame) -> IndicatorResult:
     # Bollinger Bands(20, 2)
     bb = ta.bbands(close, length=20, std=2)
     if bb is not None and not bb.empty:
-        result.bb_upper = _safe_float(bb.iloc[-1, 0])   # BBU
+        # pandas-ta column order: BBL_20_2.0, BBM_20_2.0, BBU_20_2.0, BBB, BBP
+        result.bb_lower = _safe_float(bb.iloc[-1, 0])   # BBL
         result.bb_middle = _safe_float(bb.iloc[-1, 1])  # BBM
-        result.bb_lower = _safe_float(bb.iloc[-1, 2])   # BBL
+        result.bb_upper = _safe_float(bb.iloc[-1, 2])   # BBU
 
     # Volume MA(20)
     result.volume_ma = _safe_float(ta.sma(volume, length=20).iloc[-1])

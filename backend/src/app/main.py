@@ -1,13 +1,15 @@
 """FastAPI 应用入口 — 注册路由和 APScheduler 调度器。"""
 from __future__ import annotations
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
 from apscheduler.schedulers.background import BackgroundScheduler
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket
 
 from src.app.router import router
+from src.app.websocket import redis_subscriber, websocket_endpoint
 from src.shared.config import get_settings
 from src.shared.db import get_session_factory
 
@@ -64,7 +66,18 @@ async def lifespan(app: FastAPI):
         settings.STRATEGY_LOOP_INTERVAL_MINUTES,
         settings.POSITION_MONITOR_INTERVAL_SECONDS,
     )
+
+    # 启动 Redis Pub/Sub → WebSocket 广播后台任务
+    ws_task = asyncio.create_task(redis_subscriber(settings.REDIS_URL))
+    logger.info("Redis subscriber task started")
+
     yield
+
+    ws_task.cancel()
+    try:
+        await ws_task
+    except asyncio.CancelledError:
+        pass
 
     if _scheduler and _scheduler.running:
         _scheduler.shutdown(wait=False)
@@ -79,3 +92,4 @@ app = FastAPI(
 )
 
 app.include_router(router)
+app.add_api_websocket_route("/ws", websocket_endpoint)
