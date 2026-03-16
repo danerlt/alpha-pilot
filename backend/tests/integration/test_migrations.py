@@ -48,3 +48,10 @@ def test_candles_unique_index(migrated_db):
     indexes = inspector.get_indexes("candles")
     index_names = [i["name"] for i in indexes]
     assert "ix_candles_symbol_timeframe_open_time" in index_names
+
+
+def test_orders_trace_id_unique_constraint(migrated_db):
+    inspector = inspect(migrated_db)
+    unique_constraints = inspector.get_unique_constraints("orders")
+    columns = [tuple(c["column_names"]) for c in unique_constraints]
+    assert ("trace_id",) in columns
