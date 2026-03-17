@@ -105,7 +105,11 @@
 
 @media (max-width: 768px) {
   .row2 { grid-template-columns: 1fr; }
-  .configGrid { grid-template-columns: 1fr; }
+  .configOverviewGrid { grid-template-columns: 1fr; }
+  .card { padding: 16px; }
+  .header { padding: 0 14px; }
+  .headerRight { gap: 8px; }
+  .refreshBtn { padding: 6px 10px; }
 }
 
 /* ── Card ── */
@@ -154,9 +158,53 @@
 }
 
 /* ── Status / Config ── */
-.configGrid {
+.configOverviewGrid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.configMiniCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid #243244;
+  background: linear-gradient(180deg, #111827 0%, #0f172a 100%);
+  color: #cbd5e1;
+  cursor: pointer;
+  text-align: left;
+}
+
+.configMiniCard strong {
+  color: #f8fafc;
+  font-size: 15px;
+}
+
+.configMiniCard small {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.configMiniCard[data-active="true"] {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 1px #2563eb33;
+}
+
+.configMiniTitle {
+  font-size: 12px;
+  font-weight: 700;
+  color: #60a5fa;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.configGridCompact {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
 }
 
