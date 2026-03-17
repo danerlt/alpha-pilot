@@ -588,6 +588,7 @@ export default function Home() {
           {positions.length === 0 ? (
             <p className={styles.empty}>暂无开仓持仓</p>
           ) : (
+            <>
             <div className={styles.tableWrap}>
               <table className={styles.table}>
                 <thead>
@@ -624,6 +625,33 @@ export default function Home() {
                 </tbody>
               </table>
             </div>
+            <div className={styles.mobileCardList}>
+              {positions.map((p) => (
+                <article key={`mobile-${p.id}`} className={styles.mobileDataCard}>
+                  <div className={styles.mobileCardHeader}>
+                    <strong>{p.symbol}</strong>
+                    <button
+                      className={styles.smallDangerBtn}
+                      onClick={() => handleClosePosition(p.id, p.symbol)}
+                      disabled={closingId === p.id}
+                    >
+                      {closingId === p.id ? '…' : '平仓'}
+                    </button>
+                  </div>
+                  <div className={styles.mobileDataGrid}>
+                    <span><label>数量</label><b>{p.quantity.toFixed(6)}</b></span>
+                    <span><label>开仓价</label><b>{p.entry_price.toFixed(2)}</b></span>
+                    <span><label>现价</label><b>{p.current_price.toFixed(2)}</b></span>
+                    <span><label>止损/止盈</label><b>{p.stop_loss.toFixed(2)} / {p.take_profit?.toFixed(2) ?? '—'}</b></span>
+                  </div>
+                  <div className={styles.mobilePnl} data-sign={p.unrealized_pnl >= 0 ? 'pos' : 'neg'}>
+                    {p.unrealized_pnl >= 0 ? '+' : ''}{p.unrealized_pnl.toFixed(4)}
+                    <small> ({(p.unrealized_pnl_pct * 100).toFixed(2)}%)</small>
+                  </div>
+                </article>
+              ))}
+            </div>
+            </>
           )}
         </section>
 
@@ -667,6 +695,29 @@ export default function Home() {
                   ))}
                 </tbody>
               </table>
+            </div>
+            <div className={styles.mobileCardList}>
+              {riskEvents.map((r) => (
+                <article key={`risk-mobile-${r.id}`} className={styles.mobileDataCard}>
+                  <div className={styles.mobileCardHeader}>
+                    <code className={styles.code}>{r.event_type}</code>
+                    <span className={styles.statusTag} data-resolved={r.resolved}>
+                      {r.resolved ? '已解除' : '活跃'}
+                    </span>
+                  </div>
+                  <p className={styles.mobileTextBlock}>{r.description}</p>
+                  <div className={styles.mobileMetaRow}>触发：{fmtTime(r.triggered_at)}</div>
+                  {!r.resolved && (
+                    <button
+                      className={styles.smallBtn}
+                      onClick={() => handleResolveRisk(r.id, r.description)}
+                      disabled={resolvingId === r.id}
+                    >
+                      {resolvingId === r.id ? '…' : '解除熔断'}
+                    </button>
+                  )}
+                </article>
+              ))}
             </div>
           </section>
         )}
@@ -732,6 +783,7 @@ export default function Home() {
           {trades.length === 0 ? (
             <p className={styles.empty}>暂无已平仓交易</p>
           ) : (
+            <>
             <div className={styles.tableWrap}>
               <table className={styles.table}>
                 <thead>
@@ -759,6 +811,27 @@ export default function Home() {
                 </tbody>
               </table>
             </div>
+            <div className={styles.mobileCardList}>
+              {trades.map((t) => (
+                <article key={`trade-mobile-${t.id}`} className={styles.mobileDataCard}>
+                  <div className={styles.mobileCardHeader}>
+                    <strong>{t.symbol}</strong>
+                    <span className={styles.mobileMetaRow}>{fmtTime(t.closed_at)}</span>
+                  </div>
+                  <div className={styles.mobileDataGrid}>
+                    <span><label>开仓/平仓</label><b>{t.entry_price.toFixed(2)} / {t.exit_price.toFixed(2)}</b></span>
+                    <span><label>持仓时长</label><b>{fmtHolding(t.holding_seconds)}</b></span>
+                    <span><label>平仓原因</label><b>{t.exit_reason}</b></span>
+                    <span><label>市场状态</label><b>{t.regime ?? '—'}</b></span>
+                  </div>
+                  <div className={styles.mobilePnl} data-sign={t.pnl >= 0 ? 'pos' : 'neg'}>
+                    {t.pnl >= 0 ? '+' : ''}{t.pnl.toFixed(4)}
+                    <small> ({(t.pnl_pct * 100).toFixed(2)}%)</small>
+                  </div>
+                </article>
+              ))}
+            </div>
+            </>
           )}
         </section>
 
