@@ -12,6 +12,8 @@ from src.shared.models.experience import ExperienceRecord
 from src.shared.models.report import DailyReport
 from src.shared.models.system_setting import SystemSetting
 from src.shared.models.user import User
+from src.shared.models.symbol_config import SymbolConfig
+from src.shared.models.audit_log import AuditLog
 
 __all__ = [
     "Base",
@@ -28,4 +30,6 @@ __all__ = [
     "DailyReport",
     "SystemSetting",
     "User",
+    "SymbolConfig",
+    "AuditLog",
 ]

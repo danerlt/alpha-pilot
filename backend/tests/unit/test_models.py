@@ -1,7 +1,7 @@
 from src.shared.models import (
     Candle, AccountSnapshot, IndicatorSnapshot,
     RegimeSnapshot, Position, AIDecision,
-    Order, Trade, RiskEvent, ExperienceRecord, DailyReport, SystemSetting, User
+    Order, Trade, RiskEvent, ExperienceRecord, DailyReport, SystemSetting, User, SymbolConfig, AuditLog
 )
 from src.shared.enums import TradingMode
 
@@ -21,6 +21,8 @@ def test_all_models_importable():
     assert DailyReport.__tablename__ == "daily_reports"
     assert SystemSetting.__tablename__ == "system_settings"
     assert User.__tablename__ == "users"
+    assert SymbolConfig.__tablename__ == "symbol_configs"
+    assert AuditLog.__tablename__ == "audit_logs"
 
 
 def test_trading_mode_column_exists():

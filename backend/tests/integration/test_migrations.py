@@ -24,7 +24,7 @@ def test_all_tables_created(migrated_db):
     expected = [
         "candles", "account_snapshots", "indicator_snapshots",
         "regime_snapshots", "positions", "ai_decisions",
-        "orders", "trades", "risk_events", "experience_store", "daily_reports", "system_settings", "users",
+        "orders", "trades", "risk_events", "experience_store", "daily_reports", "system_settings", "users", "symbol_configs", "audit_logs",
     ]
     for table in expected:
         assert table in tables, f"Table '{table}' not found in DB"

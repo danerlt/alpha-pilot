@@ -61,6 +61,29 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class SymbolConfigCreate(BaseModel):
+    symbol: str
+    base_asset: str
+    quote_asset: str = "USDT"
+    enabled: bool = True
+    timeframe: str = "15m"
+    max_position_size_pct: float | None = None
+    priority: int = 100
+    sort_order: int = 100
+    notes: str | None = None
+
+
+class SymbolConfigUpdate(BaseModel):
+    base_asset: str | None = None
+    quote_asset: str | None = None
+    enabled: bool | None = None
+    timeframe: str | None = None
+    max_position_size_pct: float | None = None
+    priority: int | None = None
+    sort_order: int | None = None
+    notes: str | None = None
+
+
 # ─── Health ───────────────────────────────────────────────────────────────────
 
 @router.get("/")
@@ -192,6 +215,136 @@ def auth_me(current_user=Depends(get_current_user)):
         "email": current_user.email,
         "role": current_user.role,
         "status": current_user.status,
+    }
+
+
+# ─── Admin Symbols ───────────────────────────────────────────────────────────
+
+@router.get("/api/admin/symbols")
+def list_symbol_configs(db: Session = Depends(get_db), current_admin=Depends(require_admin)):
+    from src.shared.models.symbol_config import SymbolConfig
+
+    items = db.query(SymbolConfig).order_by(SymbolConfig.sort_order.asc(), SymbolConfig.symbol.asc()).all()
+    return [
+        {
+            "id": item.id,
+            "symbol": item.symbol,
+            "base_asset": item.base_asset,
+            "quote_asset": item.quote_asset,
+            "enabled": item.enabled,
+            "timeframe": item.timeframe,
+            "max_position_size_pct": item.max_position_size_pct,
+            "priority": item.priority,
+            "sort_order": item.sort_order,
+            "notes": item.notes,
+        }
+        for item in items
+    ]
+
+
+@router.post("/api/admin/symbols")
+def create_symbol_config(payload: SymbolConfigCreate, db: Session = Depends(get_db), current_admin=Depends(require_admin)):
+    from src.shared.models.audit_log import AuditLog
+    from src.shared.models.symbol_config import SymbolConfig
+
+    symbol = payload.symbol.upper().strip()
+    exists = db.query(SymbolConfig).filter(SymbolConfig.symbol == symbol).first()
+    if exists:
+        raise HTTPException(status_code=409, detail="Symbol already exists")
+
+    item = SymbolConfig(
+        symbol=symbol,
+        base_asset=payload.base_asset.upper().strip(),
+        quote_asset=payload.quote_asset.upper().strip(),
+        enabled=payload.enabled,
+        timeframe=payload.timeframe,
+        max_position_size_pct=payload.max_position_size_pct,
+        priority=payload.priority,
+        sort_order=payload.sort_order,
+        notes=payload.notes,
+        created_by=current_admin.id,
+        updated_by=current_admin.id,
+    )
+    db.add(item)
+    db.flush()
+    db.add(
+        AuditLog(
+            user_id=current_admin.id,
+            action="create",
+            resource_type="symbol_config",
+            resource_id=str(item.id),
+            after_json={"symbol": item.symbol, "enabled": item.enabled, "timeframe": item.timeframe},
+        )
+    )
+    db.commit()
+    db.refresh(item)
+    return {
+        "id": item.id,
+        "symbol": item.symbol,
+        "base_asset": item.base_asset,
+        "quote_asset": item.quote_asset,
+        "enabled": item.enabled,
+        "timeframe": item.timeframe,
+        "max_position_size_pct": item.max_position_size_pct,
+        "priority": item.priority,
+        "sort_order": item.sort_order,
+        "notes": item.notes,
+    }
+
+
+@router.patch("/api/admin/symbols/{symbol_id}")
+def update_symbol_config(symbol_id: int, payload: SymbolConfigUpdate, db: Session = Depends(get_db), current_admin=Depends(require_admin)):
+    from src.shared.models.audit_log import AuditLog
+    from src.shared.models.symbol_config import SymbolConfig
+
+    item = db.query(SymbolConfig).filter(SymbolConfig.id == symbol_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Symbol config not found")
+
+    before = {
+        "enabled": item.enabled,
+        "timeframe": item.timeframe,
+        "max_position_size_pct": item.max_position_size_pct,
+        "priority": item.priority,
+        "sort_order": item.sort_order,
+        "notes": item.notes,
+    }
+
+    for field in ["base_asset", "quote_asset", "enabled", "timeframe", "max_position_size_pct", "priority", "sort_order", "notes"]:
+        value = getattr(payload, field)
+        if value is not None:
+            setattr(item, field, value.upper().strip() if field in {"base_asset", "quote_asset"} else value)
+    item.updated_by = current_admin.id
+    db.add(
+        AuditLog(
+            user_id=current_admin.id,
+            action="update",
+            resource_type="symbol_config",
+            resource_id=str(item.id),
+            before_json=before,
+            after_json={
+                "enabled": item.enabled,
+                "timeframe": item.timeframe,
+                "max_position_size_pct": item.max_position_size_pct,
+                "priority": item.priority,
+                "sort_order": item.sort_order,
+                "notes": item.notes,
+            },
+        )
+    )
+    db.commit()
+    db.refresh(item)
+    return {
+        "id": item.id,
+        "symbol": item.symbol,
+        "base_asset": item.base_asset,
+        "quote_asset": item.quote_asset,
+        "enabled": item.enabled,
+        "timeframe": item.timeframe,
+        "max_position_size_pct": item.max_position_size_pct,
+        "priority": item.priority,
+        "sort_order": item.sort_order,
+        "notes": item.notes,
     }
 
 
