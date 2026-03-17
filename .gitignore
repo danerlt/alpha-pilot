@@ -54,7 +54,6 @@ logs/
 
 # OpenClaw / agent runtime local files
 .openclaw/
-.claude/
 AGENTS.md
 SOUL.md
 USER.md
