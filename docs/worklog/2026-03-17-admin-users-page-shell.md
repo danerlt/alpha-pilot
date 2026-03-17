@@ -1,0 +1,47 @@
+# 2026-03-17 Admin 用户管理页骨架与后台导航统一
+
+## 本轮目标
+先对齐 `docs/spec-auth-admin.md` 与 `docs/plan-auth-admin.md` 中 Frontend Admin Views 的缺口，挑一段低冲突、可独立验证的页面工作推进：
+1. 补齐管理员用户管理页前端骨架
+2. 让 admin 首页 / 币种页 / 用户页使用一致的后台子导航
+3. 优化这组页面在移动端下的层次与按钮可点性
+
+## 本轮改动
+- 新增 `frontend/src/app/admin/users/page.tsx`：
+  - 提供管理员用户管理占位页
+  - 展示静态用户卡片、角色/状态 badge、最近活跃、说明文案与后续操作位
+  - 明确后续 API 对接点（列表、角色/状态修改、审计日志）
+- 新增 `frontend/src/components/admin-subnav.tsx`：
+  - 抽出后台统一子导航
+  - 当前覆盖后台首页、币种管理、用户管理
+- 更新 `frontend/src/app/admin/page.tsx`：
+  - 将“用户与权限”从纯禁用占位改为可进入 `/admin/users`
+  - 接入统一后台子导航
+- 更新 `frontend/src/app/admin/currencies/page.tsx`：
+  - 接入统一后台子导航，保证后台页面切换体验一致
+- 更新 `frontend/src/app/globals.css`：
+  - 为后台子导航、用户卡片、状态 badge、指标 pill、信息网格增加样式
+  - 增补小屏规则，确保操作按钮和信息块在移动端可读、可点
+
+## 为什么这样做
+- spec 明确要求 Admin-only entry point、symbol management UI，以及移动端下 admin 页不要依赖宽表格。
+- 现状里 `/admin/users` 还没有入口落地，后台页面之间也缺少统一的“你现在在哪、还能去哪里”的导航层。
+- 先把用户管理页做成信息架构稳定的静态壳子，后续接真实 admin users API 时只需要替换数据层与交互，不用重做页面布局。
+
+## 验证
+- 在 `frontend/` 运行：`npm run build`
+- 结果：通过
+- 构建产物包含新路由：`/admin/users`
+
+## 涉及文件
+- `frontend/src/components/admin-subnav.tsx`
+- `frontend/src/app/admin/users/page.tsx`
+- `frontend/src/app/admin/page.tsx`
+- `frontend/src/app/admin/currencies/page.tsx`
+- `frontend/src/app/globals.css`
+
+## 仍然存在的前端缺口
+- 用户管理页仍是静态骨架，尚未接真实 admin users 列表 / 更新 API
+- 币种管理页仍未接真实 symbol config API，也还没有真实筛选/编辑流程
+- 登录 / 注册仍是本地 mock session，尚未切到真实 JWT register/login/me
+- admin 侧还没有加载态、空态、错误态与成功反馈的统一组件化方案

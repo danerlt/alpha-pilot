@@ -43,6 +43,11 @@ class Settings(BaseSettings):
     # 认证 JWT 密钥
     APP_AUTH_SECRET_KEY: str = "alpha-pilot-auth-secret-change-me"
 
+    # 默认管理员引导（仅在提供 env 时生效，适合 dev/test）
+    DEFAULT_ADMIN_EMAIL: str = ""
+    DEFAULT_ADMIN_PASSWORD: str = ""
+    DEFAULT_ADMIN_USERNAME: str = ""
+
     # 风控参数（默认值可被 .env 覆盖）
     MAX_POSITION_SIZE_PCT: float = 0.20    # 单币最大持仓占账户比例
     MAX_DAILY_LOSS_PCT: float = 0.03       # 日最大亏损占账户比例

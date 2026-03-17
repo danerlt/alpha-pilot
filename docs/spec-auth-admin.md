@@ -40,6 +40,7 @@ It also sits inside the broader product direction now adopted in PRD: AI Trader 
 ### Authorization
 - Admin-only endpoints reject anonymous/non-admin callers
 - Runtime config update endpoint is admin-only
+- When `DEFAULT_ADMIN_EMAIL` and `DEFAULT_ADMIN_PASSWORD` are provided via env, backend startup ensures that account exists as an active admin user for dev/test bootstrap
 
 ### Symbol Management
 - Admin can list symbol configs

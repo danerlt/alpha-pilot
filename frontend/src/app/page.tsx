@@ -1,6 +1,8 @@
 'use client'
 
+import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useAuth } from '@/components/auth-provider'
 import styles from './page.module.css'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -148,6 +150,7 @@ function isProductionEnv(basePath: string, tradingMode?: string) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function Home() {
+  const { ready, session } = useAuth()
   const [health, setHealth] = useState<HealthData | null>(null)
   const [account, setAccount] = useState<AccountData | null>(null)
   const [positions, setPositions] = useState<Position[]>([])
@@ -262,6 +265,7 @@ export default function Home() {
   const envBasePath = process.env.NEXT_PUBLIC_BASE_PATH || 'local'
   const env = getEnvLabel(envBasePath)
   const prodLike = isProductionEnv(envBasePath, health?.trading_mode)
+  const isAdmin = session?.user.role === 'admin'
 
   const handleClosePosition = async (id: number, symbol: string) => {
     const confirmed = confirm(
@@ -372,26 +376,53 @@ export default function Home() {
 
   const unresolvedRisk = riskEvents.filter((r) => !r.resolved).length
 
+  if (!ready) {
+    return (
+      <main className="marketingPage">
+        <section className="marketingHero">
+          <span className="authEyebrow">Loading Session</span>
+          <h1>正在恢复本地登录态…</h1>
+        </section>
+      </main>
+    )
+  }
+
+  if (!session) {
+    return (
+      <main className="marketingPage">
+        <section className="marketingHero">
+          <span className="authEyebrow">AlphaPilot Dashboard</span>
+          <h1>先登录，再进入控制台</h1>
+          <p>这一版先把用户能看见、能点击、能记住登录态的页面体验搭起来，交易高风险逻辑保持不动。</p>
+          <div className="adminHeroActions">
+            <Link href="/login" className="shellPrimaryButton">去登录</Link>
+            <Link href="/register" className="shellGhostButton">注册新账号</Link>
+          </div>
+        </section>
+      </main>
+    )
+  }
+
   return (
     <main className={styles.main}>
-      {/* Header */}
-      <header className={styles.header}>
-        <div className={styles.logo}>
-          <span className={styles.logoIcon}>⚡</span>
-          <span>AlphaPilot</span>
-        </div>
-        <div className={styles.headerRight}>
-          <span className={styles.wsDot} data-status={wsStatus} title={`WebSocket: ${wsStatus}`} />
-          <span className={styles.envBadge} data-env={env || 'local'}>
-            {env || 'local'}
-          </span>
-          <button className={styles.refreshBtn} onClick={loadData} disabled={loading}>
-            {loading ? '刷新中…' : '刷新'}
-          </button>
-        </div>
-      </header>
-
       <div className={styles.content}>
+        <section className={styles.card}>
+          <div className={styles.cardHeader}>
+            <div>
+              <h2 className={styles.cardTitle}>控制台总览</h2>
+              <p className={styles.sectionDescription}>已接入本地登录态入口，当前页继续保留原有低风险控制台展示。</p>
+            </div>
+            <div className={styles.headerRight}>
+              <span className={styles.wsDot} data-status={wsStatus} title={`WebSocket: ${wsStatus}`} />
+              <span className={styles.envBadge} data-env={env || 'local'}>
+                {env || 'local'}
+              </span>
+              <button className={styles.refreshBtn} onClick={loadData} disabled={loading}>
+                {loading ? '刷新中…' : '刷新'}
+              </button>
+            </div>
+          </div>
+        </section>
         {prodLike && (
           <section className={styles.alertBanner}>
             <strong>高风险环境</strong>
@@ -404,103 +435,116 @@ export default function Home() {
 
         <section className={styles.card}>
           <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>运行时配置中心</h2>
-            {runtimeConfig && <span className={styles.badge}>{runtimeConfig.config_source}</span>}
+            <h2 className={styles.cardTitle}>{isAdmin ? '运行时配置中心' : '当前登录态'}</h2>
+            {isAdmin && runtimeConfig && <span className={styles.badge}>{runtimeConfig.config_source}</span>}
           </div>
 
-          <div className={styles.configOverviewGrid}>
-            <button className={styles.configMiniCard} data-active={configSection === 'mode'} onClick={() => setConfigSection('mode')}>
-              <span className={styles.configMiniTitle}>运行模式</span>
-              <strong>{configForm.trading_mode.toUpperCase()}</strong>
-              <small>切换 testnet / mainnet</small>
-            </button>
-            <button className={styles.configMiniCard} data-active={configSection === 'testnet'} onClick={() => setConfigSection('testnet')}>
-              <span className={styles.configMiniTitle}>Testnet 凭据</span>
-              <strong>{runtimeConfig?.binance_testnet_configured ? '已配置' : '未配置'}</strong>
-              <small>仅在测试盘模式生效</small>
-            </button>
-            <button className={styles.configMiniCard} data-active={configSection === 'mainnet'} onClick={() => setConfigSection('mainnet')}>
-              <span className={styles.configMiniTitle}>Mainnet 凭据</span>
-              <strong>{runtimeConfig?.binance_mainnet_configured ? '已配置' : '未配置'}</strong>
-              <small>主网操作需额外谨慎</small>
-            </button>
-          </div>
-
-          <div className={styles.configGridCompact}>
-            {configSection === 'mode' && (
-              <div className={styles.configBlock}>
-                <label className={styles.fieldLabel}>当前模式</label>
-                <select
-                  className={styles.input}
-                  value={configForm.trading_mode}
-                  onChange={(e) => handleConfigChange('trading_mode', e.target.value)}
-                >
-                  <option value="testnet">TESTNET</option>
-                  <option value="mainnet">MAINNET</option>
-                </select>
-                <p className={styles.fieldHint}>切换后新的运行时配置会立即生效。切到 mainnet 时会再次确认。</p>
+          {isAdmin ? (
+            <>
+              <div className={styles.configOverviewGrid}>
+                <button className={styles.configMiniCard} data-active={configSection === 'mode'} onClick={() => setConfigSection('mode')}>
+                  <span className={styles.configMiniTitle}>运行模式</span>
+                  <strong>{configForm.trading_mode.toUpperCase()}</strong>
+                  <small>切换 testnet / mainnet</small>
+                </button>
+                <button className={styles.configMiniCard} data-active={configSection === 'testnet'} onClick={() => setConfigSection('testnet')}>
+                  <span className={styles.configMiniTitle}>Testnet 凭据</span>
+                  <strong>{runtimeConfig?.binance_testnet_configured ? '已配置' : '未配置'}</strong>
+                  <small>仅在测试盘模式生效</small>
+                </button>
+                <button className={styles.configMiniCard} data-active={configSection === 'mainnet'} onClick={() => setConfigSection('mainnet')}>
+                  <span className={styles.configMiniTitle}>Mainnet 凭据</span>
+                  <strong>{runtimeConfig?.binance_mainnet_configured ? '已配置' : '未配置'}</strong>
+                  <small>主网操作需额外谨慎</small>
+                </button>
               </div>
-            )}
 
-            {configSection === 'testnet' && (
-              <div className={styles.configBlock}>
-                <label className={styles.fieldLabel}>Testnet API Key</label>
-                <input
-                  className={styles.input}
-                  type="password"
-                  placeholder={runtimeConfig?.binance_testnet_configured ? '已配置，留空则不改' : '输入新的 Testnet API Key'}
-                  value={configForm.binance_testnet_api_key}
-                  onChange={(e) => handleConfigChange('binance_testnet_api_key', e.target.value)}
-                />
-                <label className={styles.fieldLabel}>Testnet API Secret</label>
-                <input
-                  className={styles.input}
-                  type="password"
-                  placeholder={runtimeConfig?.binance_testnet_configured ? '已配置，留空则不改' : '输入新的 Testnet API Secret'}
-                  value={configForm.binance_testnet_api_secret}
-                  onChange={(e) => handleConfigChange('binance_testnet_api_secret', e.target.value)}
-                />
+              <div className={styles.configGridCompact}>
+                {configSection === 'mode' && (
+                  <div className={styles.configBlock}>
+                    <label className={styles.fieldLabel}>当前模式</label>
+                    <select
+                      className={styles.input}
+                      value={configForm.trading_mode}
+                      onChange={(e) => handleConfigChange('trading_mode', e.target.value)}
+                    >
+                      <option value="testnet">TESTNET</option>
+                      <option value="mainnet">MAINNET</option>
+                    </select>
+                    <p className={styles.fieldHint}>切换后新的运行时配置会立即生效。切到 mainnet 时会再次确认。</p>
+                  </div>
+                )}
+
+                {configSection === 'testnet' && (
+                  <div className={styles.configBlock}>
+                    <label className={styles.fieldLabel}>Testnet API Key</label>
+                    <input
+                      className={styles.input}
+                      type="password"
+                      placeholder={runtimeConfig?.binance_testnet_configured ? '已配置，留空则不改' : '输入新的 Testnet API Key'}
+                      value={configForm.binance_testnet_api_key}
+                      onChange={(e) => handleConfigChange('binance_testnet_api_key', e.target.value)}
+                    />
+                    <label className={styles.fieldLabel}>Testnet API Secret</label>
+                    <input
+                      className={styles.input}
+                      type="password"
+                      placeholder={runtimeConfig?.binance_testnet_configured ? '已配置，留空则不改' : '输入新的 Testnet API Secret'}
+                      value={configForm.binance_testnet_api_secret}
+                      onChange={(e) => handleConfigChange('binance_testnet_api_secret', e.target.value)}
+                    />
+                  </div>
+                )}
+
+                {configSection === 'mainnet' && (
+                  <div className={styles.configBlock}>
+                    <label className={styles.fieldLabel}>Mainnet API Key</label>
+                    <input
+                      className={styles.input}
+                      type="password"
+                      placeholder={runtimeConfig?.binance_mainnet_configured ? '已配置，留空则不改' : '输入新的 Mainnet API Key'}
+                      value={configForm.binance_mainnet_api_key}
+                      onChange={(e) => handleConfigChange('binance_mainnet_api_key', e.target.value)}
+                    />
+                    <label className={styles.fieldLabel}>Mainnet API Secret</label>
+                    <input
+                      className={styles.input}
+                      type="password"
+                      placeholder={runtimeConfig?.binance_mainnet_configured ? '已配置，留空则不改' : '输入新的 Mainnet API Secret'}
+                      value={configForm.binance_mainnet_api_secret}
+                      onChange={(e) => handleConfigChange('binance_mainnet_api_secret', e.target.value)}
+                    />
+                    <p className={styles.fieldHint}>主网凭据不会回显。仅在明确需要时再保存。</p>
+                  </div>
+                )}
               </div>
-            )}
 
-            {configSection === 'mainnet' && (
-              <div className={styles.configBlock}>
-                <label className={styles.fieldLabel}>Mainnet API Key</label>
-                <input
-                  className={styles.input}
-                  type="password"
-                  placeholder={runtimeConfig?.binance_mainnet_configured ? '已配置，留空则不改' : '输入新的 Mainnet API Key'}
-                  value={configForm.binance_mainnet_api_key}
-                  onChange={(e) => handleConfigChange('binance_mainnet_api_key', e.target.value)}
-                />
-                <label className={styles.fieldLabel}>Mainnet API Secret</label>
-                <input
-                  className={styles.input}
-                  type="password"
-                  placeholder={runtimeConfig?.binance_mainnet_configured ? '已配置，留空则不改' : '输入新的 Mainnet API Secret'}
-                  value={configForm.binance_mainnet_api_secret}
-                  onChange={(e) => handleConfigChange('binance_mainnet_api_secret', e.target.value)}
-                />
-                <p className={styles.fieldHint}>主网凭据不会回显。仅在明确需要时再保存。</p>
+              <div className={styles.configStatusRow}>
+                <span className={styles.statusPill} data-on={runtimeConfig?.binance_testnet_configured ? 'true' : 'false'}>
+                  Testnet 凭据 {runtimeConfig?.binance_testnet_configured ? '已配置' : '未配置'}
+                </span>
+                <span className={styles.statusPill} data-on={runtimeConfig?.binance_mainnet_configured ? 'true' : 'false'}>
+                  Mainnet 凭据 {runtimeConfig?.binance_mainnet_configured ? '已配置' : '未配置'}
+                </span>
               </div>
-            )}
-          </div>
 
-          <div className={styles.configStatusRow}>
-            <span className={styles.statusPill} data-on={runtimeConfig?.binance_testnet_configured ? 'true' : 'false'}>
-              Testnet 凭据 {runtimeConfig?.binance_testnet_configured ? '已配置' : '未配置'}
-            </span>
-            <span className={styles.statusPill} data-on={runtimeConfig?.binance_mainnet_configured ? 'true' : 'false'}>
-              Mainnet 凭据 {runtimeConfig?.binance_mainnet_configured ? '已配置' : '未配置'}
-            </span>
-          </div>
-
-          <div className={styles.configActionRow}>
-            <button className={styles.primaryBtn} onClick={handleSaveRuntimeConfig} disabled={savingConfig}>
-              {savingConfig ? '保存中…' : '保存并热更新'}
-            </button>
-            {configMessage && <span className={styles.fieldHint}>{configMessage}</span>}
-          </div>
+              <div className={styles.configActionRow}>
+                <button className={styles.primaryBtn} onClick={handleSaveRuntimeConfig} disabled={savingConfig}>
+                  {savingConfig ? '保存中…' : '保存并热更新'}
+                </button>
+                {configMessage && <span className={styles.fieldHint}>{configMessage}</span>}
+              </div>
+            </>
+          ) : (
+            <div className={styles.viewerNotice}>
+              <p>当前账号为普通用户，控制台只展示运行状态与交易信息，不显示管理员配置改动入口。</p>
+              <div className={styles.viewerNoticeMeta}>
+                <span className={styles.statusPill} data-on="true">登录身份：{session.user.name}</span>
+                <span className={styles.statusPill} data-on="false">角色：普通用户</span>
+              </div>
+              <p className={styles.fieldHint}>如果需要进入后台占位页，请使用管理员账号登录。前端已先按角色隐藏高风险入口。</p>
+            </div>
+          )}
         </section>
 
         {/* 系统状态 */}

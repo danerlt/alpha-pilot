@@ -13,6 +13,7 @@ from src.app.websocket import redis_subscriber, websocket_endpoint
 from src.shared.config import get_base_settings, get_settings
 from src.shared.db import get_session_factory
 from src.shared.runtime_config import apply_runtime_settings_refresh
+from src.services.admin_bootstrap import ensure_default_admin
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +56,7 @@ async def lifespan(app: FastAPI):
             master_key=base_settings.APP_CONFIG_MASTER_KEY,
             default_trading_mode=base_settings.TRADING_MODE,
         )
+        ensure_default_admin(db, base_settings)
     finally:
         db.close()
 
