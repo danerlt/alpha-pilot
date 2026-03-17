@@ -51,3 +51,19 @@ Thumbs.db
 # log
 logs/
 *.log
+
+# OpenClaw / agent runtime local files
+.openclaw/
+.claude/
+AGENTS.md
+SOUL.md
+USER.md
+TOOLS.md
+IDENTITY.md
+HEARTBEAT.md
+agents/
+config/agent_runners.json
+memory/
+runs/
+skills/
+workflows/
