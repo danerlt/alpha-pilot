@@ -128,6 +128,7 @@ async def test_update_runtime_config_persists_and_refreshes(monkeypatch):
         yield db
 
     app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[router_module.require_admin] = lambda: SimpleNamespace(id=1, username="admin", role="admin", status="active")
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post(
@@ -156,11 +157,14 @@ async def test_update_runtime_config_persists_and_refreshes(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_update_runtime_config_rejects_empty_payload():
+async def test_update_runtime_config_rejects_empty_payload_for_admin():
+    from src.app import router as router_module
+
     def override_db():
         yield DummyDB()
 
     app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[router_module.require_admin] = lambda: SimpleNamespace(id=1, username="admin", role="admin", status="active")
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post("/api/config/runtime", json={})

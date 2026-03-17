@@ -219,7 +219,11 @@ def get_runtime_config(db: Session = Depends(get_db)):
 
 
 @router.post("/api/config/runtime")
-def update_runtime_config(payload: RuntimeConfigUpdate, db: Session = Depends(get_db)):
+def update_runtime_config(
+    payload: RuntimeConfigUpdate,
+    db: Session = Depends(get_db),
+    current_admin=Depends(require_admin),
+):
     base_settings = get_base_settings()
     fernet_key = base_settings.APP_CONFIG_MASTER_KEY
     fernet = build_fernet(fernet_key)
