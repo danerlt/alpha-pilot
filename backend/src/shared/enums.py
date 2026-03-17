@@ -6,6 +6,16 @@ class TradingMode(str, Enum):
     MAINNET = "mainnet"
 
 
+class UserRole(str, Enum):
+    USER = "user"
+    ADMIN = "admin"
+
+
+class UserStatus(str, Enum):
+    ACTIVE = "active"
+    DISABLED = "disabled"
+
+
 class Action(str, Enum):
     OPEN_LONG = "OPEN_LONG"
     CLOSE_LONG = "CLOSE_LONG"

@@ -1,17 +1,18 @@
 """FastAPI 路由 — 健康检查、数据查询、手动操作。"""
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
+from src.services.auth import create_access_token, decode_access_token, ensure_user_is_active, verify_password, hash_password
 from src.shared.config import get_base_settings, get_settings
 from src.shared.db import get_db
-from src.shared.enums import PositionStatus, TradingMode
+from src.shared.enums import PositionStatus, TradingMode, UserRole, UserStatus
 from src.shared.runtime_config import (
     BINANCE_MAINNET_API_KEY,
     BINANCE_MAINNET_API_SECRET,
@@ -49,6 +50,17 @@ class RuntimeConfigUpdate(BaseModel):
     max_single_risk_pct: float | None = None
 
 
+class RegisterRequest(BaseModel):
+    username: str
+    email: EmailStr
+    password: str
+
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+
 # ─── Health ───────────────────────────────────────────────────────────────────
 
 @router.get("/")
@@ -64,6 +76,122 @@ async def health_check():
         "status": "ok",
         "trading_mode": settings.TRADING_MODE.value,
         "version": "0.1.0",
+    }
+
+
+def _extract_bearer_token(authorization: str | None) -> str:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing bearer token")
+    return authorization.replace("Bearer ", "", 1)
+
+
+def get_current_user(authorization: str | None = Header(default=None), db: Session = Depends(get_db)):
+    from src.shared.models.user import User
+
+    token = _extract_bearer_token(authorization)
+    secret_key = get_base_settings().APP_AUTH_SECRET_KEY
+    payload = decode_access_token(token, secret_key)
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token subject")
+
+    user = db.query(User).filter(User.id == int(user_id)).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    try:
+        ensure_user_is_active(user.status)
+    except ValueError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    return user
+
+
+def require_admin(current_user=Depends(get_current_user)):
+    try:
+        from src.services.auth import ensure_user_is_admin
+        ensure_user_is_admin(current_user.role)
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    return current_user
+
+
+# ─── Auth ─────────────────────────────────────────────────────────────────────
+
+@router.post("/api/auth/register")
+def register(payload: RegisterRequest, db: Session = Depends(get_db)):
+    from src.shared.models.user import User
+
+    username = payload.username.strip()
+    email = payload.email.lower().strip()
+    if len(payload.password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+
+    exists = db.query(User).filter((User.username == username) | (User.email == email)).first()
+    if exists:
+        raise HTTPException(status_code=409, detail="Username or email already exists")
+
+    user = User(
+        username=username,
+        email=email,
+        password_hash=hash_password(payload.password),
+        role=UserRole.USER.value,
+        status=UserStatus.ACTIVE.value,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    token = create_access_token(subject=str(user.id), role=user.role, secret_key=get_base_settings().APP_AUTH_SECRET_KEY)
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "role": user.role,
+            "status": user.status,
+        },
+    }
+
+
+@router.post("/api/auth/login")
+def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    from src.shared.models.user import User
+
+    email = payload.email.lower().strip()
+    user = db.query(User).filter(User.email == email).first()
+    if not user or not verify_password(payload.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    try:
+        ensure_user_is_active(user.status)
+    except ValueError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+    user.last_login_at = datetime.now(timezone.utc).isoformat()
+    db.commit()
+    token = create_access_token(subject=str(user.id), role=user.role, secret_key=get_base_settings().APP_AUTH_SECRET_KEY)
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "role": user.role,
+            "status": user.status,
+        },
+    }
+
+
+@router.get("/api/auth/me")
+def auth_me(current_user=Depends(get_current_user)):
+    return {
+        "id": current_user.id,
+        "username": current_user.username,
+        "email": current_user.email,
+        "role": current_user.role,
+        "status": current_user.status,
     }
 
 

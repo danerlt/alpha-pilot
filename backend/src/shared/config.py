@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     # 配置加密主密钥（Fernet）
     APP_CONFIG_MASTER_KEY: str = "2QJd4n6s8h4R2Q9UjH4o9v1Q0s9PzD8YQkW2M4q8LxA="
 
+    # 认证 JWT 密钥
+    APP_AUTH_SECRET_KEY: str = "alpha-pilot-auth-secret-change-me"
+
     # 风控参数（默认值可被 .env 覆盖）
     MAX_POSITION_SIZE_PCT: float = 0.20    # 单币最大持仓占账户比例
     MAX_DAILY_LOSS_PCT: float = 0.03       # 日最大亏损占账户比例
