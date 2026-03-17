@@ -30,6 +30,15 @@ AlphaPilot 的核心理念是：
 4. 币种配置管理与后台审计
 5. 巩固数据库迁移链、部署一致性与更多联调验证
 
+## Superpowers Workflow
+
+当前项目编码阶段启用 `superpowers-mode`：
+- 先写 spec
+- 再写 plan
+- 再小步实现
+- 每步都验证
+- 代码和 `docs/worklog/` / `docs/spec-*` / `docs/plan-*` 同步维护
+
 # 项目定位
 
 AlphaPilot 不是一个简单的聊天式交易助手，也不是一个没有约束的自由交易机器人。  
