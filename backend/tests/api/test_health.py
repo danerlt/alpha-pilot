@@ -12,6 +12,9 @@ async def test_health_check():
     assert data["status"] == "ok"
     assert "trading_mode" in data
     assert "version" in data
+    assert "runtime_credentials" in data
+    assert "binance" in data["runtime_credentials"]
+    assert "llm" in data["runtime_credentials"]
 
 
 @pytest.mark.asyncio

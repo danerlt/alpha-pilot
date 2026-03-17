@@ -14,6 +14,7 @@ from src.services.decision_engine.prompt import (
     format_user_message,
 )
 from src.shared.config import get_settings
+from src.shared.config_diagnostics import can_call_llm, get_runtime_credential_status
 from src.shared.models.decision import AIDecision
 
 logger = logging.getLogger(__name__)
@@ -23,6 +24,10 @@ def _call_llm(system: str, user: str) -> str:
     """调用 LLM，返回原始文本输出。超时或失败返回空字符串。"""
     settings = get_settings()
     provider = settings.LLM_PROVIDER.lower()
+    if not can_call_llm(settings):
+        diag = get_runtime_credential_status(settings)["llm"]
+        logger.warning("Skipping LLM call because runtime LLM config is not usable: %s", diag["reason"])
+        return ""
 
     try:
         if provider == "claude":

@@ -7,6 +7,7 @@ from typing import Any
 
 from binance.client import Client
 from src.shared.config import get_settings
+from src.shared.config_diagnostics import can_call_binance, get_runtime_credential_status
 from src.shared.enums import TradingMode
 
 logger = logging.getLogger(__name__)
@@ -17,6 +18,9 @@ TESTNET_API_URL = "https://testnet.binance.vision/api"
 @lru_cache(maxsize=1)
 def get_binance_client() -> Client:
     settings = get_settings()
+    if not can_call_binance(settings):
+        diag = get_runtime_credential_status(settings)["binance"]
+        raise RuntimeError(f"Binance runtime config unusable: {diag['reason']}")
     client = Client(
         api_key=settings.BINANCE_API_KEY,
         api_secret=settings.BINANCE_API_SECRET,

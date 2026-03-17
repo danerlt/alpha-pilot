@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from src.services.auth import create_access_token, decode_access_token, ensure_user_is_active, verify_password, hash_password
 from src.shared.config import get_base_settings, get_settings
+from src.shared.config_diagnostics import get_runtime_credential_status
 from src.shared.db import get_db
 from src.shared.enums import PositionStatus, TradingMode, UserRole, UserStatus
 from src.shared.runtime_config import (
@@ -84,6 +85,11 @@ class SymbolConfigUpdate(BaseModel):
     notes: str | None = None
 
 
+class AdminUserUpdate(BaseModel):
+    role: UserRole | None = None
+    status: UserStatus | None = None
+
+
 # ─── Health ───────────────────────────────────────────────────────────────────
 
 @router.get("/")
@@ -99,6 +105,7 @@ async def health_check():
         "status": "ok",
         "trading_mode": settings.TRADING_MODE.value,
         "version": "0.1.0",
+        "runtime_credentials": get_runtime_credential_status(settings),
     }
 
 
@@ -348,6 +355,82 @@ def update_symbol_config(symbol_id: int, payload: SymbolConfigUpdate, db: Sessio
     }
 
 
+# ─── Admin Users ─────────────────────────────────────────────────────────────
+
+@router.get("/api/admin/users")
+def list_users(db: Session = Depends(get_db), current_admin=Depends(require_admin)):
+    from src.shared.models.user import User
+
+    users = db.query(User).order_by(User.id.asc()).all()
+    return [
+        {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "role": user.role,
+            "status": user.status,
+            "last_login_at": user.last_login_at,
+            "created_at": user.created_at.isoformat() if user.created_at else None,
+            "updated_at": user.updated_at.isoformat() if user.updated_at else None,
+        }
+        for user in users
+    ]
+
+
+@router.patch("/api/admin/users/{user_id}")
+def update_user(user_id: int, payload: AdminUserUpdate, db: Session = Depends(get_db), current_admin=Depends(require_admin)):
+    from src.shared.models.audit_log import AuditLog
+    from src.shared.models.user import User
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    before = {
+        "role": user.role,
+        "status": user.status,
+    }
+
+    changed = False
+    if payload.role is not None and user.role != payload.role.value:
+        user.role = payload.role.value
+        changed = True
+    if payload.status is not None and user.status != payload.status.value:
+        user.status = payload.status.value
+        changed = True
+
+    if payload.role is None and payload.status is None:
+        raise HTTPException(status_code=400, detail="No user fields provided")
+
+    if changed:
+        db.add(
+            AuditLog(
+                user_id=current_admin.id,
+                action="update",
+                resource_type="user",
+                resource_id=str(user.id),
+                before_json=before,
+                after_json={
+                    "role": user.role,
+                    "status": user.status,
+                },
+            )
+        )
+        db.commit()
+        db.refresh(user)
+
+    return {
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "role": user.role,
+        "status": user.status,
+        "last_login_at": user.last_login_at,
+        "created_at": user.created_at.isoformat() if user.created_at else None,
+        "updated_at": user.updated_at.isoformat() if user.updated_at else None,
+    }
+
+
 # ─── Runtime Config ───────────────────────────────────────────────────────────
 
 @router.get("/api/config/runtime")
@@ -356,6 +439,7 @@ def get_runtime_config(db: Session = Depends(get_db)):
     settings = get_settings()
     raw = get_runtime_config_manager().get_raw()
 
+    runtime_credentials = get_runtime_credential_status(settings)
     return {
         "trading_mode": settings.TRADING_MODE.value,
         "llm_provider": settings.LLM_PROVIDER,
@@ -368,6 +452,7 @@ def get_runtime_config(db: Session = Depends(get_db)):
         "binance_mainnet_configured": bool(raw.get(BINANCE_MAINNET_API_KEY) and raw.get(BINANCE_MAINNET_API_SECRET)),
         "llm_api_key_configured": bool(raw.get(LLM_API_KEY)) or settings.LLM_API_KEY != base_settings.LLM_API_KEY,
         "config_source": "database_overrides" if raw else "env_defaults",
+        "runtime_credentials": runtime_credentials,
     }
 
 
