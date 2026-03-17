@@ -82,23 +82,56 @@ export default function AdminUsersPage() {
   return (
     <RouteGuard requireRole="admin">
       <main className="adminPage">
-        <section className="adminHero adminHeroCompact">
-          <span className="authEyebrow">Admin / Users</span>
-          <h1>用户管理</h1>
-          <p>直接对接 admin users API。支持查看用户清单，并在页面内调整角色和状态。</p>
-          <div className="adminHeroActions">
-            <Link href="/admin" className="shellGhostButton">返回后台首页</Link>
+        <section className="adminHero adminHeroCompact adminSurfaceGlow">
+          <div className="adminHeroSplit">
+            <div className="adminHeroContent">
+              <span className="authEyebrow">Admin / Users</span>
+              <h1>用户管理</h1>
+              <p>直接对接 admin users API。围绕成员身份、权限变更和账号状态做集中治理，桌面与移动端使用同一套视觉结构。</p>
+              <div className="adminHeroActions">
+                <Link href="/admin" className="shellGhostButton">返回后台首页</Link>
+                <Link href="/admin/audit-logs" className="shellGhostButton">查看审计日志</Link>
+              </div>
+            </div>
+            <div className="adminHighlightCard">
+              <span className="adminHighlightLabel">用户总览</span>
+              <strong>{loading ? '正在同步…' : `${filteredUsers.length} / ${users.length} 位成员`}</strong>
+              <p>支持按用户名、邮箱、角色、状态快速筛选，并直接在列表内完成调整。</p>
+            </div>
           </div>
         </section>
 
-        <section className="currencyToolbar">
+        <section className="currencyToolbar adminToolbarCard">
           <div className="currencySearch">
             <label htmlFor="user-search">用户搜索</label>
             <input id="user-search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="按用户名 / 邮箱 / 角色 / 状态搜索" />
           </div>
+          <div className="adminToolbarSummary">
+            <span className="adminSummaryPill">活跃 {users.filter((user) => user.status === 'active').length}</span>
+            <span className="adminSummaryPill">管理员 {users.filter((user) => user.role === 'admin').length}</span>
+          </div>
         </section>
 
-        <section className="currencyTableCard">
+        <section className="adminHeroStats adminStatsStrip">
+          <div className="adminMetricTile">
+            <span>总用户数</span>
+            <strong>{users.length}</strong>
+          </div>
+          <div className="adminMetricTile">
+            <span>活跃账号</span>
+            <strong>{users.filter((user) => user.status === 'active').length}</strong>
+          </div>
+          <div className="adminMetricTile">
+            <span>禁用账号</span>
+            <strong>{users.filter((user) => user.status === 'disabled').length}</strong>
+          </div>
+          <div className="adminMetricTile">
+            <span>管理员</span>
+            <strong>{users.filter((user) => user.role === 'admin').length}</strong>
+          </div>
+        </section>
+
+        <section className="currencyTableCard adminDataCard">
           <div className="currencyTableHeader">
             <div>
               <h2>用户列表</h2>
@@ -155,13 +188,13 @@ export default function AdminUsersPage() {
 
           <div className="adminMobileList adminMobileOnly">
             {filteredUsers.map((user) => (
-              <article key={user.id} className="adminMobileCard">
+              <article key={user.id} className="adminMobileCard adminRecordCard">
                 <div className="adminMobileCardHeader">
                   <div>
                     <strong>{user.username}</strong>
                     <p>{user.email}</p>
                   </div>
-                  <span className="currencyStatus" data-status={user.status === 'active' ? '启用' : '停用'}>{user.status}</span>
+                  <span className="currencyStatus" data-status={user.status === 'active' ? '启用' : '停用'}>{user.status === 'active' ? '启用' : '停用'}</span>
                 </div>
                 <div className="adminFormGrid">
                   <label className="authField">

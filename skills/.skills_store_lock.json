@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "superpowers-mode": {
+      "name": "Superpowers Mode",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=superpowers-mode",
+      "source": "skillhub",
+      "version": "1.0.1"
+    }
+  }
+}

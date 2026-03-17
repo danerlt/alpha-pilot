@@ -177,19 +177,28 @@ export default function AdminCurrenciesPage() {
   return (
     <RouteGuard requireRole="admin">
       <main className="adminPage">
-        <section className="adminHero adminHeroCompact">
-          <span className="authEyebrow">Admin / Symbols</span>
-          <h1>符号管理</h1>
-          <p>直接对接 admin symbol API。桌面看表格，手机看卡片，新增 / 编辑都在同一页完成。</p>
-          <div className="adminHeroActions">
-            <Link href="/admin" className="shellGhostButton">返回后台首页</Link>
-            <button className="shellPrimaryButton" type="button" onClick={startCreate}>新建符号</button>
+        <section className="adminHero adminHeroCompact adminSurfaceGlow">
+          <div className="adminHeroSplit">
+            <div className="adminHeroContent">
+              <span className="authEyebrow">Admin / Symbols</span>
+              <h1>Symbol 管理</h1>
+              <p>页面语义统一收口到 symbol management。桌面保留表格密度，移动端切成记录卡片，新增 / 编辑都在同一页完成。</p>
+              <div className="adminHeroActions">
+                <Link href="/admin" className="shellGhostButton">返回后台首页</Link>
+                <button className="shellPrimaryButton" type="button" onClick={startCreate}>新建 Symbol</button>
+              </div>
+            </div>
+            <div className="adminHighlightCard">
+              <span className="adminHighlightLabel">当前范围</span>
+              <strong>{loading ? '正在同步…' : `${filteredItems.length} / ${items.length} 个 Symbols`}</strong>
+              <p>支持状态筛选、表单内编辑，以及更清晰的 symbol / base / quote 信息层级。</p>
+            </div>
           </div>
         </section>
 
-        <section className="currencyToolbar">
+        <section className="currencyToolbar adminToolbarCard">
           <div className="currencySearch">
-            <label htmlFor="symbol-search">符号搜索</label>
+            <label htmlFor="symbol-search">Symbol 搜索</label>
             <input id="symbol-search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="例如 BTC / ETH / SOL" />
           </div>
           <div className="currencyToolbarActions">
@@ -201,13 +210,32 @@ export default function AdminCurrenciesPage() {
           </div>
         </section>
 
+        <section className="adminHeroStats adminStatsStrip">
+          <div className="adminMetricTile">
+            <span>总 Symbols</span>
+            <strong>{items.length}</strong>
+          </div>
+          <div className="adminMetricTile">
+            <span>启用中</span>
+            <strong>{items.filter((item) => item.enabled).length}</strong>
+          </div>
+          <div className="adminMetricTile">
+            <span>停用中</span>
+            <strong>{items.filter((item) => !item.enabled).length}</strong>
+          </div>
+          <div className="adminMetricTile">
+            <span>当前筛选</span>
+            <strong>{filteredItems.length}</strong>
+          </div>
+        </section>
+
         <section className="adminSectionCard">
           <div className="adminSectionHeader">
             <div>
               <span className="authEyebrow">Editor</span>
-              <h2>{editingId == null ? '新增符号配置' : `编辑 #${editingId}`}</h2>
+              <h2>{editingId == null ? '新增 Symbol' : `编辑 Symbol #${editingId}`}</h2>
             </div>
-            <p>尽量用更短的单列表单，避免移动端出现横向滚动。</p>
+            <p>表单保持短列与清晰标签，优先照顾移动端单手操作与状态反馈。</p>
           </div>
 
           <form className="adminFormGrid" onSubmit={submitForm}>
@@ -259,7 +287,7 @@ export default function AdminCurrenciesPage() {
 
             <div className="adminHeroActions adminFormFull">
               <button className="shellPrimaryButton" type="submit" disabled={submitting}>
-                {submitting ? '提交中…' : editingId == null ? '创建符号' : '保存修改'}
+                {submitting ? '提交中…' : editingId == null ? '创建 Symbol' : '保存修改'}
               </button>
               <button className="shellGhostButton" type="button" onClick={startCreate}>
                 重置表单
@@ -271,10 +299,10 @@ export default function AdminCurrenciesPage() {
         <section className="currencyTableCard">
           <div className="currencyTableHeader">
             <div>
-              <h2>符号列表</h2>
+              <h2>Symbol 列表</h2>
               <p>{loading ? '正在加载真实 API 数据…' : '已连接真实 admin symbol API。'}</p>
             </div>
-            <span className="currencyCount">{filteredItems.length} / {items.length} 个符号</span>
+            <span className="currencyCount">{filteredItems.length} / {items.length} 个 Symbols</span>
           </div>
 
           <div className="currencyTableWrap adminDesktopOnly">
@@ -315,7 +343,7 @@ export default function AdminCurrenciesPage() {
 
           <div className="adminMobileList adminMobileOnly">
             {filteredItems.map((row) => (
-              <article key={row.id} className="adminMobileCard">
+              <article key={row.id} className="adminMobileCard adminRecordCard">
                 <div className="adminMobileCardHeader">
                   <div>
                     <strong>{row.symbol}</strong>

@@ -1,0 +1,141 @@
+id: alpha-bug-fix
+name: Alpha Polit Bug Fix
+version: 1
+description: Bug fix workflow with planner, developer, and ops.
+
+agents:
+  - id: planner
+    name: Planner
+    role: analysis
+    description: Produces bug brief, impact scope, and fix plan.
+    execution:
+      runtime: acp
+      agentId: claude-code
+    workspace:
+      baseDir: agents/planner
+      files:
+        AGENTS.md: agents/planner/AGENTS.md
+
+  - id: developer
+    name: Developer
+    role: coding
+    description: Fixes the bug according to the fix plan.
+    execution:
+      runtime: acp
+      agentId: claude-code
+    workspace:
+      baseDir: agents/developer
+      files:
+        AGENTS.md: agents/developer/AGENTS.md
+
+  - id: ops
+    name: Ops
+    role: coding
+    description: Tests, reviews, prepares PR, merges, and deploys.
+    execution:
+      runtime: acp
+      agentId: codex
+    workspace:
+      baseDir: agents/ops
+      files:
+        AGENTS.md: agents/ops/AGENTS.md
+
+steps:
+  - id: bug-plan
+    agent: planner
+    input: |
+      Convert the bug report into a fix plan.
+
+      Bug report:
+      {{task}}
+
+      Produce:
+      STATUS: done
+      BUG_SUMMARY: concise bug summary
+      IMPACT_SCOPE: affected areas
+      FIX_PLAN: concise implementation plan
+      ACCEPTANCE: how to verify the bug is fixed
+      RISKS: regression risks
+    expects: "STATUS: done"
+
+  - id: fix
+    agent: developer
+    input: |
+      Fix the bug according to the plan.
+
+      Bug summary:
+      {{bug_summary}}
+
+      Impact scope:
+      {{impact_scope}}
+
+      Fix plan:
+      {{fix_plan}}
+
+      Acceptance:
+      {{acceptance}}
+
+      Risks:
+      {{risks}}
+
+      Reply with:
+      STATUS: done
+      IMPLEMENTATION_SUMMARY: concise fix summary
+      CHANGED_FILES: changed files summary
+      TEST_HINTS: what ops should verify
+    expects: "STATUS: done"
+    max_retries: 2
+    on_fail:
+      escalate_to: human
+
+  - id: ops-verify-and-ship
+    agent: ops
+    input: |
+      Validate the bug fix and handle delivery.
+
+      Bug summary:
+      {{bug_summary}}
+
+      Acceptance:
+      {{acceptance}}
+
+      Implementation summary:
+      {{implementation_summary}}
+
+      Changed files:
+      {{changed_files}}
+
+      Test hints:
+      {{test_hints}}
+
+      Internally perform:
+      - regression test design
+      - test execution
+      - review
+      - PR creation
+      - merge when appropriate
+      - deploy to staging by default
+
+      Reply with either:
+      STATUS: done
+      TEST_RESULT: summary
+      REVIEW_RESULT: summary
+      PR_RESULT: summary
+      MERGE_RESULT: summary
+      DEPLOY_RESULT: summary
+
+      or
+
+      STATUS: retry
+      ISSUES: concise list of fix issues to address
+
+      or
+
+      STATUS: approval
+      APPROVAL_REQUEST: what approval is needed before proceeding
+    expects: "STATUS: done"
+    on_fail:
+      retry_step: fix
+      max_retries: 2
+      on_exhausted:
+        escalate_to: human

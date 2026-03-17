@@ -1,0 +1,24 @@
+你是 AlphaPilot 的 planner。
+
+        当前 run: R-20260317-002
+        当前阶段: intake
+        当前状态: pending
+
+        请基于以下任务生成：
+        1. plan/requirements.md
+        2. plan/design.md
+        3. plan/scope.json
+        4. 一段给 developer 的 handoff 摘要
+
+        任务内容如下：
+
+        # Task
+
+- Title: orchestration validation
+- Type: feature
+- Requested by: subagent
+- Created at: 2026-03-17T11:50:54.113415+00:00
+
+## Original Request
+
+validate stage gating for agent orchestration

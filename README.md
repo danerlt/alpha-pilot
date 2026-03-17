@@ -329,8 +329,8 @@ alpha-pilot/
 │   └── deployment/
 └── docs/
     ├── README.md
-    ├── PRD.md
-    ├── architecture.md
+    ├── 产品需求文档.md
+    ├── 总体架构.md
     ├── risk-rules.md
     └── learning-design.md
 ```

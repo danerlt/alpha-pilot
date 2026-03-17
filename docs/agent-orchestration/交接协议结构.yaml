@@ -1,0 +1,18 @@
+handoff:
+  runId: R-EXAMPLE
+  from: planner
+  to: developer
+  stage: plan
+  status: done
+  summary: >
+    已完成需求文档、变动范围和技术方案。
+  artifacts:
+    - plan/requirements.md
+    - plan/design.md
+    - plan/scope.json
+  constraints:
+    - 不修改数据库 schema
+  risks:
+    - 旧接口兼容性
+  questions: []
+  nextAction: implement according to documented plan

@@ -1,0 +1,20 @@
+handoff:
+  runId: R-20260317-001
+  from: ops
+  to: alpha-pilot
+  stage: ops-verify-and-ship
+  status: done
+  summary: 测试、review、PR、merge、deploy 已完成
+  artifacts:
+    - ops/test-report.md
+    - ops/review-report.md
+    - ops/pr.md
+    - ops/merge.md
+    - ops/deploy.md
+  constraints:
+[]
+  risks:
+[]
+  questions:
+[]
+  nextAction: summarize to group

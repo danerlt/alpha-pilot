@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useMemo } from 'react'
 import { useAuth } from '@/components/auth-provider'
+import { AdminSubnav } from '@/components/admin-subnav'
 
 const BASE_NAV_ITEMS = [
   { href: '/', label: '控制台' },
@@ -31,7 +32,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <>
       <header className="shellHeader">
         <div className="shellBrand">
-          <span className="shellLogo">⚡</span>
+          <span className="shellLogo" aria-hidden="true">
+            <span className="shellLogoCore" />
+          </span>
           <div>
             <strong>AlphaPilot</strong>
             <small>{isAdmin ? 'Control plane · admin ready' : 'Control plane · operator view'}</small>
@@ -82,6 +85,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           ) : null}
         </div>
       </header>
+      {isAdmin && pathname.startsWith('/admin') && <AdminSubnav />}
       {children}
     </>
   )

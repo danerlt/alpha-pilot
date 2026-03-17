@@ -5,22 +5,25 @@ import { RouteGuard } from '@/components/route-guard'
 
 const quickLinks = [
   {
-    title: '符号管理',
-    description: '已接通 /api/admin/symbols，可查看、筛选、新增与编辑交易符号配置。',
+    title: 'Symbol 管理',
+    description: '围绕交易 symbol 做筛选、编辑与状态治理，页面语义不再混用 currencies / symbols。',
     href: '/admin/currencies',
-    cta: '进入符号管理',
+    cta: '进入 Symbol 管理',
+    tone: 'primary',
   },
   {
     title: '用户与权限',
-    description: '已接通 /api/admin/users，可查看用户列表并调整角色 / 状态。',
+    description: '已接通 /api/admin/users，可查看用户列表、筛选成员，并调整角色 / 状态。',
     href: '/admin/users',
     cta: '进入用户管理',
+    tone: 'neutral',
   },
   {
-    title: '系统配置',
-    description: '运行时配置仍保留在主控制台，但写入口继续仅向管理员暴露。',
-    href: '/',
-    cta: '回到控制台查看',
+    title: '审计日志',
+    description: '补上管理员操作的时间线骨架，先统一列表结构，再继续增强筛选与详情。',
+    href: '/admin/audit-logs',
+    cta: '进入审计日志',
+    tone: 'neutral',
   },
 ]
 
@@ -28,30 +31,43 @@ export default function AdminPage() {
   return (
     <RouteGuard requireRole="admin">
       <main className="adminPage">
-        <section className="adminHero adminHeroLuxury">
-          <span className="authEyebrow">Admin Console</span>
-          <h1>AlphaPilot 控制平面</h1>
-          <p>把用户、符号配置和后续审计能力收进一套更清晰的后台体验里。现在先做到：更像产品，不像裸表单。</p>
-          <div className="adminHeroActions">
-            <Link href="/admin/currencies" className="shellPrimaryButton">
-              符号管理
-            </Link>
-            <Link href="/admin/users" className="shellGhostButton">
-              用户管理
-            </Link>
+        <section className="adminHero adminHeroLuxury adminSurfaceGlow">
+          <div className="adminHeroSplit">
+            <div className="adminHeroContent">
+              <span className="authEyebrow">Admin Console</span>
+              <h1>AlphaPilot 控制平面</h1>
+              <p>统一后台首页、用户管理、Symbol 管理和审计日志的视觉语言：更强信息层级、更清楚的主操作、更适合移动端触达。</p>
+              <div className="adminHeroActions">
+                <Link href="/admin/currencies" className="shellPrimaryButton">
+                  进入 Symbol 管理
+                </Link>
+                <Link href="/admin/audit-logs" className="shellGhostButton">
+                  查看审计日志
+                </Link>
+              </div>
+            </div>
+            <div className="adminHighlightCard">
+              <span className="adminHighlightLabel">本轮聚焦</span>
+              <strong>统一视觉 + 收口语义 + 补日志骨架</strong>
+              <p>先把后台做成一套完整的管理体验，再继续补深层联调和细节状态。</p>
+            </div>
           </div>
-          <div className="adminHeroStats">
+          <div className="adminHeroStats adminHeroStatsDense">
             <div className="adminMetricTile">
               <span>API 状态</span>
               <strong>Auth / Admin 已接通</strong>
             </div>
             <div className="adminMetricTile">
-              <span>后台形态</span>
+              <span>页面语义</span>
+              <strong>Users / Symbols / Audit</strong>
+            </div>
+            <div className="adminMetricTile">
+              <span>交互形态</span>
               <strong>桌面表格 + 移动卡片</strong>
             </div>
             <div className="adminMetricTile">
-              <span>当前目标</span>
-              <strong>联调与审计页收口</strong>
+              <span>联调重点</span>
+              <strong>写入口与状态反馈</strong>
             </div>
           </div>
         </section>
@@ -60,27 +76,31 @@ export default function AdminPage() {
           <div className="adminSectionHeader">
             <div>
               <span className="authEyebrow">Admin Navigation</span>
-              <h2>后台模块导航</h2>
+              <h2>后台模块</h2>
             </div>
-            <p>把入口、状态说明和高频操作收拢，避免管理员在手机上找不到关键页面。</p>
+            <p>用统一卡片结构承接导航、状态说明和主操作，减少管理员切页成本。</p>
           </div>
-          <div className="adminGrid">
+          <div className="adminGrid adminFeatureGrid">
             {quickLinks.map((item) => (
-              <article key={item.title} className="adminCard">
+              <article key={item.title} className="adminCard adminFeatureCard" data-tone={item.tone}>
+                <span className="adminCardKicker">{item.href.replace('/admin/', '').replace('/', '') || 'overview'}</span>
                 <h2>{item.title}</h2>
                 <p>{item.description}</p>
-                <Link href={item.href} className="shellGhostButton adminInlineLink">
+                <Link href={item.href} className={item.tone === 'primary' ? 'shellPrimaryButton adminInlineLink' : 'shellGhostButton adminInlineLink'}>
                   {item.cta}
                 </Link>
               </article>
             ))}
-            <article className="adminCard adminCardWide">
-              <h2>本轮已落地</h2>
+            <article className="adminCard adminCardWide adminChecklistCard">
+              <div>
+                <span className="adminCardKicker">Current Progress</span>
+                <h2>本轮已落地</h2>
+              </div>
               <ul>
-                <li>登录态切到真实后端 JWT，会话刷新时自动调用 `/api/auth/me` 校验</li>
-                <li>符号管理页直接对接 `GET/POST/PATCH /api/admin/symbols`</li>
-                <li>用户管理页直接对接 `GET/PATCH /api/admin/users`</li>
-                <li>桌面保留表格，移动端切成卡片，避免横向挤压</li>
+                <li>后台首页/用户页/Symbol 页统一为深色玻璃面板 + 高亮摘要卡</li>
+                <li>Symbol 管理页文案与入口统一收口到 symbol 语义</li>
+                <li>补上审计日志页骨架，包含筛选条、桌面表格、移动卡片</li>
+                <li>管理员子导航扩展到首页 / symbols / users / audit logs</li>
               </ul>
             </article>
           </div>

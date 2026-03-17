@@ -1,0 +1,9 @@
+{
+  "runId": "R-20260317-002",
+  "workflow": "alpha-feature-dev",
+  "status": "running",
+  "currentStage": "implement",
+  "blockedReason": null,
+  "approvalNeeded": false,
+  "retryFrom": null
+}

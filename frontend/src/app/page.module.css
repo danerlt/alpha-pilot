@@ -196,7 +196,13 @@
   gap: 8px;
 }
 
-.cardHeader .cardTitle { margin-bottom: 16px; }
+.cardHeader .cardTitle { margin-bottom: 8px; }
+
+.sectionDescription {
+  color: #94a3b8;
+  font-size: 14px;
+  line-height: 1.5;
+}
 
 .badge {
   background: #1e2736;
@@ -215,6 +221,27 @@
 }
 
 /* ── Status / Config ── */
+.viewerNotice {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid #1e2736;
+  background: linear-gradient(180deg, #111827 0%, #0f172a 100%);
+}
+
+.viewerNotice p {
+  color: #cbd5e1;
+  line-height: 1.6;
+}
+
+.viewerNoticeMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .configOverviewGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

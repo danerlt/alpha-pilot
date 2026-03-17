@@ -1,0 +1,141 @@
+id: alpha-feature-dev
+name: Alpha Polit Feature Dev
+version: 1
+description: Feature workflow with planner, developer, and ops.
+
+agents:
+  - id: planner
+    name: Planner
+    role: analysis
+    description: Produces requirement and design docs.
+    execution:
+      runtime: acp
+      agentId: claude-code
+    workspace:
+      baseDir: agents/planner
+      files:
+        AGENTS.md: agents/planner/AGENTS.md
+
+  - id: developer
+    name: Developer
+    role: coding
+    description: Implements the planned scope.
+    execution:
+      runtime: acp
+      agentId: claude-code
+    workspace:
+      baseDir: agents/developer
+      files:
+        AGENTS.md: agents/developer/AGENTS.md
+
+  - id: ops
+    name: Ops
+    role: coding
+    description: Tests, reviews, prepares PR, merges, and deploys.
+    execution:
+      runtime: acp
+      agentId: codex
+    workspace:
+      baseDir: agents/ops
+      files:
+        AGENTS.md: agents/ops/AGENTS.md
+
+steps:
+  - id: plan
+    agent: planner
+    input: |
+      Convert the task into engineering documentation.
+
+      Task:
+      {{task}}
+
+      Produce:
+      STATUS: done
+      REQUIREMENTS_DOC: path or summary
+      DESIGN_DOC: path or summary
+      SCOPE_SUMMARY: concise summary
+      ACCEPTANCE: concise acceptance criteria
+      RISKS: concise risks
+    expects: "STATUS: done"
+
+  - id: implement
+    agent: developer
+    input: |
+      Implement according to the planned documents.
+
+      Task:
+      {{task}}
+
+      Scope summary:
+      {{scope_summary}}
+
+      Acceptance:
+      {{acceptance}}
+
+      Risks:
+      {{risks}}
+
+      Reply with:
+      STATUS: done
+      IMPLEMENTATION_SUMMARY: concise summary
+      CHANGED_FILES: changed files summary
+      TEST_HINTS: what ops should verify
+    expects: "STATUS: done"
+    max_retries: 2
+    on_fail:
+      escalate_to: human
+
+  - id: ops-verify-and-ship
+    agent: ops
+    input: |
+      Validate and ship the implementation.
+
+      Task:
+      {{task}}
+
+      Scope summary:
+      {{scope_summary}}
+
+      Acceptance:
+      {{acceptance}}
+
+      Implementation summary:
+      {{implementation_summary}}
+
+      Changed files:
+      {{changed_files}}
+
+      Test hints:
+      {{test_hints}}
+
+      Internally perform:
+      - test design
+      - test execution
+      - review
+      - PR creation
+      - merge when appropriate
+      - deploy to staging by default
+
+      Reply with either:
+      STATUS: done
+      TEST_RESULT: summary
+      REVIEW_RESULT: summary
+      PR_RESULT: summary
+      MERGE_RESULT: summary
+      DEPLOY_RESULT: summary
+
+      or
+
+      STATUS: retry
+      ISSUES: concise list of implementation issues to fix
+
+      or
+
+      STATUS: approval
+      APPROVAL_REQUEST: what approval is needed before proceeding
+    expects: "STATUS: done"
+    on_fail:
+      retry_step: implement
+      max_retries: 2
+      on_exhausted:
+        escalate_to: human

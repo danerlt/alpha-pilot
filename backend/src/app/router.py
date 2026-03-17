@@ -431,6 +431,30 @@ def update_user(user_id: int, payload: AdminUserUpdate, db: Session = Depends(ge
     }
 
 
+@router.get("/api/admin/audit-logs")
+def list_audit_logs(limit: int = 50, db: Session = Depends(get_db), current_admin=Depends(require_admin)):
+    from src.shared.models.audit_log import AuditLog
+
+    safe_limit = min(max(limit, 1), 200)
+    items = db.query(AuditLog).order_by(AuditLog.created_at.desc(), AuditLog.id.desc()).limit(safe_limit).all()
+    return [
+        {
+            "id": item.id,
+            "user_id": item.user_id,
+            "action": item.action,
+            "resource_type": item.resource_type,
+            "resource_id": item.resource_id,
+            "before_json": item.before_json,
+            "after_json": item.after_json,
+            "ip": item.ip,
+            "user_agent": item.user_agent,
+            "created_at": item.created_at.isoformat() if item.created_at else None,
+            "updated_at": item.updated_at.isoformat() if item.updated_at else None,
+        }
+        for item in items
+    ]
+
+
 # ─── Runtime Config ───────────────────────────────────────────────────────────
 
 @router.get("/api/config/runtime")

@@ -92,7 +92,7 @@ TRADING_MODE, BINANCE_API_KEY, BINANCE_API_SECRET, LLM_PROVIDER, LLM_API_KEY, LL
 - 低风险控制台保护增强
 - 其他不直接体现在 PRD 但会影响后续接手效率的工作
 
-建议按日期/主题拆分文件，例如：`docs/worklog/2026-03-17-phase3-closeout.md`
+建议按日期/主题拆分文件，例如：`docs/worklog/20260317_0822_第三阶段收尾.md`
 
 补充规则：每个实现块在相关测试 / build 通过并 push 后，应自动部署 `dev server`（`bash scripts/deploy-dev.sh`）。
 

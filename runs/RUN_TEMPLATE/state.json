@@ -1,0 +1,8 @@
+{
+  "runId": "RUN_TEMPLATE",
+  "workflow": "alpha-feature-dev",
+  "status": "pending",
+  "currentStage": "intake",
+  "blockedReason": null,
+  "approvalNeeded": false
+}

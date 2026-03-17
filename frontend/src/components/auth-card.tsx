@@ -67,36 +67,65 @@ export function AuthCard({ mode }: AuthCardProps) {
 
   const title = mode === 'login' ? '登录 AlphaPilot' : '创建 AlphaPilot 账号'
   const subtitle = mode === 'login'
-    ? '优先走真实后端 JWT 登录，管理员登录后可直接进入后台 API 页面。'
-    : '注册现在直接调用后端接口，默认创建普通用户账号。管理员权限仍需由后台已有管理员授予。'
+    ? '统一视觉语言后的登录入口：更清晰的层级、更现代的卡片系统、更适合移动端的输入与反馈。'
+    : '注册流程保持轻量，但体验升级为同一套控制平面视觉系统，减少从营销页到后台的割裂感。'
 
   return (
-    <section className="authLayout">
-      <div className="authHero">
-        <span className="authEyebrow">Frontend First / API Wired</span>
+    <section className="authLayout authLayoutModern">
+      <div className="authHero authHeroModern">
+        <span className="authEyebrow">Modern Control Plane</span>
         <h1>{title}</h1>
         <p>{subtitle}</p>
-        <ul>
-          <li>登录后保留 bearer token，页面刷新后会自动校验当前会话</li>
-          <li>普通用户默认落到控制台，管理员账号落到后台</li>
-          <li>后台列表与编辑现在直接请求真实 admin API</li>
-        </ul>
-      </div>
 
-      <form className="authCard" onSubmit={handleSubmit}>
-        <div>
-          <h2>{mode === 'login' ? '欢迎回来' : '开始使用'}</h2>
+        <div className="authHeroPanel">
+          <div className="authHeroPanelGlow" aria-hidden="true" />
+          <div>
+            <span className="authHeroPanelLabel">体验升级</span>
+            <strong>{mode === 'login' ? '会话恢复、跳转回流、状态反馈' : '创建账号、默认普通用户、后台授权分离'}</strong>
+          </div>
           <p>
             {mode === 'login'
-              ? '输入已存在账号进入控制台；如果原本要去受保护页面，登录后会自动跳回。'
-              : '注册接口会创建普通用户；若要进入后台，请使用已有管理员账号登录。'}
+              ? '登录后保留 bearer token，刷新页面会自动调用 /api/auth/me 校验会话。'
+              : '注册接口仍直接调用后端，管理员角色继续由后台管理页维护，避免前端自行抬权。'}
+          </p>
+        </div>
+
+        <div className="authFeatureGrid">
+          <article className="authFeatureCard">
+            <span className="authFeatureKicker">Session</span>
+            <strong>真实 JWT 会话</strong>
+            <p>登录后刷新不丢状态，管理员进入后台，普通用户进入控制台。</p>
+          </article>
+          <article className="authFeatureCard">
+            <span className="authFeatureKicker">Design</span>
+            <strong>统一控制平面语言</strong>
+            <p>登录/注册与 admin 首页、Users、Symbols 同步升级成统一暗色玻璃卡片系统。</p>
+          </article>
+          <article className="authFeatureCard">
+            <span className="authFeatureKicker">Mobile</span>
+            <strong>移动端优先</strong>
+            <p>大按钮、足够触达面积、简化信息密度，手机上也能顺手完成登录与注册。</p>
+          </article>
+        </div>
+      </div>
+
+      <form className="authCard authCardModern" onSubmit={handleSubmit}>
+        <div className="authCardHeader">
+          <div>
+            <span className="authEyebrow">{mode === 'login' ? 'Welcome Back' : 'Create Account'}</span>
+            <h2>{mode === 'login' ? '欢迎回来' : '开始使用'}</h2>
+          </div>
+          <p>
+            {mode === 'login'
+              ? '输入已有账号进入控制台；如果原本要去受保护页面，登录后会自动跳回。'
+              : '注册后默认进入普通用户流转；如需后台权限，请使用已有管理员账号登录。'}
           </p>
         </div>
 
         {mode === 'register' && (
           <label className="authField">
             <span>显示名称</span>
-            <input name="name" placeholder="例如：alpha-admin" />
+            <input name="name" placeholder="例如：alpha-admin" autoComplete="nickname" />
           </label>
         )}
 
@@ -109,6 +138,17 @@ export function AuthCard({ mode }: AuthCardProps) {
           <span>密码</span>
           <input name="password" type="password" placeholder="至少 8 位" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />
         </label>
+
+        <div className="authMicroGrid">
+          <div className="authMicroCard">
+            <strong>{mode === 'login' ? '自动跳转' : '默认角色'}</strong>
+            <span>{mode === 'login' ? '登录后回到原目标页或默认首页' : '新账号默认是普通用户'}</span>
+          </div>
+          <div className="authMicroCard">
+            <strong>{mode === 'login' ? '安全校验' : '权限边界'}</strong>
+            <span>{mode === 'login' ? '刷新时自动校验当前会话' : '管理员权限仍由后台授予'}</span>
+          </div>
+        </div>
 
         {mode === 'register' && (
           <div className="authHint">
