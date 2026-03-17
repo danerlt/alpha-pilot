@@ -18,10 +18,10 @@
 - [x] Add symbol admin API tests
 
 ## Phase D — Admin User Management
-- [ ] Add admin list users API
-- [ ] Add admin update user role/status API
-- [ ] Add audit logs for user management changes
-- [ ] Add tests for admin user management
+- [x] Add admin list users API
+- [x] Add admin update user role/status API
+- [x] Add audit logs for user management changes
+- [x] Add tests for admin user management
 
 ## Phase E — Frontend Auth & Admin Entry
 - [ ] Add login page
@@ -34,6 +34,12 @@
 - [ ] Add user management page
 - [ ] Connect admin UI to backend APIs
 - [ ] Keep mobile-first responsive layout
+
+## Phase G — Product Architecture Follow-ups
+- [ ] Add docs/architecture.md to describe control plane + execution core + future strategy intelligence layers
+- [ ] Add attribution analytics plan/spec skeleton
+- [ ] Add AI Trader / Program Trader split as a tracked roadmap item
+- [ ] Add factor intelligence/factor library roadmap skeleton
 
 ## Verification Rule
 For each phase chunk:

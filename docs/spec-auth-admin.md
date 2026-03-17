@@ -3,6 +3,7 @@
 ## Scope
 
 This spec defines the user/auth/admin management layer for AlphaPilot.
+It also sits inside the broader product direction now adopted in PRD: AI Trader / Program Trader separation, multi-agent responsibilities, attribution analytics, factor intelligence, and web + messaging collaboration.
 
 ### Included
 - User registration
