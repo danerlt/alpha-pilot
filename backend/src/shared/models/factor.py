@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Index, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.shared.models.base import Base, TimestampMixin
@@ -10,6 +10,13 @@ from src.shared.models.base import Base, TimestampMixin
 
 class FactorDefinition(Base, TimestampMixin):
     __tablename__ = "factor_definitions"
+
+    # Declare indexes on the model too (not only in migrations) so:
+    #  - Base.metadata.create_all(e.g. SQLite unit tests) produces matching schema
+    #  - tests checking model.__table__.indexes see what really exists in prod DB
+    __table_args__ = (
+        Index("ix_factor_definitions_name_version", "name", "version", unique=True),
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(80), nullable=False)
@@ -22,6 +29,14 @@ class FactorDefinition(Base, TimestampMixin):
 
 class FactorSnapshot(Base, TimestampMixin):
     __tablename__ = "factor_snapshots"
+
+    __table_args__ = (
+        Index(
+            "ix_factor_snapshots_unique",
+            "account_id", "trading_mode", "symbol", "timeframe", "open_time",
+            unique=True,
+        ),
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     # Fresh table — NO Python default; callers must set account_id explicitly

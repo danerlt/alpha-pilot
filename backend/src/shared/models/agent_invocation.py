@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, JSON, Numeric, String, Text
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, Integer, JSON, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.shared.models.base import Base, TimestampMixin
@@ -10,6 +10,11 @@ from src.shared.models.base import Base, TimestampMixin
 
 class AgentInvocation(Base, TimestampMixin):
     __tablename__ = "agent_invocations"
+
+    __table_args__ = (
+        Index("ix_agent_invocations_occurred_at", "occurred_at"),
+        Index("ix_agent_invocations_prompt_template_id", "prompt_template_id"),
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     # Fresh table — NO Python default; callers must pass account_id explicitly.
