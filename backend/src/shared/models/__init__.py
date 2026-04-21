@@ -15,6 +15,7 @@ from src.shared.models.system_setting import SystemSetting
 from src.shared.models.user import User
 from src.shared.models.symbol_config import SymbolConfig
 from src.shared.models.audit_log import AuditLog
+from src.shared.models.factor import FactorDefinition, FactorSnapshot, FactorCandidate
 
 __all__ = [
     "Base",
@@ -36,4 +37,7 @@ __all__ = [
     "User",
     "SymbolConfig",
     "AuditLog",
+    "FactorDefinition",
+    "FactorSnapshot",
+    "FactorCandidate",
 ]
