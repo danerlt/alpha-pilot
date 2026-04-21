@@ -16,6 +16,9 @@ from src.shared.models.user import User
 from src.shared.models.symbol_config import SymbolConfig
 from src.shared.models.audit_log import AuditLog
 from src.shared.models.factor import FactorDefinition, FactorSnapshot, FactorCandidate
+from src.shared.models.prompt import PromptTemplate, ProposalDraft
+from src.shared.models.decision_review import DecisionReview
+from src.shared.models.agent_invocation import AgentInvocation
 
 __all__ = [
     "Base",
@@ -40,4 +43,8 @@ __all__ = [
     "FactorDefinition",
     "FactorSnapshot",
     "FactorCandidate",
+    "PromptTemplate",
+    "ProposalDraft",
+    "DecisionReview",
+    "AgentInvocation",
 ]
