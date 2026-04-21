@@ -19,6 +19,8 @@ from src.shared.models.factor import FactorDefinition, FactorSnapshot, FactorCan
 from src.shared.models.prompt import PromptTemplate, ProposalDraft
 from src.shared.models.decision_review import DecisionReview
 from src.shared.models.agent_invocation import AgentInvocation
+from src.shared.models.experience_v2 import ExperienceV2, ExperienceSummary
+from src.shared.models.attribution import TradeAttribution, StrategyScore
 
 __all__ = [
     "Base",
@@ -47,4 +49,8 @@ __all__ = [
     "ProposalDraft",
     "DecisionReview",
     "AgentInvocation",
+    "ExperienceV2",
+    "ExperienceSummary",
+    "TradeAttribution",
+    "StrategyScore",
 ]
