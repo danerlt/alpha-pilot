@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from src.app.main import app
+from src.app.app import app
 from src.shared.db import get_db
 from src.shared.enums import TradingMode
 

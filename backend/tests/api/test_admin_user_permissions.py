@@ -6,7 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from src.app.main import app
+from src.app.app import app
 from src.shared.db import get_db
 from src.shared.models.audit_log import AuditLog
 from src.shared.models.base import Base

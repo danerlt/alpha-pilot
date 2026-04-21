@@ -77,7 +77,7 @@ prod-deploy:
 
 # ── 后端开发（本地 venv）──────────────────────────────────────────────────────
 dev-backend:
-	cd backend && source .venv/bin/activate && uvicorn src.app.main:app --reload --host 0.0.0.0 --port 8000
+	cd backend && source .venv/bin/activate && uvicorn src.app.app:app --reload --host 0.0.0.0 --port 8000
 
 init-db:
 	cd backend && source .venv/bin/activate && python scripts/init_db.py
