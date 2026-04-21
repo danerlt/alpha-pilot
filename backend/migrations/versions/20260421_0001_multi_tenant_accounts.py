@@ -53,7 +53,10 @@ def upgrade() -> None:
     op.create_table(
         "risk_profiles",
         sa.Column("id", sa.BigInteger(), primary_key=True, autoincrement=True),
-        sa.Column("account_id", sa.BigInteger(), nullable=False, server_default="1"),
+        # No server_default on fresh-table account_id — every insert must
+        # specify it explicitly. server_default=1 is only used on retrofits
+        # (ALTER TABLE ADD COLUMN) to backfill existing rows.
+        sa.Column("account_id", sa.BigInteger(), nullable=False),
         sa.Column("name", sa.String(length=80), nullable=False),
         sa.Column("max_position_size_pct", sa.Numeric(5, 4), nullable=False, server_default="0.20"),
         sa.Column("max_daily_loss_pct", sa.Numeric(5, 4), nullable=False, server_default="0.03"),
@@ -73,7 +76,8 @@ def upgrade() -> None:
     op.create_table(
         "parameter_versions",
         sa.Column("id", sa.BigInteger(), primary_key=True, autoincrement=True),
-        sa.Column("account_id", sa.BigInteger(), nullable=False, server_default="1"),
+        # No server_default — fresh table; see risk_profiles comment above.
+        sa.Column("account_id", sa.BigInteger(), nullable=False),
         sa.Column("profile_id", sa.BigInteger(), nullable=True),
         sa.Column("change_type", sa.String(length=40), nullable=False),
         sa.Column("old_value_json", sa.JSON(), nullable=True),

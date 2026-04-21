@@ -38,8 +38,12 @@ def pg_engine():
     with PostgresContainer("postgres:16-alpine") as pg:
         url = pg.get_connection_url()
         engine = create_engine(url)
-        cfg = Config(os.path.join(os.path.dirname(__file__), "../../alembic.ini"))
+        # Resolve both the ini file AND the script_location to absolute paths
+        # so the test works regardless of pytest CWD (repo root or backend/).
+        backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+        cfg = Config(os.path.join(backend_dir, "alembic.ini"))
         cfg.set_main_option("sqlalchemy.url", url)
+        cfg.set_main_option("script_location", os.path.join(backend_dir, "migrations"))
         command.upgrade(cfg, "head")
         yield engine
 

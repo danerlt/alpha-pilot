@@ -31,8 +31,11 @@ class RiskProfile(Base, TimestampMixin):
     __tablename__ = "risk_profiles"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    # No Python-level default — callers must set account_id explicitly on
+    # fresh rows so "forgot to pass account_id" surfaces as a programming
+    # error rather than silently defaulting to 1.
     account_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("accounts.id"), nullable=False, default=1
+        BigInteger, ForeignKey("accounts.id"), nullable=False
     )
     name: Mapped[str] = mapped_column(String(80), nullable=False)
     max_position_size_pct: Mapped[float] = mapped_column(Numeric(5, 4), nullable=False, default=0.20)
@@ -51,8 +54,9 @@ class ParameterVersion(Base, TimestampMixin):
     __tablename__ = "parameter_versions"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    # No Python-level default — see RiskProfile comment above.
     account_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("accounts.id"), nullable=False, default=1
+        BigInteger, ForeignKey("accounts.id"), nullable=False
     )
     profile_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("risk_profiles.id"))
     change_type: Mapped[str] = mapped_column(String(40), nullable=False)
