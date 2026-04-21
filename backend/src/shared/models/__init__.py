@@ -1,6 +1,7 @@
 from src.shared.models.base import Base
 from src.shared.models.candle import Candle
 from src.shared.models.account import AccountSnapshot
+from src.shared.models.account_entity import Account, RiskProfile, ParameterVersion
 from src.shared.models.indicator import IndicatorSnapshot
 from src.shared.models.regime import RegimeSnapshot
 from src.shared.models.position import Position
@@ -19,6 +20,9 @@ __all__ = [
     "Base",
     "Candle",
     "AccountSnapshot",
+    "Account",
+    "RiskProfile",
+    "ParameterVersion",
     "IndicatorSnapshot",
     "RegimeSnapshot",
     "Position",

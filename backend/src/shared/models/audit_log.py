@@ -1,4 +1,4 @@
-from sqlalchemy import Integer, JSON, String, Text
+from sqlalchemy import BigInteger, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.shared.models.base import Base, TimestampMixin
@@ -8,6 +8,7 @@ class AuditLog(Base, TimestampMixin):
     __tablename__ = "audit_logs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    account_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("accounts.id"), nullable=False, default=1)
     user_id: Mapped[int | None] = mapped_column(Integer)
     action: Mapped[str] = mapped_column(String(100), nullable=False)
     resource_type: Mapped[str] = mapped_column(String(50), nullable=False)

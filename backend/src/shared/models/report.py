@@ -1,5 +1,5 @@
 from datetime import date
-from sqlalchemy import String, Numeric, Date, BigInteger, JSON, Integer
+from sqlalchemy import String, Numeric, Date, BigInteger, JSON, Integer, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 from src.shared.models.base import Base, TimestampMixin
 from src.shared.enums import TradingMode
@@ -9,6 +9,7 @@ class DailyReport(Base, TimestampMixin):
     __tablename__ = "daily_reports"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    account_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("accounts.id"), nullable=False, default=1)
     trading_mode: Mapped[str] = mapped_column(String(10), nullable=False, default=TradingMode.TESTNET.value)
     report_date: Mapped[date] = mapped_column(Date, nullable=False)
     total_trades: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

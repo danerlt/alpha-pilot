@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import String, Numeric, DateTime, BigInteger, JSON
+from sqlalchemy import String, Numeric, DateTime, BigInteger, JSON, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 from src.shared.models.base import Base, TimestampMixin
 from src.shared.enums import TradingMode
@@ -13,6 +13,7 @@ class ExperienceRecord(Base, TimestampMixin):
     __tablename__ = "experience_store"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    account_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("accounts.id"), nullable=False, default=1)
     trading_mode: Mapped[str] = mapped_column(String(10), nullable=False, default=TradingMode.TESTNET.value)
     trade_id: Mapped[int] = mapped_column(BigInteger, nullable=False, unique=True)
     symbol: Mapped[str] = mapped_column(String(20), nullable=False)
