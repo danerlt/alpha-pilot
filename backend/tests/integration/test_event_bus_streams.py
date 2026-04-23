@@ -73,3 +73,14 @@ def test_dead_letter_writes_to_deadletter_stream(redis_url):
     # Dead-letter stream naming: deadletter.<original_stream>
     length = r.xlen("deadletter.market.dead.c")
     assert length == 1
+
+
+def test_ensure_group_is_idempotent(redis_url):
+    """Calling ensure_group twice on the same (stream, group) must not raise.
+
+    Regression guard for the BUSYGROUP-swallowing behaviour — if anyone
+    refactors the try/except in ensure_group, this catches it.
+    """
+    bus = RedisStreamsBus(redis_url)
+    bus.ensure_group("market.candle.dup", "group-dup")
+    bus.ensure_group("market.candle.dup", "group-dup")  # must not raise
