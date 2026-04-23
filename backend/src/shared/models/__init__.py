@@ -23,6 +23,7 @@ from src.shared.models.experience_v2 import ExperienceV2, ExperienceSummary
 from src.shared.models.attribution import TradeAttribution, StrategyScore
 from src.shared.models.shadow import ShadowDecision, ShadowEvaluation
 from src.shared.models.ops_diagnosis import OpsDiagnosis
+from src.shared.models.event_store import EventInbox, EventOutbox
 
 __all__ = [
     "Base",
@@ -58,4 +59,6 @@ __all__ = [
     "ShadowDecision",
     "ShadowEvaluation",
     "OpsDiagnosis",
+    "EventInbox",
+    "EventOutbox",
 ]
