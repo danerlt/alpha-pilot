@@ -21,6 +21,8 @@ from src.shared.models.decision_review import DecisionReview
 from src.shared.models.agent_invocation import AgentInvocation
 from src.shared.models.experience_v2 import ExperienceV2, ExperienceSummary
 from src.shared.models.attribution import TradeAttribution, StrategyScore
+from src.shared.models.shadow import ShadowDecision, ShadowEvaluation
+from src.shared.models.ops_diagnosis import OpsDiagnosis
 
 __all__ = [
     "Base",
@@ -53,4 +55,7 @@ __all__ = [
     "ExperienceSummary",
     "TradeAttribution",
     "StrategyScore",
+    "ShadowDecision",
+    "ShadowEvaluation",
+    "OpsDiagnosis",
 ]
