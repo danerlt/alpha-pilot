@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import BigInteger, ForeignKey, Integer, JSON, Numeric, String, Text
+from sqlalchemy import BigInteger, ForeignKey, Index, Integer, JSON, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.shared.models.base import Base, TimestampMixin
@@ -8,6 +8,10 @@ from src.shared.models.base import Base, TimestampMixin
 
 class ExperienceV2(Base, TimestampMixin):
     __tablename__ = "experiences"
+
+    __table_args__ = (
+        Index("ix_experiences_trade_id", "trade_id"),
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     # Fresh table — NO Python default on account_id.
@@ -27,6 +31,10 @@ class ExperienceV2(Base, TimestampMixin):
 
 class ExperienceSummary(Base, TimestampMixin):
     __tablename__ = "experience_summaries"
+
+    __table_args__ = (
+        Index("ix_experience_summaries_experience_id", "experience_id"),
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     experience_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("experiences.id"), nullable=False)

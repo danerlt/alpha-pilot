@@ -52,6 +52,11 @@ Thumbs.db
 logs/
 *.log
 
+# Local SQLite fallback DB (e.g. if alembic runs without DATABASE_URL)
+backend/*.db
+backend/*.sqlite
+backend/*.sqlite3
+
 # OpenClaw / agent runtime local files
 .openclaw/
 AGENTS.md

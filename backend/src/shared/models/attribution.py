@@ -11,6 +11,10 @@ from src.shared.models.base import Base, TimestampMixin
 class TradeAttribution(Base, TimestampMixin):
     __tablename__ = "trade_attributions"
 
+    __table_args__ = (
+        Index("ix_trade_attributions_trade_id", "trade_id"),
+    )
+
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     trade_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("trades.id"), nullable=False)
     by_symbol: Mapped[dict | None] = mapped_column(JSON)
