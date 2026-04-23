@@ -7,6 +7,10 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from src.shared.models.base import Base, TimestampMixin
 
+# SQLite's AUTOINCREMENT only works with INTEGER PRIMARY KEY (not BIGINT);
+# `with_variant` lets unit tests use SQLite while Postgres still gets BIGINT.
+_BigIntPk = BigInteger().with_variant(Integer(), "sqlite")
+
 
 class EventInbox(Base, TimestampMixin):
     __tablename__ = "event_inbox"
@@ -19,7 +23,7 @@ class EventInbox(Base, TimestampMixin):
         ),
     )
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(_BigIntPk, primary_key=True, autoincrement=True)
     consumer_name: Mapped[str] = mapped_column(String(80), nullable=False)
     event_id: Mapped[str] = mapped_column(String(40), nullable=False)
     processed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -28,7 +32,7 @@ class EventInbox(Base, TimestampMixin):
 class EventOutbox(Base, TimestampMixin):
     __tablename__ = "event_outbox"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(_BigIntPk, primary_key=True, autoincrement=True)
     aggregate_type: Mapped[str] = mapped_column(String(40), nullable=False)
     aggregate_id: Mapped[int | None] = mapped_column(BigInteger)
     event_type: Mapped[str] = mapped_column(String(60), nullable=False)
