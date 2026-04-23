@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import String, Numeric, DateTime, BigInteger, JSON, Text, Boolean, ForeignKey
+from sqlalchemy import String, Numeric, DateTime, BigInteger, Integer, JSON, Text, Boolean, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 from src.shared.models.base import Base, TimestampMixin
 from src.shared.enums import TradingMode
@@ -27,3 +27,14 @@ class AIDecision(Base, TimestampMixin):
     prompt_input: Mapped[dict | None] = mapped_column(JSON)   # 完整 prompt 输入（审计用）
     raw_output: Mapped[str | None] = mapped_column(Text)      # LLM 原始输出（审计用）
     is_fallback: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)  # 是否触发兜底 HOLD
+    proposal_draft_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("proposal_drafts.id")
+    )
+    llm_provider: Mapped[str | None] = mapped_column(String(30))
+    llm_model: Mapped[str | None] = mapped_column(String(60))
+    tokens_used: Mapped[int | None] = mapped_column(Integer)
+    latency_ms: Mapped[int | None] = mapped_column(Integer)
+    source: Mapped[str] = mapped_column(String(20), nullable=False, default="ai_trader")
+    factor_snapshot_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("factor_snapshots.id")
+    )
