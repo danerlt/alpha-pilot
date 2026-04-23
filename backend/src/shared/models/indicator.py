@@ -1,14 +1,14 @@
 from datetime import datetime
 from sqlalchemy import String, Numeric, DateTime, BigInteger, JSON, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
-from src.shared.models.base import Base, TimestampMixin
+from src.shared.models.base import Base, BigIntPk, TimestampMixin
 from src.shared.enums import TradingMode
 
 
 class IndicatorSnapshot(Base, TimestampMixin):
     __tablename__ = "indicator_snapshots"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     account_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("accounts.id"), nullable=False, default=1)
     trading_mode: Mapped[str] = mapped_column(String(10), nullable=False, default=TradingMode.TESTNET.value)
     symbol: Mapped[str] = mapped_column(String(20), nullable=False)

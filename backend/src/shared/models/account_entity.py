@@ -10,13 +10,13 @@ from datetime import datetime
 from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, JSON, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.shared.models.base import Base, TimestampMixin
+from src.shared.models.base import Base, BigIntPk, TimestampMixin
 
 
 class Account(Base, TimestampMixin):
     __tablename__ = "accounts"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     owner_user_id: Mapped[int | None] = mapped_column(BigInteger)
     name: Mapped[str] = mapped_column(String(80), nullable=False)
     exchange: Mapped[str] = mapped_column(String(20), nullable=False, default="binance")
@@ -30,7 +30,7 @@ class Account(Base, TimestampMixin):
 class RiskProfile(Base, TimestampMixin):
     __tablename__ = "risk_profiles"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     # No Python-level default — callers must set account_id explicitly on
     # fresh rows so "forgot to pass account_id" surfaces as a programming
     # error rather than silently defaulting to 1.
@@ -53,7 +53,7 @@ class RiskProfile(Base, TimestampMixin):
 class ParameterVersion(Base, TimestampMixin):
     __tablename__ = "parameter_versions"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     # No Python-level default — see RiskProfile comment above.
     account_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("accounts.id"), nullable=False

@@ -3,7 +3,7 @@ from __future__ import annotations
 from sqlalchemy import BigInteger, Boolean, ForeignKey, Index, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.shared.models.base import Base, TimestampMixin
+from src.shared.models.base import Base, BigIntPk, TimestampMixin
 
 
 class PromptTemplate(Base, TimestampMixin):
@@ -12,7 +12,7 @@ class PromptTemplate(Base, TimestampMixin):
         Index("ix_prompt_templates_name_version", "name", "version", unique=True),
     )
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(80), nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     system_template: Mapped[str] = mapped_column(Text, nullable=False)
@@ -25,7 +25,7 @@ class PromptTemplate(Base, TimestampMixin):
 class ProposalDraft(Base, TimestampMixin):
     __tablename__ = "proposal_drafts"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     # Fresh table — NO Python default; callers must pass account_id explicitly.
     account_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("accounts.id"), nullable=False

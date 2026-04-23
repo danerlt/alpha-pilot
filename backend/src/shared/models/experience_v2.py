@@ -3,7 +3,7 @@ from __future__ import annotations
 from sqlalchemy import BigInteger, ForeignKey, Index, Integer, JSON, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.shared.models.base import Base, TimestampMixin
+from src.shared.models.base import Base, BigIntPk, TimestampMixin
 
 
 class ExperienceV2(Base, TimestampMixin):
@@ -13,7 +13,7 @@ class ExperienceV2(Base, TimestampMixin):
         Index("ix_experiences_trade_id", "trade_id"),
     )
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     # Fresh table — NO Python default on account_id.
     account_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("accounts.id"), nullable=False
@@ -36,7 +36,7 @@ class ExperienceSummary(Base, TimestampMixin):
         Index("ix_experience_summaries_experience_id", "experience_id"),
     )
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     experience_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("experiences.id"), nullable=False)
     summary_text: Mapped[str] = mapped_column(Text, nullable=False)
     tags_json: Mapped[dict | None] = mapped_column(JSON)

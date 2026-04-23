@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Index, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.shared.models.base import Base, TimestampMixin
+from src.shared.models.base import Base, BigIntPk, TimestampMixin
 
 
 class FactorDefinition(Base, TimestampMixin):
@@ -18,7 +18,7 @@ class FactorDefinition(Base, TimestampMixin):
         Index("ix_factor_definitions_name_version", "name", "version", unique=True),
     )
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(80), nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     inputs_json: Mapped[dict | None] = mapped_column(JSON)
@@ -38,7 +38,7 @@ class FactorSnapshot(Base, TimestampMixin):
         ),
     )
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     # Fresh table — NO Python default; callers must set account_id explicitly
     # (see Task 1 convention).
     account_id: Mapped[int] = mapped_column(
@@ -55,7 +55,7 @@ class FactorSnapshot(Base, TimestampMixin):
 class FactorCandidate(Base, TimestampMixin):
     __tablename__ = "factor_candidates"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     proposed_by_agent: Mapped[str] = mapped_column(String(40), nullable=False, default="factor_ai")
     name: Mapped[str] = mapped_column(String(80), nullable=False)
     formula_code_ref: Mapped[str | None] = mapped_column(String(200))
