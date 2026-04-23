@@ -122,9 +122,17 @@ def test_different_context_produces_different_hash(session):
 
 
 def test_compose_survives_empty_recent_experience_and_no_position(session):
-    """Common case: cold start, no position, no past trades."""
-    _seed_active_template(session)
+    """Common case: cold start, no position, no past trades — must not raise."""
+    session.add(PromptTemplate(
+        name="ait_default", version=1,
+        system_template="sys ${symbol}",
+        # Reference the two fields so the template actually renders them.
+        user_template="pos=${open_position_json} exp=${recent_experience_json}",
+        active=True,
+    ))
+    session.flush()
     composer = PromptComposer(session)
     bundle = composer.compose(_sample_context())
-    # Renders without error; None is JSON-encoded as "null".
+    # None → "null"; [] → "[]".
     assert "null" in bundle.user
+    assert "[]" in bundle.user
