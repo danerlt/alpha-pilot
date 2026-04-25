@@ -69,6 +69,7 @@ def test_sync_snapshot_aggregates_open_positions(session):
 def test_sync_snapshot_aggregates_today_trades_pnl(session):
     session.add(Trade(
         account_id=1, trading_mode="testnet",
+        position_id=1,
         symbol="BTCUSDT", side="LONG",
         entry_price=50_000.0, exit_price=50_500.0,
         quantity=0.01, pnl=5.0, pnl_pct=0.01,
@@ -105,6 +106,7 @@ def test_get_daily_pnl_reads_latest_snapshot(session):
     # 加一笔今日 trade 后再 sync
     session.add(Trade(
         account_id=1, trading_mode="testnet",
+        position_id=99,
         symbol="ETHUSDT", side="LONG",
         entry_price=3000, exit_price=3030,
         quantity=1.0, pnl=30.0, pnl_pct=0.01,
