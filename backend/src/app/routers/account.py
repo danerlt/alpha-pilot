@@ -4,16 +4,20 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from src.app.dependencies import get_current_user
 from src.shared.config import get_settings
 from src.shared.db import get_db
+from src.shared.models.account import AccountSnapshot
 
 router = APIRouter(prefix="/api/account", tags=["account"])
 
 
 @router.get("")
-def get_account(db: Session = Depends(get_db)):
-    """返回最新账户快照。"""
-    from src.shared.models.account import AccountSnapshot
+def get_account(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """返回最新账户快照 (要求登录)。"""
     settings = get_settings()
     snap = (
         db.query(AccountSnapshot)

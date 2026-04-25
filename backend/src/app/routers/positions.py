@@ -1,9 +1,16 @@
-"""Positions endpoints — /api/positions /api/positions/{id}/close /api/positions/close-all."""
+"""Positions endpoints — /api/positions (GET only).
+
+旧的 POST /api/positions/{id}/close 和 /api/positions/close-all 已迁移到
+/api/commands/close-position/{id} 和 /api/commands/close-all (Critical fix C3)。
+新版走 ManualOpsService 写 audit_logs + 发 manual.override 事件 + 要求
+confirmation='CLOSE ALL', 旧版的弱保护版本不再可用。
+"""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from src.app.dependencies import get_current_user
 from src.shared.config import get_settings
 from src.shared.db import get_db
 from src.shared.enums import PositionStatus
@@ -12,8 +19,11 @@ router = APIRouter(prefix="/api/positions", tags=["positions"])
 
 
 @router.get("")
-def list_positions(db: Session = Depends(get_db)):
-    """列出所有开仓持仓。"""
+def list_positions(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """列出所有开仓持仓 (要求登录)。"""
     from src.shared.models.position import Position
     settings = get_settings()
     rows = (
@@ -39,50 +49,3 @@ def list_positions(db: Session = Depends(get_db)):
         }
         for p in rows
     ]
-
-
-@router.post("/{position_id}/close")
-def manual_close_position(position_id: int, db: Session = Depends(get_db)):
-    """手动平仓 (绕过 AI 风控, 直接执行)。"""
-    from src.services.order_execution.executor import close_long
-    from src.shared.enums import TradeExitReason
-    from src.shared.models.position import Position
-    settings = get_settings()
-    pos = (
-        db.query(Position)
-        .filter(
-            Position.trading_mode == settings.TRADING_MODE.value,
-            Position.id == position_id,
-            Position.status == PositionStatus.OPEN.value,
-        )
-        .first()
-    )
-    if not pos:
-        raise HTTPException(status_code=404, detail="Position not found or already closed")
-    order = close_long(db, pos, TradeExitReason.MANUAL_CLOSE)
-    if order is None:
-        raise HTTPException(status_code=500, detail="Failed to close position")
-    return {"message": "Position closed", "order_id": order.id}
-
-
-@router.post("/close-all")
-def close_all_positions(db: Session = Depends(get_db)):
-    """一键全部平仓 (绕过所有风控)。"""
-    from src.services.order_execution.executor import close_long
-    from src.shared.enums import TradeExitReason
-    from src.shared.models.position import Position
-    settings = get_settings()
-    open_positions = (
-        db.query(Position)
-        .filter(
-            Position.trading_mode == settings.TRADING_MODE.value,
-            Position.status == PositionStatus.OPEN.value,
-        )
-        .all()
-    )
-    closed = []
-    for pos in open_positions:
-        order = close_long(db, pos, TradeExitReason.MANUAL_CLOSE)
-        if order:
-            closed.append(pos.id)
-    return {"closed_positions": closed, "count": len(closed)}

@@ -4,16 +4,21 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from src.app.dependencies import get_current_user
 from src.shared.config import get_settings
 from src.shared.db import get_db
+from src.shared.models.decision import AIDecision
 
 router = APIRouter(prefix="/api/decisions", tags=["decisions"])
 
 
 @router.get("")
-def list_decisions(limit: int = 20, db: Session = Depends(get_db)):
-    """返回最近 N 条 AI 决策记录。"""
-    from src.shared.models.decision import AIDecision
+def list_decisions(
+    limit: int = 20,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """返回最近 N 条 AI 决策记录 (要求登录)。"""
     settings = get_settings()
     rows = (
         db.query(AIDecision)

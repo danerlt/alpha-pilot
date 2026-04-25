@@ -1,18 +1,26 @@
-"""Reports — /api/reports /api/reports/generate."""
+"""Reports — /api/reports (GET) /api/reports/generate (POST).
+
+GET 要求登录, POST 要求 admin (生成行为修改 DB)。
+"""
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from src.app.dependencies import get_current_user, require_admin
 from src.shared.config import get_settings
 from src.shared.db import get_db
+from src.shared.models.report import DailyReport
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 
 
 @router.get("")
-def list_reports(limit: int = 30, db: Session = Depends(get_db)):
-    from src.shared.models.report import DailyReport
+def list_reports(
+    limit: int = 30,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
     settings = get_settings()
     rows = (
         db.query(DailyReport)
@@ -39,8 +47,11 @@ def list_reports(limit: int = 30, db: Session = Depends(get_db)):
 
 
 @router.post("/generate")
-def generate_report(db: Session = Depends(get_db)):
-    """手动触发今日日报生成。"""
+def generate_report(
+    db: Session = Depends(get_db),
+    current_admin=Depends(require_admin),
+):
+    """手动触发今日日报生成 (admin only)。"""
     from src.services.reporting.reporter import generate_daily_report
     report = generate_daily_report(db)
     return {"message": "Report generated", "report_date": report.report_date.isoformat()}

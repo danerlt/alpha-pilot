@@ -1,4 +1,7 @@
-"""Risk events — /api/risk-events /api/risk-events/{id}/resolve."""
+"""Risk events — /api/risk-events (GET) / /api/risk-events/{id}/resolve (POST).
+
+GET 要求登录, POST 要求 admin (危险操作: 解除熔断会让自动交易重新开仓)。
+"""
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -6,15 +9,20 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from src.app.dependencies import get_current_user, require_admin
 from src.shared.config import get_settings
 from src.shared.db import get_db
+from src.shared.models.risk_event import RiskEvent
 
 router = APIRouter(prefix="/api/risk-events", tags=["risk"])
 
 
 @router.get("")
-def list_risk_events(limit: int = 50, db: Session = Depends(get_db)):
-    from src.shared.models.risk_event import RiskEvent
+def list_risk_events(
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
     settings = get_settings()
     rows = (
         db.query(RiskEvent)
@@ -35,9 +43,12 @@ def list_risk_events(limit: int = 50, db: Session = Depends(get_db)):
 
 
 @router.post("/{event_id}/resolve")
-def resolve_risk_event(event_id: int, db: Session = Depends(get_db)):
-    """手动解除熔断事件。"""
-    from src.shared.models.risk_event import RiskEvent
+def resolve_risk_event(
+    event_id: int,
+    db: Session = Depends(get_db),
+    current_admin=Depends(require_admin),
+):
+    """手动解除熔断事件 (admin only)。"""
     settings = get_settings()
     event = (
         db.query(RiskEvent)

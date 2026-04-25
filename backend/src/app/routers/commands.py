@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from src.app.dependencies import require_admin
 from src.control.kill_switch.service import KillSwitchService
 from src.control.manual_ops.service import ManualOpsService
 from src.events.outbox import OutboxWriter
@@ -61,11 +62,7 @@ class PauseRequest(BaseModel):
 
 
 # ----- Endpoints ------------------------------------------------------------
-
-# 简化的 user dependency: 后续接 auth 后替换为 require_login
-def _operator_user_id() -> int:
-    """V0.1 单用户; Plan 4 接前端 JWT 后改成依赖 get_current_user.id。"""
-    return 1
+# 所有写操作要求 admin (require_admin), 防止未授权调用. (Critical fix C1)
 
 
 @router.post("/close-position/{position_id}")
@@ -73,11 +70,12 @@ def close_position(
     position_id: int,
     body: ClosePositionRequest,
     db: Session = Depends(get_db),
-    user_id: int = Depends(_operator_user_id),
+    current_admin=Depends(require_admin),
 ):
     svc = ManualOpsService(db, _adapter())
     trade = svc.manual_close_position(
-        position_id=position_id, reason=body.reason, operator_user_id=user_id,
+        position_id=position_id, reason=body.reason,
+        operator_user_id=current_admin.id,
     )
     db.commit()
     if trade is None:
@@ -89,14 +87,14 @@ def close_position(
 def close_all(
     body: CloseAllRequest,
     db: Session = Depends(get_db),
-    user_id: int = Depends(_operator_user_id),
+    current_admin=Depends(require_admin),
 ):
     if body.confirmation != "CLOSE ALL":
         raise HTTPException(status_code=400, detail="must confirm with 'CLOSE ALL'")
     svc = ManualOpsService(db, _adapter())
     closed = svc.manual_close_all(
         account_id=body.account_id, trading_mode=body.trading_mode,
-        reason=body.reason, operator_user_id=user_id,
+        reason=body.reason, operator_user_id=current_admin.id,
     )
     db.commit()
     return {"closed_position_ids": closed}
@@ -107,11 +105,12 @@ def resolve_breaker(
     event_id: int,
     body: ResolveBreakerRequest,
     db: Session = Depends(get_db),
-    user_id: int = Depends(_operator_user_id),
+    current_admin=Depends(require_admin),
 ):
     svc = ManualOpsService(db, _adapter())
     ok = svc.manual_resolve_circuit_breaker(
-        risk_event_id=event_id, reason=body.reason, operator_user_id=user_id,
+        risk_event_id=event_id, reason=body.reason,
+        operator_user_id=current_admin.id,
     )
     db.commit()
     if not ok:
@@ -123,10 +122,10 @@ def resolve_breaker(
 def pause(
     body: PauseRequest,
     db: Session = Depends(get_db),
-    user_id: int = Depends(_operator_user_id),
+    current_admin=Depends(require_admin),
 ):
     svc = KillSwitchService(db)
-    svc.pause(operator_user_id=user_id, reason=body.reason)
+    svc.pause(operator_user_id=current_admin.id, reason=body.reason)
     db.commit()
     return {"state": "paused"}
 
@@ -135,14 +134,17 @@ def pause(
 def resume(
     body: PauseRequest,
     db: Session = Depends(get_db),
-    user_id: int = Depends(_operator_user_id),
+    current_admin=Depends(require_admin),
 ):
     svc = KillSwitchService(db)
-    svc.resume(operator_user_id=user_id, reason=body.reason)
+    svc.resume(operator_user_id=current_admin.id, reason=body.reason)
     db.commit()
     return {"state": "active"}
 
 
 @router.get("/kill-switch")
-def kill_switch_state(db: Session = Depends(get_db)):
+def kill_switch_state(
+    db: Session = Depends(get_db),
+    current_admin=Depends(require_admin),
+):
     return {"state": KillSwitchService(db).state()}
