@@ -9,7 +9,9 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI, WebSocket
 
 from src.app.router import router
+from src.app.routers.commands import router as commands_router
 from src.app.websocket import redis_subscriber, websocket_endpoint
+from src.control.kill_switch.service import KillSwitchService
 from src.shared.config import get_base_settings, get_settings
 from src.shared.db import get_session_factory
 from src.shared.runtime_config import apply_runtime_settings_refresh
@@ -25,6 +27,9 @@ def _strategy_job() -> None:
     SessionLocal = get_session_factory()
     db = SessionLocal()
     try:
+        if KillSwitchService(db).is_paused():
+            logger.info("kill_switch=paused; strategy_loop skipped")
+            return
         run_strategy_loop(db)
     except Exception as e:
         logger.error("Strategy loop error: %s", e)
@@ -37,6 +42,10 @@ def _monitor_job() -> None:
     SessionLocal = get_session_factory()
     db = SessionLocal()
     try:
+        if KillSwitchService(db).is_paused():
+            # 持仓监控允许在停机时继续刷新价格 + SL/TP, 不允许主动开新仓 (旧
+            # worker 已经只做监控不开仓)。当前实现保持运行, 但加日志便于调试。
+            logger.debug("kill_switch=paused; position_monitor running (monitor-only)")
         run_position_monitor(db)
     except Exception as e:
         logger.error("Position monitor error: %s", e)
@@ -107,4 +116,5 @@ app = FastAPI(
 )
 
 app.include_router(router)
+app.include_router(commands_router)
 app.add_api_websocket_route("/ws", websocket_endpoint)

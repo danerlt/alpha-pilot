@@ -260,8 +260,13 @@ class OrderExecutor:
         qty = float(position.quantity)
         pnl = (exit_price - entry) * qty
         pnl_pct = (exit_price - entry) / entry if entry > 0 else 0.0
-        opened_at = position.opened_at or datetime.now(tz=timezone.utc)
-        closed_at = position.closed_at or datetime.now(tz=timezone.utc)
+        # SQLite 不持久化 timezone, 读回来可能是 naive; 统一按 UTC 处理避免减法错。
+        def _aware(dt):
+            if dt is None:
+                return datetime.now(tz=timezone.utc)
+            return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
+        opened_at = _aware(position.opened_at)
+        closed_at = _aware(position.closed_at)
         holding_seconds = int((closed_at - opened_at).total_seconds()) if opened_at else 0
 
         trade = Trade(
