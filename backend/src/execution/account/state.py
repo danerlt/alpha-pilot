@@ -6,9 +6,9 @@ V0.1: 从 ExchangeAdapter 拿 USDT 可用余额; 从 positions 表加总未实�
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, timezone
+from datetime import date, datetime, time, timedelta, timezone
 
-from sqlalchemy import cast, Date, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.execution.exchange.adapter import ExchangeAdapter
@@ -46,13 +46,18 @@ class AccountStateService:
             for p in open_positions
         )
 
-        # 今日已实现 PnL: trades.closed_at 在今天的 pnl 加总
-        today = date.today()
+        # 今日已实现 PnL: closed_at 在今天 UTC 范围内的 trades pnl 加总。
+        # 不用 cast(Date) 是因为 SQLite 单测下行为不一致；用闭区间 datetime
+        # 同时兼容两种后端。
+        today_utc = datetime.now(tz=timezone.utc).date()
+        start_today = datetime.combine(today_utc, time.min, tzinfo=timezone.utc)
+        end_today = start_today + timedelta(days=1)
         today_trades = self._session.execute(
             select(Trade).where(
                 Trade.account_id == account_id,
                 Trade.trading_mode == trading_mode,
-                cast(Trade.closed_at, Date) == today,
+                Trade.closed_at >= start_today,
+                Trade.closed_at < end_today,
             )
         ).scalars().all()
         daily_pnl = sum(float(t.pnl or 0) for t in today_trades)
