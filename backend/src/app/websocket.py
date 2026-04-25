@@ -58,16 +58,21 @@ async def websocket_endpoint(ws: WebSocket) -> None:
 
 
 async def redis_subscriber(redis_url: str) -> None:
-    """后台任务：持续订阅 Redis trading_events 频道并广播到 WS 客户端。"""
+    """后台任务: 订阅 Redis 多通道 (events:* + trading_events 兼容) 并广播给 WS 客户端.
+
+    events:<event_type> 是 Plan 5 加的细粒度通道, trading_events 是旧版兼容
+    通道, 同一条事件双发 (见 EventShuttle._pubsub 旁路).
+    """
     logger.info("Redis subscriber task starting, url=%s", redis_url)
     while True:
         try:
             r: aioredis.Redis = aioredis.from_url(redis_url, decode_responses=True)
             pubsub = r.pubsub()
             await pubsub.subscribe("trading_events")
-            logger.info("Subscribed to Redis channel: trading_events")
+            await pubsub.psubscribe("events:*")
+            logger.info("Subscribed: trading_events + pattern events:*")
             async for message in pubsub.listen():
-                if message["type"] == "message":
+                if message["type"] in ("message", "pmessage"):
                     await manager.broadcast(message["data"])
         except asyncio.CancelledError:
             logger.info("Redis subscriber task cancelled")

@@ -10,6 +10,7 @@ from fastapi import FastAPI, WebSocket
 
 from src.app.router import router
 from src.app.routers.commands import router as commands_router
+from src.app.routers.events_catchup import router as events_catchup_router
 from src.app.websocket import redis_subscriber, websocket_endpoint
 from src.control.kill_switch.service import KillSwitchService
 from src.shared.config import get_base_settings, get_settings
@@ -133,4 +134,5 @@ app = FastAPI(
 
 app.include_router(router)
 app.include_router(commands_router)
+app.include_router(events_catchup_router)
 app.add_api_websocket_route("/ws", websocket_endpoint)
