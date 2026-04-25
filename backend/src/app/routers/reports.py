@@ -1,0 +1,46 @@
+"""Reports — /api/reports /api/reports/generate."""
+from __future__ import annotations
+
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+
+from src.shared.config import get_settings
+from src.shared.db import get_db
+
+router = APIRouter(prefix="/api/reports", tags=["reports"])
+
+
+@router.get("")
+def list_reports(limit: int = 30, db: Session = Depends(get_db)):
+    from src.shared.models.report import DailyReport
+    settings = get_settings()
+    rows = (
+        db.query(DailyReport)
+        .filter(DailyReport.trading_mode == settings.TRADING_MODE.value)
+        .order_by(DailyReport.report_date.desc())
+        .limit(limit)
+        .all()
+    )
+    return [
+        {
+            "id": r.id,
+            "report_date": r.report_date.isoformat(),
+            "total_trades": r.total_trades,
+            "winning_trades": r.winning_trades,
+            "losing_trades": r.losing_trades,
+            "win_rate": float(r.win_rate) if r.win_rate else None,
+            "total_pnl": float(r.total_pnl),
+            "total_pnl_pct": float(r.total_pnl_pct),
+            "max_drawdown": float(r.max_drawdown) if r.max_drawdown else None,
+            "risk_events_count": r.risk_events_count,
+        }
+        for r in rows
+    ]
+
+
+@router.post("/generate")
+def generate_report(db: Session = Depends(get_db)):
+    """手动触发今日日报生成。"""
+    from src.services.reporting.reporter import generate_daily_report
+    report = generate_daily_report(db)
+    return {"message": "Report generated", "report_date": report.report_date.isoformat()}

@@ -45,18 +45,19 @@ async def test_runtime_config_update_requires_admin(monkeypatch):
 @pytest.mark.asyncio
 async def test_runtime_config_update_allows_admin(monkeypatch):
     from src.app import router as router_module
+    from src.app.routers import runtime_config as runtime_module
 
     db = DummyDB()
     updates = []
     refresh_calls = []
 
     monkeypatch.setattr(
-        router_module,
+        runtime_module,
         "get_base_settings",
         lambda: SimpleNamespace(LLM_API_KEY="env-llm", APP_CONFIG_MASTER_KEY="test-key", TRADING_MODE=TradingMode.TESTNET),
     )
     monkeypatch.setattr(
-        router_module,
+        runtime_module,
         "get_settings",
         lambda: SimpleNamespace(
             TRADING_MODE=TradingMode.TESTNET,
@@ -69,19 +70,19 @@ async def test_runtime_config_update_allows_admin(monkeypatch):
             LLM_API_KEY="db-llm",
         ),
     )
-    monkeypatch.setattr(router_module, "build_fernet", lambda key: object())
+    monkeypatch.setattr(runtime_module, "build_fernet", lambda key: object())
     monkeypatch.setattr(
-        router_module,
+        runtime_module,
         "upsert_system_setting",
         lambda db, *, key, value, fernet, description=None: updates.append((key, value, description)),
     )
     monkeypatch.setattr(
-        router_module,
+        runtime_module,
         "apply_runtime_settings_refresh",
         lambda db, *, master_key, default_trading_mode: refresh_calls.append((master_key, default_trading_mode.value)),
     )
     monkeypatch.setattr(
-        router_module,
+        runtime_module,
         "get_runtime_config_manager",
         lambda: SimpleNamespace(
             get_raw=lambda: {

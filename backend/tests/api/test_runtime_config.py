@@ -18,7 +18,7 @@ class DummyDB:
 
 @pytest.mark.asyncio
 async def test_get_runtime_config_masks_secrets_and_reports_config_state(monkeypatch):
-    from src.app import router as router_module
+    from src.app.routers import runtime_config as router_module
 
     monkeypatch.setattr(
         router_module,
@@ -74,7 +74,7 @@ async def test_get_runtime_config_masks_secrets_and_reports_config_state(monkeyp
 
 @pytest.mark.asyncio
 async def test_update_runtime_config_persists_and_refreshes(monkeypatch):
-    from src.app import router as router_module
+    from src.app.routers import runtime_config as router_module
 
     db = DummyDB()
     updates = []
@@ -158,7 +158,7 @@ async def test_update_runtime_config_persists_and_refreshes(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_update_runtime_config_rejects_empty_payload_for_admin():
-    from src.app import router as router_module
+    from src.app.routers import runtime_config as router_module
 
     def override_db():
         yield DummyDB()
