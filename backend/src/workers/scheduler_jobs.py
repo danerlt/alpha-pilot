@@ -1,0 +1,133 @@
+"""APScheduler 任务包装层 (Plan 5)。
+
+把 Plan 2 的 run_strategy_pipeline_once / run_position_monitor_once 封装成
+APScheduler 可调用的零参函数, 自带依赖注入 + KillSwitch 检查 + 错误兜底。
+
+USE_NEW_PIPELINE_WORKER=true 时 app.py lifespan 用这里的 jobs 替代旧的
+services/strategy_loop.py + services/monitoring/monitor.py。
+"""
+from __future__ import annotations
+
+import logging
+from typing import Optional
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from src.control.kill_switch.service import KillSwitchService
+from src.events.outbox import OutboxWriter
+from src.execution.exchange.binance_adapter import BinanceAdapter
+from src.shared.config import get_settings
+from src.shared.db import get_session_factory
+from src.shared.enums import TradingMode
+from src.shared.models.account_entity import RiskProfile
+from src.strategy.ai_trader.llm_client import (
+    ClaudeClient,
+    LLMClient,
+    MockLLMClient,
+    OpenAIClient,
+)
+from src.workers.position_monitor_worker import run_position_monitor_once
+from src.workers.strategy_pipeline import run_strategy_pipeline_once
+
+logger = logging.getLogger(__name__)
+
+
+def _build_adapter(settings) -> BinanceAdapter:
+    """根据 settings.TRADING_MODE 构造 BinanceAdapter (testnet/mainnet)."""
+    mode = settings.TRADING_MODE.value if isinstance(settings.TRADING_MODE, TradingMode) else settings.TRADING_MODE
+    return BinanceAdapter(
+        api_key=settings.BINANCE_API_KEY,
+        api_secret=settings.BINANCE_API_SECRET,
+        trading_mode=mode,
+    )
+
+
+def _build_llm(settings) -> LLMClient:
+    """按配置选 Claude / OpenAI; 占位 key 时回退 MockLLMClient (永远 HOLD)."""
+    provider = settings.LLM_PROVIDER.lower()
+    api_key = settings.LLM_API_KEY
+    if not api_key or api_key.startswith("test-"):
+        logger.warning("LLM_API_KEY is placeholder; using MockLLMClient (HOLD only)")
+        return MockLLMClient(canned_response='{"action":"HOLD","confidence":0.0,"strategy_mode":"ai_observation","reasoning":["llm_disabled"]}')
+    if provider == "claude":
+        return ClaudeClient(api_key=api_key, model=settings.LLM_MODEL)
+    if provider == "openai":
+        return OpenAIClient(api_key=api_key, model=settings.LLM_MODEL)
+    logger.warning("unknown LLM_PROVIDER=%s; using Mock", provider)
+    return MockLLMClient(canned_response='{"action":"HOLD","confidence":0.0,"strategy_mode":"ai_observation","reasoning":["llm_unknown_provider"]}')
+
+
+def _load_active_risk_profile(session: Session, account_id: int) -> Optional[RiskProfile]:
+    return session.execute(
+        select(RiskProfile).where(
+            RiskProfile.account_id == account_id,
+            RiskProfile.active.is_(True),
+        ).order_by(RiskProfile.version.desc()).limit(1)
+    ).scalars().first()
+
+
+def _parse_csv(value: str) -> list[str]:
+    return [s.strip() for s in value.split(",") if s.strip()]
+
+
+def new_strategy_pipeline_job() -> None:
+    """APScheduler 每 STRATEGY_LOOP_INTERVAL_MINUTES 调一次。"""
+    SessionLocal = get_session_factory()
+    db = SessionLocal()
+    try:
+        if KillSwitchService(db).is_paused():
+            logger.info("kill_switch=paused; new strategy pipeline skipped")
+            return
+        settings = get_settings()
+        profile = _load_active_risk_profile(db, account_id=1)
+        if profile is None:
+            logger.warning("no active risk_profile for account_id=1; pipeline skipped")
+            return
+        adapter = _build_adapter(settings)
+        llm = _build_llm(settings)
+        outbox = OutboxWriter()
+        symbols = _parse_csv(settings.PIPELINE_SYMBOLS)
+        timeframes = _parse_csv(settings.PIPELINE_TIMEFRAMES)
+        summary = run_strategy_pipeline_once(
+            db=db, account_id=1,
+            trading_mode=settings.TRADING_MODE.value,
+            adapter=adapter, llm_client=llm,
+            risk_profile=profile,
+            symbols=symbols, timeframes=timeframes,
+            outbox=outbox,
+        )
+        logger.info("strategy_pipeline summary: %s", summary)
+    except Exception:
+        logger.exception("new_strategy_pipeline_job error")
+    finally:
+        db.close()
+
+
+def new_position_monitor_job() -> None:
+    """APScheduler 每 POSITION_MONITOR_INTERVAL_SECONDS 调一次。"""
+    SessionLocal = get_session_factory()
+    db = SessionLocal()
+    try:
+        # 持仓监控不能因为停机就跳过 — SL/TP 必须继续运行保护已开仓位.
+        # KillSwitch 只阻止 strategy 开新仓.
+        settings = get_settings()
+        adapter = _build_adapter(settings)
+        outbox = OutboxWriter()
+        result = run_position_monitor_once(
+            db=db, account_id=1,
+            trading_mode=settings.TRADING_MODE.value,
+            adapter=adapter,
+            max_daily_loss_pct=settings.MAX_DAILY_LOSS_PCT,
+            outbox=outbox,
+        )
+        if result.stop_loss_closed or result.take_profit_closed or result.circuit_breaker_triggered:
+            logger.info(
+                "position_monitor: SL=%s TP=%s breaker=%s",
+                result.stop_loss_closed, result.take_profit_closed,
+                result.circuit_breaker_triggered,
+            )
+    except Exception:
+        logger.exception("new_position_monitor_job error")
+    finally:
+        db.close()

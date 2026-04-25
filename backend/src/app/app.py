@@ -72,21 +72,37 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
 
     _scheduler = BackgroundScheduler()
-    _scheduler.add_job(
-        _strategy_job,
-        "interval",
-        minutes=settings.STRATEGY_LOOP_INTERVAL_MINUTES,
-        id="strategy_loop",
-    )
-    _scheduler.add_job(
-        _monitor_job,
-        "interval",
-        seconds=settings.POSITION_MONITOR_INTERVAL_SECONDS,
-        id="position_monitor",
-    )
+    if getattr(settings, "USE_NEW_PIPELINE_WORKER", False):
+        from src.workers.scheduler_jobs import (
+            new_position_monitor_job,
+            new_strategy_pipeline_job,
+        )
+        _scheduler.add_job(
+            new_strategy_pipeline_job, "interval",
+            minutes=settings.STRATEGY_LOOP_INTERVAL_MINUTES,
+            id="strategy_loop",
+        )
+        _scheduler.add_job(
+            new_position_monitor_job, "interval",
+            seconds=settings.POSITION_MONITOR_INTERVAL_SECONDS,
+            id="position_monitor",
+        )
+        logger.info("Scheduler using NEW pipeline worker (Plan 2/5)")
+    else:
+        _scheduler.add_job(
+            _strategy_job, "interval",
+            minutes=settings.STRATEGY_LOOP_INTERVAL_MINUTES,
+            id="strategy_loop",
+        )
+        _scheduler.add_job(
+            _monitor_job, "interval",
+            seconds=settings.POSITION_MONITOR_INTERVAL_SECONDS,
+            id="position_monitor",
+        )
+        logger.info("Scheduler using LEGACY services/* worker")
     _scheduler.start()
     logger.info(
-        "Scheduler started: strategy_loop every %dm, position_monitor every %ds",
+        "interval: strategy_loop=%dm, position_monitor=%ds",
         settings.STRATEGY_LOOP_INTERVAL_MINUTES,
         settings.POSITION_MONITOR_INTERVAL_SECONDS,
     )

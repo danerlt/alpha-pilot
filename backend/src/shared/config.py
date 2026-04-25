@@ -58,6 +58,13 @@ class Settings(BaseSettings):
     STRATEGY_LOOP_INTERVAL_MINUTES: int = 15
     POSITION_MONITOR_INTERVAL_SECONDS: int = 10
 
+    # Pipeline feature flag (Plan 2 → Plan 5 渐进切换)
+    # USE_NEW_PIPELINE_WORKER=true 启用 src/workers/strategy_pipeline.py 新 worker;
+    # false (默认) 保留旧 src/workers/strategy_loop.py 不动。
+    USE_NEW_PIPELINE_WORKER: bool = False
+    PIPELINE_SYMBOLS: str = "BTCUSDT,ETHUSDT"
+    PIPELINE_TIMEFRAMES: str = "1h"
+
 
 @lru_cache
 def get_base_settings() -> Settings:
