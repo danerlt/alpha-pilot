@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import '@/styles/design-system.css'
 import './globals.css'
 import { AppShell } from '@/components/app-shell'
 import { AuthProvider } from '@/components/auth-provider'
