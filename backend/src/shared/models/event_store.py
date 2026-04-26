@@ -28,6 +28,12 @@ class EventInbox(Base, TimestampMixin):
 class EventOutbox(Base, TimestampMixin):
     __tablename__ = "event_outbox"
 
+    # event_id 索引: catchup / WebSocket _replay_since 都跑
+    # `WHERE event_id > since ORDER BY id ASC LIMIT N` (post-Plan5 codereview Risk #6)
+    __table_args__ = (
+        Index("ix_event_outbox_event_id", "event_id"),
+    )
+
     id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     aggregate_type: Mapped[str] = mapped_column(String(40), nullable=False)
     aggregate_id: Mapped[int | None] = mapped_column(BigInteger)
