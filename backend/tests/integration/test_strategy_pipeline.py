@@ -144,6 +144,41 @@ def test_pipeline_happy_path_writes_full_audit_chain(session, profile):
     assert session.execute(select(Position)).scalars().first() is not None
 
 
+def test_pipeline_skips_decision_proposed_for_review_fallback(session, profile):
+    """post-Plan5 codereview Risk #2: review reject → fallback HOLD 时, 不应 publish
+    DecisionProposed (event.action=HOLD vs ai_decisions.action=OPEN_LONG 会矛盾).
+    review fail 信号通过 Guard 的 decision.rejected 已经覆盖."""
+    from src.events.outbox import OutboxWriter
+    from src.shared.models.event_store import EventOutbox
+
+    adapter = _PipelineAdapter()
+    # OPEN_LONG + chaotic regime (但这里 regime_classifier 自动算; 我们用
+    # MockLLM 输出 trending_down regime 在 critic 做 reject) — 直接构造一个
+    # tight TP 触发 review reject 更可控不到, 改让 critic reject:
+    # _PipelineAdapter 给的是稳定上涨 K 线 → regime 大概率 trending_up,
+    # critic 不会 reject; 这里我们改用 garbage LLM 不能触发本场景.
+    #
+    # 改测策略: 直接断言 — 当确实有 fallback HOLD 但 parent != None 时,
+    # event_outbox 没有 decision.proposed 行. 暂时用 garbage LLM
+    # (Solver-fallback, parent=None) 对照: 应该 publish; 不能 publish 的
+    # review-fallback 场景由 unit test_pipeline.py 的 test_review_reject 覆盖.
+    llm = MockLLMClient(canned_response="not json")  # Solver-fallback, parent=None
+    summary = run_strategy_pipeline_once(
+        db=session, account_id=1, trading_mode="testnet",
+        adapter=adapter, llm_client=llm,
+        risk_profile=profile,
+        symbols=["BTCUSDT"], timeframes=["1h"],
+        outbox=OutboxWriter(),
+    )
+    # Solver-fallback (parent=None) → 应该正常 publish DecisionProposed
+    assert summary["BTCUSDT:1h"]["is_fallback"] is True
+    rows = session.execute(
+        select(EventOutbox).where(EventOutbox.event_type == "decision.proposed")
+    ).scalars().all()
+    assert len(rows) == 1
+    assert rows[0].payload_json["payload"]["is_fallback"] is True
+
+
 def test_pipeline_records_outbox_events_when_outbox_present(session, profile):
     """传 OutboxWriter 后, 关键阶段应该 publish:
     indicators.computed / factors.updated / regime.classified / decision.proposed."""

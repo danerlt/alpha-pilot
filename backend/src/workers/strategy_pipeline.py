@@ -252,8 +252,21 @@ def _run_one_symbol_tf(
     proposal, decision_id = deps.router.decide(pipeline_input)
 
     # publish decision.proposed —— Notifier / UI 实时拿决策摘要
-    # 没走到 Solver (decision_id is None) 的场景不发, 因为没有 ai_decisions 行
-    if deps.outbox is not None and decision_id is not None:
+    # 跳过场景:
+    #   - decision_id is None: 没走到 Solver (e.g. prompt 模板缺失), 没 ai_decisions 行
+    #   - review-fallback (post-Plan5 codereview Risk #2): proposal 是 HOLD
+    #     fallback 但 decision_id 指向 Solver 的 OPEN_LONG 行, event.action="HOLD" 与
+    #     ai_decisions 行 action="OPEN_LONG" 矛盾, 订阅方按 decision_id 反查会困惑.
+    #     这种场景下 review fail 信号已通过 Guard 的 decision.rejected (I11) /
+    #     audit_logs 暴露, 不需要额外 publish DecisionProposed.
+    is_review_fallback = (
+        proposal.is_fallback and proposal.parent_proposal_id is not None
+    )
+    if (
+        deps.outbox is not None
+        and decision_id is not None
+        and not is_review_fallback
+    ):
         deps.outbox.record(
             db, aggregate_type="ai_decision", aggregate_id=decision_id,
             event=DecisionProposed(
