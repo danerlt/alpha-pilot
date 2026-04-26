@@ -26,6 +26,12 @@ import pandas as pd
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.events.contracts import (
+    DecisionProposed,
+    FactorsUpdated,
+    IndicatorsComputed,
+    RegimeClassified,
+)
 from src.events.outbox import OutboxWriter
 from src.execution.account.state import AccountStateService
 from src.execution.exchange.adapter import ExchangeAdapter
@@ -168,12 +174,38 @@ def run_strategy_pipeline_once(
                     symbol=symbol, timeframe=tf, limit=210,
                 )
                 latest_open_time = df.index[-1].to_pydatetime() if not df.empty else datetime.now(timezone.utc)
+
+                # publish indicators.computed —— 给前端/UI 插件展示"指标流水线推进"
+                if outbox is not None:
+                    outbox.record(
+                        db, aggregate_type="indicator_snapshot", aggregate_id=snap_id,
+                        event=IndicatorsComputed(
+                            symbol=symbol, timeframe=tf,
+                            open_time=latest_open_time,
+                            indicator_snapshot_id=snap_id,
+                        ),
+                        account_id=account_id, trading_mode=trading_mode,
+                        trace_id=trace_id,
+                    )
+
                 factors, factor_snap_id = factor_computer.compute_and_store(
                     account_id=account_id, trading_mode=trading_mode,
                     symbol=symbol, timeframe=tf,
                     open_time=latest_open_time,
                     indicators=values, candles_df=df,
                 )
+
+                if outbox is not None:
+                    outbox.record(
+                        db, aggregate_type="factor_snapshot", aggregate_id=factor_snap_id,
+                        event=FactorsUpdated(
+                            symbol=symbol, timeframe=tf,
+                            open_time=latest_open_time,
+                            factor_snapshot_id=factor_snap_id,
+                        ),
+                        account_id=account_id, trading_mode=trading_mode,
+                        trace_id=trace_id,
+                    )
 
                 # 4. 分类 regime
                 regime_result = regime_classifier.classify_and_store(
@@ -183,6 +215,22 @@ def run_strategy_pipeline_once(
                     open_time=latest_open_time,
                     factor_snapshot_id=factor_snap_id, factors=factors,
                 )
+
+                if outbox is not None:
+                    # aggregate_id=None: RegimeClassifier 当前未暴露 regime_snapshot.id;
+                    # V0.1.1 RegimeSnapshot.factor_snapshot_id 列补齐后, 这里改为
+                    # 真实的 regime_snapshot_id (跟踪在 codereview I6/Minor 项)。
+                    outbox.record(
+                        db, aggregate_type="regime_snapshot", aggregate_id=None,
+                        event=RegimeClassified(
+                            symbol=symbol, timeframe=tf,
+                            open_time=latest_open_time,
+                            regime=regime_result.regime,
+                            confidence=float(regime_result.confidence),
+                        ),
+                        account_id=account_id, trading_mode=trading_mode,
+                        trace_id=trace_id,
+                    )
 
                 # 5. 当前价格
                 ticker = adapter.get_ticker(symbol)
@@ -236,6 +284,24 @@ def run_strategy_pipeline_once(
 
                 # 8. 策略路由 → AI Trader (decision_id 直接来自 Solver, 无需反查)
                 proposal, decision_id = router.decide(pipeline_input)
+
+                # publish decision.proposed —— Notifier / UI 实时拿决策摘要
+                # 没走到 Solver (decision_id is None) 的场景不发, 因为没有 ai_decisions 行
+                if outbox is not None and decision_id is not None:
+                    outbox.record(
+                        db, aggregate_type="ai_decision", aggregate_id=decision_id,
+                        event=DecisionProposed(
+                            decision_id=decision_id,
+                            symbol=symbol, timeframe=tf,
+                            action=proposal.action,
+                            confidence=float(proposal.confidence),
+                            source=proposal.source,
+                            strategy_mode=proposal.strategy_mode,
+                            is_fallback=proposal.is_fallback,
+                        ),
+                        account_id=account_id, trading_mode=trading_mode,
+                        trace_id=trace_id,
+                    )
 
                 # 9. 执行守卫
                 guard_dec = guard.check(

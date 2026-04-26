@@ -4,9 +4,28 @@ All events share a common EventEnvelope for transport. Each payload is its
 own Pydantic model with a ClassVar `event_type` string; EVENT_TYPE_REGISTRY
 maps the string back to the class for consumer-side deserialization.
 
-V0.1 publishes a subset (marked ★ in spec §3.3 / plan Task 8). All contracts
-are defined here regardless of when they start being published — defining
-them up front prevents breaking changes later.
+V0.1 实际 publish 范围 (Plan 5 收口):
+  - market.*       : candle.closed                      (MarketDataService)
+  - factor.*       : indicators.computed                (strategy_pipeline worker)
+                     factors.updated                    (strategy_pipeline worker)
+                     regime.classified                  (strategy_pipeline worker)
+  - decision.*     : decision.proposed                  (strategy_pipeline worker)
+  - order.*        : order.submitted / order.filled / order.failed (OrderExecutor)
+  - position.*     : position.opened / updated / closed (OrderExecutor / monitor)
+  - trade.*        : trade.closed                       (OrderExecutor close)
+  - risk.*         : risk.event.triggered               (ExecutionGuard / monitor)
+  - manual.*       : manual.override                    (ManualOpsService)
+
+V0.1.1+ 待补 publish (定义已存在, 等业务环节落地):
+  - proposal.drafted              (需 PromptComposer 暴露 draft_id 给 worker)
+  - decision.reviewed             (需 ReviewCritic 返回 review_id)
+  - decision.degraded             (待 I11: ExecutionGuard DEGRADE 时发)
+  - decision.rejected             (待 I11: ExecutionGuard REJECT 时发)
+  - circuit_breaker.triggered     (KillSwitchService 触发熔断时发)
+  - control.command               (Commands router 调用时发)
+
+V0.3+ 占位 (尚未有发起方):
+  - params.* / ops.*              (强化学习闭环)
 """
 from __future__ import annotations
 

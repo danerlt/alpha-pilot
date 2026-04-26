@@ -144,6 +144,37 @@ def test_pipeline_happy_path_writes_full_audit_chain(session, profile):
     assert session.execute(select(Position)).scalars().first() is not None
 
 
+def test_pipeline_records_outbox_events_when_outbox_present(session, profile):
+    """传 OutboxWriter 后, 关键阶段应该 publish:
+    indicators.computed / factors.updated / regime.classified / decision.proposed."""
+    from src.events.outbox import OutboxWriter
+    from src.shared.models.event_store import EventOutbox
+
+    adapter = _PipelineAdapter(ticker_price=50_000.0, fill_price=50_000.0)
+    llm = MockLLMClient(canned_response=VALID_OPEN_LONG)
+    summary = run_strategy_pipeline_once(
+        db=session, account_id=1, trading_mode="testnet",
+        adapter=adapter, llm_client=llm,
+        risk_profile=profile,
+        symbols=["BTCUSDT"], timeframes=["1h"],
+        outbox=OutboxWriter(),
+    )
+    assert summary["BTCUSDT:1h"]["action"] == "OPEN_LONG"
+
+    rows = session.execute(select(EventOutbox)).scalars().all()
+    types = {r.event_type for r in rows}
+    # 4 类策略阶段事件 + OrderExecutor / MarketDataService 自带的 order/position/candle 事件
+    assert "indicators.computed" in types
+    assert "factors.updated" in types
+    assert "regime.classified" in types
+    assert "decision.proposed" in types
+
+    decided = next(r for r in rows if r.event_type == "decision.proposed")
+    assert decided.payload_json["payload"]["action"] == "OPEN_LONG"
+    assert decided.payload_json["payload"]["is_fallback"] is False
+    assert decided.payload_json["payload"]["source"] == "ai_trader"
+
+
 def test_pipeline_garbage_llm_falls_back_no_order(session, profile):
     adapter = _PipelineAdapter()
     llm = MockLLMClient(canned_response="not json")
