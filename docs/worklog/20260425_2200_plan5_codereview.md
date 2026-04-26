@@ -43,13 +43,15 @@ Plan 5 (调度切换 + WebSocket + router 拆分)。
 
 ## Minor（锦上添花）
 
-- `_aware()` SQLite tz 兼容逻辑在多处重复, 抽到模块级 util
-- `_build_adapter` 在 commands / scheduler_jobs / 旧 positions 各自构造, 应统一到 dependencies.get_adapter
-- `MAX_FAILED_ATTEMPTS / CATCHUP_LIMIT_HARD_CAP / MAX_POSITION_SIZE_PCT_HARD_CAP` 等神奇数字汇总到 shared/constants.py
-- `RegimeSnapshot.factor_snapshot_id` 列 Plan 5 仍未补, 影响 V0.2 attribution
-- 旧 `workers/strategy_loop.py` 在 USE_NEW_PIPELINE_WORKER=true 时变死代码, Plan 5 完整切完后删除
-- frontend lib/api.ts commands 形状手写, 建议 OpenAPI codegen
-- `_extract_bearer_token` 下划线开头但被外部依赖, 改名
+| 状态 | 内容 | 落实位置 |
+|------|------|---------|
+| ✅ | `_aware()` SQLite tz 兼容逻辑抽到 shared/datetime_utils.ensure_aware | `0029a7b` |
+| ✅ | `_build_adapter` 统一到 dependencies.get_adapter (commands / scheduler_jobs 共用) | `0029a7b` |
+| ✅ | 神奇数字汇总到 shared/constants.py (MAX_POSITION_SIZE_PCT_HARD_CAP / CATCHUP_LIMIT_HARD_CAP / DEFAULT_EVENT_SHUTTLE_MAX_FAILED_ATTEMPTS) | `0029a7b` |
+| 🟡 | `RegimeSnapshot.factor_snapshot_id` 列 — V0.2 attribution 用, 当前用 features.JSON 兜底, 推迟到 V0.1.1 走 alembic 迁移 | 待跟进 |
+| 🟡 | 旧 `workers/strategy_loop.py` / `workers/position_monitor.py` 在 USE_NEW_PIPELINE_WORKER=true 时变死代码; .env.example/.env.dev-server.example/.env.prod.example 已默认推 USE_NEW_PIPELINE_WORKER=true, dev server 验证 7 天稳定后 V0.1.1 删除旧文件 | `0029a7b` 完成切换 |
+| 🟡 | frontend lib/api.ts commands 形状手写, 建议 OpenAPI codegen — 工程改造大, 留 V0.1.1 | 待跟进 |
+| ✅ | `_extract_bearer_token` 改名为 `extract_bearer_token` (旧名保留为 deprecated 别名) | `0029a7b` |
 
 ## V0.1 部署前最少修复清单
 
