@@ -19,13 +19,14 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, time, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Optional
 
 import pandas as pd
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.control.kill_switch.service import KillSwitchService
 from src.events.contracts import (
     DecisionProposed,
     FactorsUpdated,
@@ -46,36 +47,14 @@ from src.shared.enums import PositionStatus
 from src.shared.models.account_entity import RiskProfile
 from src.shared.models.candle import Candle
 from src.shared.models.position import Position
-from src.shared.models.risk_event import RiskEvent
 from src.strategy.ai_trader.decision_solver import DecisionSolver
 from src.strategy.ai_trader.llm_client import LLMClient
 from src.strategy.ai_trader.pipeline import AITraderPipeline, PipelineInput
 from src.strategy.ai_trader.prompt_composer import PromptComposer
 from src.strategy.ai_trader.review_critic import ReviewCritic
-from src.strategy.proposal import DecisionProposal
 from src.strategy.router import StrategyRouter
 
 logger = logging.getLogger(__name__)
-
-
-def _circuit_breaker_active(
-    session: Session, *, account_id: int, trading_mode: str,
-) -> bool:
-    """今天是否有未解除的熔断事件。"""
-    today_utc = datetime.now(tz=timezone.utc).date()
-    start = datetime.combine(today_utc, time.min, tzinfo=timezone.utc)
-    end = start + timedelta(days=1)
-    row = session.execute(
-        select(RiskEvent).where(
-            RiskEvent.account_id == account_id,
-            RiskEvent.trading_mode == trading_mode,
-            RiskEvent.event_type == "CIRCUIT_BREAKER_TRIGGERED",
-            RiskEvent.resolved.is_(False),
-            RiskEvent.triggered_at >= start,
-            RiskEvent.triggered_at < end,
-        )
-    ).scalars().first()
-    return row is not None
 
 
 def _candles_df_for(session, *, account_id, trading_mode, symbol, timeframe, limit=210) -> pd.DataFrame:
@@ -133,12 +112,19 @@ def run_strategy_pipeline_once(
     guard = ExecutionGuard(db, risk_profile=risk_profile)
     executor = OrderExecutor(db, adapter, outbox=outbox)
 
-    # 0. 熔断检查 (整账户级别)
-    if _circuit_breaker_active(db, account_id=account_id, trading_mode=trading_mode):
-        logger.warning("circuit breaker active for account=%s; skipping pipeline", account_id)
+    # 0. 阻塞开新仓的两条腿统一查 KillSwitchService:
+    #    a) 人工 pause (system_settings.kill_switch_state)
+    #    b) 自动熔断 (今天未 resolved 的 CIRCUIT_BREAKER_TRIGGERED)
+    if KillSwitchService(db).should_block_new_trades(
+        account_id=account_id, trading_mode=trading_mode,
+    ):
+        logger.warning(
+            "kill switch or circuit breaker active for account=%s; skipping pipeline",
+            account_id,
+        )
         for s in symbols:
             for tf in timeframes:
-                summary[f"{s}:{tf}"] = {"action": "SKIP", "reason": "circuit_breaker"}
+                summary[f"{s}:{tf}"] = {"action": "SKIP", "reason": "blocked_by_kill_switch"}
         return summary
 
     # 1+6. 同步账户快照

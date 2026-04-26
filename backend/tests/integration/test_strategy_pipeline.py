@@ -175,6 +175,26 @@ def test_pipeline_records_outbox_events_when_outbox_present(session, profile):
     assert decided.payload_json["payload"]["source"] == "ai_trader"
 
 
+def test_pipeline_skips_when_kill_switch_paused(session, profile):
+    """人工 KillSwitch=paused → 整个 pipeline 应该跳过, 不生成任何订单。"""
+    from src.control.kill_switch.service import KillSwitchService
+    KillSwitchService(session).pause(operator_user_id=1, reason="maintenance")
+
+    adapter = _PipelineAdapter()
+    llm = MockLLMClient(canned_response=VALID_OPEN_LONG)
+    summary = run_strategy_pipeline_once(
+        db=session, account_id=1, trading_mode="testnet",
+        adapter=adapter, llm_client=llm,
+        risk_profile=profile,
+        symbols=["BTCUSDT"], timeframes=["1h"],
+    )
+    assert summary["BTCUSDT:1h"]["action"] == "SKIP"
+    assert summary["BTCUSDT:1h"]["reason"] == "blocked_by_kill_switch"
+    # 没有 ai_decisions / orders 写入
+    assert session.execute(select(AIDecision)).scalars().first() is None
+    assert session.execute(select(Order)).scalars().first() is None
+
+
 def test_pipeline_garbage_llm_falls_back_no_order(session, profile):
     adapter = _PipelineAdapter()
     llm = MockLLMClient(canned_response="not json")

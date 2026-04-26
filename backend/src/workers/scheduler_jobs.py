@@ -72,7 +72,12 @@ def _parse_csv(value: str) -> list[str]:
 
 
 def new_strategy_pipeline_job() -> None:
-    """APScheduler 每 STRATEGY_LOOP_INTERVAL_MINUTES 调一次。"""
+    """APScheduler 每 STRATEGY_LOOP_INTERVAL_MINUTES 调一次.
+
+    早期 short-circuit: 人工 pause 立刻退出, 不浪费连接 / 不构造 adapter.
+    熔断 (RiskEvent) 由 strategy_pipeline 内部 KillSwitchService.should_block_new_trades
+    再次检查, 这里只 cover 人工 pause 这一最常见的 ops 场景。
+    """
     SessionLocal = get_session_factory()
     db = SessionLocal()
     try:
@@ -105,12 +110,15 @@ def new_strategy_pipeline_job() -> None:
 
 
 def new_position_monitor_job() -> None:
-    """APScheduler 每 POSITION_MONITOR_INTERVAL_SECONDS 调一次。"""
+    """APScheduler 每 POSITION_MONITOR_INTERVAL_SECONDS 调一次.
+
+    设计决策 (Plan 5 codereview I2): position_monitor 不接 KillSwitch.
+    SL/TP 必须无条件运行保护已开仓位 — 人工 pause / 自动熔断都只阻止
+    strategy_pipeline 开"新"仓, 现存仓位的风控必须持续跑直到平仓。
+    """
     SessionLocal = get_session_factory()
     db = SessionLocal()
     try:
-        # 持仓监控不能因为停机就跳过 — SL/TP 必须继续运行保护已开仓位.
-        # KillSwitch 只阻止 strategy 开新仓.
         settings = get_settings()
         adapter = _build_adapter(settings)
         outbox = OutboxWriter()

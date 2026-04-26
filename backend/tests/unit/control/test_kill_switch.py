@@ -1,6 +1,8 @@
 """KillSwitchService 单测。"""
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
@@ -10,7 +12,7 @@ from src.control.kill_switch.service import (
     KillSwitchService,
     PAUSED,
 )
-from src.shared.models import AuditLog, Base
+from src.shared.models import AuditLog, Base, RiskEvent
 
 
 @pytest.fixture
@@ -54,3 +56,96 @@ def test_resume_writes_audit_log(session):
     ).scalars().all()
     assert len(rows) == 1
     assert rows[0].user_id == 2
+
+
+# ---------------------------------------------------------------------------
+# 熔断查询 + 统一阻塞接口 (Plan5 codereview I2)
+# ---------------------------------------------------------------------------
+
+def _add_circuit_breaker(
+    session: Session, *, account_id: int = 1, trading_mode: str = "testnet",
+    resolved: bool = False, triggered_at: datetime | None = None,
+) -> RiskEvent:
+    row = RiskEvent(
+        account_id=account_id, trading_mode=trading_mode,
+        event_type="CIRCUIT_BREAKER_TRIGGERED",
+        triggered_at=triggered_at or datetime.now(tz=timezone.utc),
+        description="test breaker",
+        resolved=resolved,
+    )
+    session.add(row)
+    session.flush()
+    return row
+
+
+def test_has_unresolved_circuit_breaker_default_false(session):
+    svc = KillSwitchService(session)
+    assert svc.has_unresolved_circuit_breaker(
+        account_id=1, trading_mode="testnet",
+    ) is False
+
+
+def test_has_unresolved_circuit_breaker_true_when_today_unresolved(session):
+    _add_circuit_breaker(session)
+    svc = KillSwitchService(session)
+    assert svc.has_unresolved_circuit_breaker(
+        account_id=1, trading_mode="testnet",
+    ) is True
+
+
+def test_resolved_circuit_breaker_does_not_block(session):
+    _add_circuit_breaker(session, resolved=True)
+    svc = KillSwitchService(session)
+    assert svc.has_unresolved_circuit_breaker(
+        account_id=1, trading_mode="testnet",
+    ) is False
+
+
+def test_yesterday_circuit_breaker_does_not_block_today(session):
+    yesterday = datetime.now(tz=timezone.utc) - timedelta(days=1, hours=1)
+    _add_circuit_breaker(session, triggered_at=yesterday)
+    svc = KillSwitchService(session)
+    assert svc.has_unresolved_circuit_breaker(
+        account_id=1, trading_mode="testnet",
+    ) is False
+
+
+def test_other_account_circuit_breaker_does_not_leak(session):
+    _add_circuit_breaker(session, account_id=2)
+    svc = KillSwitchService(session)
+    assert svc.has_unresolved_circuit_breaker(
+        account_id=1, trading_mode="testnet",
+    ) is False
+
+
+def test_other_trading_mode_circuit_breaker_isolated(session):
+    _add_circuit_breaker(session, trading_mode="mainnet")
+    svc = KillSwitchService(session)
+    assert svc.has_unresolved_circuit_breaker(
+        account_id=1, trading_mode="testnet",
+    ) is False
+
+
+def test_should_block_when_paused(session):
+    svc = KillSwitchService(session)
+    svc.pause(operator_user_id=1, reason="x")
+    assert svc.should_block_new_trades(
+        account_id=1, trading_mode="testnet",
+    ) is True
+
+
+def test_should_block_when_circuit_breaker(session):
+    _add_circuit_breaker(session)
+    svc = KillSwitchService(session)
+    # 没人工 pause, 但今天有未 resolved 熔断 → 一样阻塞
+    assert svc.is_paused() is False
+    assert svc.should_block_new_trades(
+        account_id=1, trading_mode="testnet",
+    ) is True
+
+
+def test_should_not_block_when_clean(session):
+    svc = KillSwitchService(session)
+    assert svc.should_block_new_trades(
+        account_id=1, trading_mode="testnet",
+    ) is False
