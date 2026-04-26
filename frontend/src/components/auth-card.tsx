@@ -23,6 +23,8 @@ export function AuthCard({ mode }: AuthCardProps) {
   const [submitting, setSubmitting] = useState(false)
 
   const nextPath = useMemo(() => sanitizeNextPath(searchParams.get('next')), [searchParams])
+  // 401 自动登出会带 ?reason=session_expired, 在登录卡上显示提示
+  const sessionExpired = mode === 'login' && searchParams.get('reason') === 'session_expired'
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -154,6 +156,10 @@ export function AuthCard({ mode }: AuthCardProps) {
           <div className="authHint">
             当前注册页只创建普通用户；管理员角色由后台管理页维护，避免前端自行抬权。
           </div>
+        )}
+
+        {sessionExpired && (
+          <div className="authHint">会话已过期或被注销，请重新登录。</div>
         )}
 
         {nextPath && mode === 'login' && (

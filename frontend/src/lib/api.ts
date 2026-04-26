@@ -1,7 +1,14 @@
+import { clearStoredSession } from './auth'
+
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || '/api'
 
 export interface ApiError extends Error {
   status?: number
+}
+
+export interface ApiRequestOptions extends RequestInit {
+  /** true 时 401 不自动登出/跳转 — 适合 /api/auth/login 等本身就在做认证的请求 */
+  skipAuthRedirect?: boolean
 }
 
 async function parseError(res: Response): Promise<ApiError> {
@@ -17,15 +24,36 @@ async function parseError(res: Response): Promise<ApiError> {
   return error
 }
 
-export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
+/**
+ * 处理 401: 清掉本地 session, 跳到 /login?reason=session_expired.
+ * 已在 /login 页时跳过 (避免登录页内部接口失败造成的循环跳转).
+ */
+function handleUnauthorized() {
+  if (typeof window === 'undefined') return
+  try {
+    clearStoredSession()
+  } catch {
+    // localStorage 不可用时静默
+  }
+  const here = window.location.pathname
+  if (!here.startsWith('/login')) {
+    window.location.href = '/login?reason=session_expired'
+  }
+}
+
+export async function apiRequest<T>(path: string, init?: ApiRequestOptions): Promise<T> {
+  const { skipAuthRedirect, ...rest } = init || {}
   const res = await fetch(`${API_BASE}${path}`, {
     cache: 'no-store',
-    ...init,
+    ...rest,
     headers: {
-      ...(init?.headers || {}),
+      ...(rest.headers || {}),
     },
   })
 
+  if (res.status === 401 && !skipAuthRedirect) {
+    handleUnauthorized()
+  }
   if (!res.ok) throw await parseError(res)
   return res.json()
 }

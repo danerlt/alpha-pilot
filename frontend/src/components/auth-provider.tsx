@@ -67,6 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         method: 'POST',
         headers: buildAuthHeaders(undefined, true),
         body: JSON.stringify({ email, password }),
+        skipAuthRedirect: true, // 401 是登录失败本身, 不该触发"会话过期"跳转
       })
       const next = toAuthSession(payload)
       persistSession(next)
