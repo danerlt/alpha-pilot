@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class StrategyAdapter(Protocol):
-    def run(self, inp: PipelineInput) -> DecisionProposal: ...
+    def run(self, inp: PipelineInput) -> tuple[DecisionProposal, int | None]: ...
 
 
 class StrategyRouter:
@@ -33,8 +33,12 @@ class StrategyRouter:
         self._session = session
         self._ai_trader = ai_trader
 
-    def decide(self, inp: PipelineInput) -> DecisionProposal:
-        """V0.1: always AI Trader. Write the routing decision to audit_logs."""
+    def decide(self, inp: PipelineInput) -> tuple[DecisionProposal, int | None]:
+        """V0.1: always AI Trader. Write the routing decision to audit_logs.
+
+        返回 (proposal, decision_id|None) — decision_id 为 None 表示 prompt 阶段就
+        提前回退 (无对应 ai_decisions 行)。下游 worker 直接消费, 不再做 id desc 反查。
+        """
         route = "ai_trader"
         self._write_audit(inp, route)
         return self._ai_trader.run(inp)

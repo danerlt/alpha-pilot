@@ -234,8 +234,8 @@ def run_strategy_pipeline_once(
                     atr=values.atr or 0.0,
                 )
 
-                # 8. 策略路由 → AI Trader
-                proposal: DecisionProposal = router.decide(pipeline_input)
+                # 8. 策略路由 → AI Trader (decision_id 直接来自 Solver, 无需反查)
+                proposal, decision_id = router.decide(pipeline_input)
 
                 # 9. 执行守卫
                 guard_dec = guard.check(
@@ -249,33 +249,18 @@ def run_strategy_pipeline_once(
                 action_taken = "SKIP"
                 if guard_dec.result == "PASS":
                     if proposal.action == "OPEN_LONG":
-                        # 找到 ai_decisions.id 用作 decision_id
-                        from src.shared.models.decision import AIDecision
-                        decision = db.execute(
-                            select(AIDecision).where(
-                                AIDecision.account_id == account_id,
-                                AIDecision.symbol == symbol,
-                            ).order_by(AIDecision.id.desc()).limit(1)
-                        ).scalars().first()
-                        decision_id = decision.id if decision else 0
+                        # OPEN_LONG 由 LLM 主动产出, 必然走过 Solver, decision_id 必非 None
                         executor.open_long(
-                            proposal=proposal, decision_id=decision_id,
+                            proposal=proposal, decision_id=decision_id or 0,
                             account_id=account_id, trading_mode=trading_mode,
                             available_usdt=available_usdt,
                             current_price=current_price,
                         )
                         action_taken = "OPEN_LONG"
                     elif proposal.action == "CLOSE_LONG" and open_pos:
-                        from src.shared.models.decision import AIDecision
-                        decision = db.execute(
-                            select(AIDecision).where(
-                                AIDecision.account_id == account_id,
-                                AIDecision.symbol == symbol,
-                            ).order_by(AIDecision.id.desc()).limit(1)
-                        ).scalars().first()
                         executor.close_long(
                             position=open_pos, reason="ai_close",
-                            decision_id=decision.id if decision else None,
+                            decision_id=decision_id,
                             account_id=account_id, trading_mode=trading_mode,
                         )
                         action_taken = "CLOSE_LONG"

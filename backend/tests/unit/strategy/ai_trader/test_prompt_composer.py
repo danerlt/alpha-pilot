@@ -34,9 +34,9 @@ def _seed_active_template(session, *, name="ait_default"):
     return tpl
 
 
-def _sample_context(symbol="BTCUSDT") -> PromptContext:
+def _sample_context(symbol="BTCUSDT", trading_mode="testnet") -> PromptContext:
     return PromptContext(
-        account_id=1, symbol=symbol, timeframe="1h",
+        account_id=1, trading_mode=trading_mode, symbol=symbol, timeframe="1h",
         current_price=50_000.0,
         indicators={"ema20": 49_000.0, "rsi": 55.0, "atr": 250.0},
         factors={"trend_strength": 0.7, "volume_confirmation": 0.3},
@@ -118,6 +118,24 @@ def test_different_context_produces_different_hash(session):
     composer = PromptComposer(session)
     a = composer.compose(_sample_context(symbol="BTCUSDT"))
     b = composer.compose(_sample_context(symbol="ETHUSDT"))
+    assert a.context_hash != b.context_hash
+
+
+def test_compose_writes_trading_mode_from_context(session):
+    """ProposalDraft.trading_mode 应来自 PromptContext, 不再硬编码 testnet."""
+    _seed_active_template(session)
+    composer = PromptComposer(session)
+    bundle = composer.compose(_sample_context(trading_mode="mainnet"))
+    row = session.get(ProposalDraft, bundle.proposal_draft_id)
+    assert row.trading_mode == "mainnet"
+
+
+def test_different_trading_mode_yields_different_hash(session):
+    """testnet / mainnet 的 context_hash 必须不同, 否则两环境会被错误去重."""
+    _seed_active_template(session)
+    composer = PromptComposer(session)
+    a = composer.compose(_sample_context(trading_mode="testnet"))
+    b = composer.compose(_sample_context(trading_mode="mainnet"))
     assert a.context_hash != b.context_hash
 
 

@@ -20,13 +20,14 @@ def session():
 
 
 class _StubAdapter:
-    def __init__(self, proposal: DecisionProposal):
+    def __init__(self, proposal: DecisionProposal, decision_id: int | None = 999):
         self._p = proposal
+        self._decision_id = decision_id
         self.call_count = 0
 
-    def run(self, inp: PipelineInput) -> DecisionProposal:
+    def run(self, inp: PipelineInput) -> tuple[DecisionProposal, int | None]:
         self.call_count += 1
-        return self._p
+        return self._p, self._decision_id
 
 
 def _input() -> PipelineInput:
@@ -50,11 +51,12 @@ def _proposal() -> DecisionProposal:
 
 
 def test_router_forwards_to_ai_trader(session):
-    stub = _StubAdapter(_proposal())
+    stub = _StubAdapter(_proposal(), decision_id=42)
     router = StrategyRouter(session, ai_trader=stub)
-    result = router.decide(_input())
+    proposal, decision_id = router.decide(_input())
     assert stub.call_count == 1
-    assert result.action == "HOLD"
+    assert proposal.action == "HOLD"
+    assert decision_id == 42
 
 
 def test_router_writes_audit_log_per_decision(session):
@@ -84,7 +86,7 @@ def test_router_audit_marks_open_position(session):
 
 
 def test_router_returns_whatever_adapter_returns(session):
-    """路由器不做二次加工——只转发 + 审计。"""
+    """路由器不做二次加工——只转发 + 审计 (含 decision_id)."""
     p = DecisionProposal(
         account_id=1, symbol="X", timeframe="1h",
         action="OPEN_LONG", confidence=0.9,
@@ -92,6 +94,8 @@ def test_router_returns_whatever_adapter_returns(session):
         take_profit=1.2, position_size_pct=0.1,
         strategy_mode="ai_trend", source="ai_trader",
     )
-    router = StrategyRouter(session, ai_trader=_StubAdapter(p))
-    got = router.decide(_input())
-    assert got is p
+    stub = _StubAdapter(p, decision_id=7)
+    router = StrategyRouter(session, ai_trader=stub)
+    got_p, got_id = router.decide(_input())
+    assert got_p is p
+    assert got_id == 7

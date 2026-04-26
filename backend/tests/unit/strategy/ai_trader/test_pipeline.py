@@ -75,16 +75,21 @@ VALID_OPEN_LONG = json.dumps({
 
 def test_happy_path_returns_open_long(session):
     pipeline = _pipeline(session, VALID_OPEN_LONG)
-    proposal = pipeline.run(_input())
+    proposal, decision_id = pipeline.run(_input())
     assert proposal.action == "OPEN_LONG"
     assert proposal.is_fallback is False
+    # 走过 Solver 必有 decision_id
+    assert decision_id is not None
+    assert decision_id == session.query(AIDecision).one().id
 
 
 def test_garbage_llm_returns_fallback_hold(session):
     pipeline = _pipeline(session, "not json")
-    proposal = pipeline.run(_input())
+    proposal, decision_id = pipeline.run(_input())
     assert proposal.action == "HOLD"
     assert proposal.is_fallback is True
+    # Solver 阶段才回退, 仍然写了 ai_decisions 行
+    assert decision_id is not None
 
 
 def test_review_reject_returns_fallback_hold_with_parent(session):
@@ -92,11 +97,12 @@ def test_review_reject_returns_fallback_hold_with_parent(session):
     pipeline = _pipeline(session, VALID_OPEN_LONG)
     inp = _input()
     inp.regime = "trending_down"  # forces critic reject
-    proposal = pipeline.run(inp)
+    proposal, decision_id = pipeline.run(inp)
     assert proposal.action == "HOLD"
     assert proposal.is_fallback is True
     # parent_proposal_id references the original ai_decisions row
     assert proposal.parent_proposal_id is not None
+    assert decision_id == proposal.parent_proposal_id
     # Audit row count sanity
     reviews = session.query(DecisionReview).all()
     assert len(reviews) == 1
@@ -115,12 +121,15 @@ def test_review_adjust_patches_take_profit(session):
         "reasoning": ["too close"],
     })
     pipeline = _pipeline(session, tight_tp_response)
-    proposal = pipeline.run(_input())
+    proposal, decision_id = pipeline.run(_input())
     assert proposal.action == "OPEN_LONG"
     assert proposal.is_fallback is False
     # Adjustment bumped TP to entry + 200 * 1.5 = 50300
     assert abs(proposal.take_profit - 50300.0) < 0.01
     assert "review_adjust" in (proposal.risk_note or "")
+    assert decision_id is not None
+    # parent_proposal_id 指回 Solver 的 ai_decisions.id
+    assert proposal.parent_proposal_id == decision_id
 
 
 def test_missing_prompt_template_returns_fallback(session):
@@ -128,9 +137,11 @@ def test_missing_prompt_template_returns_fallback(session):
     session.query(PromptTemplate).delete()
     session.flush()
     pipeline = _pipeline(session, VALID_OPEN_LONG)
-    proposal = pipeline.run(_input())
+    proposal, decision_id = pipeline.run(_input())
     assert proposal.is_fallback is True
     assert "prompt_template_missing" in proposal.reasoning[0]
+    # 提前回退 → 没有 ai_decisions 行
+    assert decision_id is None
 
 
 def test_full_run_persists_audit_trail(session):
@@ -141,3 +152,16 @@ def test_full_run_persists_audit_trail(session):
     assert session.query(ProposalDraft).count() == 1
     assert session.query(AIDecision).count() == 1
     assert session.query(DecisionReview).count() == 1
+
+
+def test_proposal_draft_carries_trading_mode(session):
+    """PromptContext.trading_mode 应写入 ProposalDraft, 不再硬编码 testnet."""
+    from src.shared.models import ProposalDraft
+
+    pipeline = _pipeline(session, VALID_OPEN_LONG)
+    inp = _input()
+    inp.trading_mode = "mainnet"
+    pipeline.run(inp)
+
+    draft = session.query(ProposalDraft).one()
+    assert draft.trading_mode == "mainnet"

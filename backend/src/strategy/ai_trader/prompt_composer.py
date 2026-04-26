@@ -23,6 +23,7 @@ from src.shared.models.prompt import PromptTemplate, ProposalDraft
 @dataclass
 class PromptContext:
     account_id: int
+    trading_mode: str                       # testnet / mainnet —— 写入 ProposalDraft 与 context_hash
     symbol: str
     timeframe: str
     current_price: float
@@ -40,6 +41,7 @@ class PromptContext:
     def _as_dict(self) -> dict:
         return {
             "account_id": self.account_id,
+            "trading_mode": self.trading_mode,
             "symbol": self.symbol,
             "timeframe": self.timeframe,
             "current_price": self.current_price,
@@ -112,7 +114,7 @@ class PromptComposer:
 
         draft = ProposalDraft(
             account_id=ctx.account_id,
-            trading_mode="testnet",  # caller controls mode; pipeline will override if needed
+            trading_mode=ctx.trading_mode,  # 由 PipelineInput 透传, 不再硬编码
             symbol=ctx.symbol,
             timeframe=ctx.timeframe,
             template_id=template.id,
