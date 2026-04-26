@@ -62,7 +62,7 @@ def close_position(
     db: Session = Depends(get_db),
     current_admin=Depends(require_admin),
 ):
-    svc = ManualOpsService(db, _adapter())
+    svc = ManualOpsService(db, _adapter(), outbox=OutboxWriter())
     trade = svc.manual_close_position(
         position_id=position_id, reason=body.reason,
         operator_user_id=current_admin.id,
@@ -81,7 +81,7 @@ def close_all(
 ):
     if body.confirmation != "CLOSE ALL":
         raise HTTPException(status_code=400, detail="must confirm with 'CLOSE ALL'")
-    svc = ManualOpsService(db, _adapter())
+    svc = ManualOpsService(db, _adapter(), outbox=OutboxWriter())
     closed = svc.manual_close_all(
         account_id=body.account_id, trading_mode=body.trading_mode,
         reason=body.reason, operator_user_id=current_admin.id,
@@ -97,7 +97,7 @@ def resolve_breaker(
     db: Session = Depends(get_db),
     current_admin=Depends(require_admin),
 ):
-    svc = ManualOpsService(db, _adapter())
+    svc = ManualOpsService(db, _adapter(), outbox=OutboxWriter())
     ok = svc.manual_resolve_circuit_breaker(
         risk_event_id=event_id, reason=body.reason,
         operator_user_id=current_admin.id,

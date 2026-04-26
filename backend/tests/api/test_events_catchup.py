@@ -10,12 +10,15 @@ from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
 from src.app.app import app
+from src.app.dependencies import get_current_user
 from src.shared.db import get_db
 from src.shared.models import Base, EventOutbox
 
 
 @pytest.fixture
 def client():
+    from types import SimpleNamespace
+
     engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
@@ -31,8 +34,37 @@ def client():
             s.close()
 
     app.dependency_overrides[get_db] = _override
+    # 鉴权 mock: 注入 stub user, 测试不验 JWT
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
+        id=1, username="user_test", role="user", status="active",
+    )
     yield TestClient(app), engine
     app.dependency_overrides.clear()
+
+
+def test_catchup_requires_authentication():
+    """缺 token / 未注入鉴权 override 时, /catchup 必须 401."""
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+
+    def _override():
+        s = Session(engine)
+        try:
+            yield s
+        finally:
+            s.close()
+
+    app.dependency_overrides[get_db] = _override
+    try:
+        cli = TestClient(app)
+        r = cli.get("/api/events/catchup")
+        assert r.status_code == 401
+    finally:
+        app.dependency_overrides.clear()
 
 
 def _seed(session, n: int = 5):

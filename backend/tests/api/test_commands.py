@@ -134,3 +134,60 @@ def test_resolve_breaker(client):
     r = cli.post(f"/api/commands/resolve-breaker/{eid}", json={"reason": "manual ok"})
     assert r.status_code == 200
     assert r.json()["resolved"] is True
+
+
+def test_resolve_breaker_emits_manual_override_event(client):
+    """Critical fix (post Plan5 minor): commands router 必须传 outbox 给
+    ManualOpsService, 否则 manual.override 事件丢失."""
+    from sqlalchemy import select
+    from src.shared.models.event_store import EventOutbox
+
+    cli, engine = client
+    with Session(engine) as s:
+        ev = RiskEvent(
+            account_id=1, trading_mode="testnet",
+            event_type="CIRCUIT_BREAKER_TRIGGERED",
+            triggered_at=datetime.now(tz=timezone.utc),
+            description="t", resolved=False,
+        )
+        s.add(ev)
+        s.commit()
+        eid = ev.id
+
+    cli.post(f"/api/commands/resolve-breaker/{eid}", json={"reason": "manual ok"})
+
+    with Session(engine) as s:
+        rows = s.execute(
+            select(EventOutbox).where(EventOutbox.event_type == "manual.override")
+        ).scalars().all()
+    assert len(rows) == 1
+    payload = rows[0].payload_json["payload"]
+    assert payload["operator_user_id"] == 1
+    assert "circuit_breaker" in payload["target"] or str(eid) in payload["target"]
+
+
+def test_close_all_emits_manual_override_event(client):
+    """同 above: close-all 也必须发 manual.override (一个或多个)."""
+    from sqlalchemy import select
+    from src.shared.models.event_store import EventOutbox
+
+    cli, engine = client
+    with Session(engine) as s:
+        s.add(Position(
+            account_id=1, trading_mode="testnet",
+            symbol="BTCUSDT", status=PositionStatus.OPEN.value, side="LONG",
+            quantity=0.01, entry_price=50_000.0, stop_loss=49_000.0,
+            opened_at=datetime.now(tz=timezone.utc),
+        ))
+        s.commit()
+
+    cli.post("/api/commands/close-all", json={
+        "confirmation": "CLOSE ALL", "reason": "emergency",
+    })
+
+    with Session(engine) as s:
+        rows = s.execute(
+            select(EventOutbox).where(EventOutbox.event_type == "manual.override")
+        ).scalars().all()
+    assert len(rows) >= 1
+    assert rows[0].payload_json["payload"]["operator_user_id"] == 1
