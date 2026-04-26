@@ -65,6 +65,10 @@ class Settings(BaseSettings):
     PIPELINE_SYMBOLS: str = "BTCUSDT,ETHUSDT"
     PIPELINE_TIMEFRAMES: str = "1h"
 
+    # EventShuttle: 一条 outbox 行 publish 失败多少次后写入 dead-letter stream
+    # (避免无限重试卡住整个 outbox). 设 0 / 负数等同关闭重试 (首次失败即死信).
+    EVENT_SHUTTLE_MAX_FAILED_ATTEMPTS: int = 3
+
 
 @lru_cache
 def get_base_settings() -> Settings:
