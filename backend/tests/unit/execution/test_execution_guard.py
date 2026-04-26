@@ -190,3 +190,82 @@ def test_every_call_writes_risk_event_audit(session, profile):
     rows = session.execute(select(RiskEvent)).scalars().all()
     assert len(rows) == 1
     assert rows[0].event_type == "GUARD_PASS"
+
+
+# ---------------------------------------------------------------------------
+# Plan 5 codereview I11: Guard 在 DEGRADE / REJECT 时 publish 事件
+# ---------------------------------------------------------------------------
+
+def _check_with_outbox(
+    session, profile, proposal, *,
+    regime="trending_up", available=10_000.0, daily_pnl=0.0, daily_pnl_pct=0.0,
+    atr=200.0, decision_id=42, review_rejected=False,
+):
+    from src.events.outbox import OutboxWriter
+    g = ExecutionGuard(session, risk_profile=profile, outbox=OutboxWriter())
+    return g.check(
+        proposal=proposal, trading_mode="testnet",
+        current_price=proposal.entry_price or 50000.0, regime=regime,
+        available_usdt=available, daily_pnl=daily_pnl,
+        daily_pnl_pct=daily_pnl_pct, atr=atr,
+        review_rejected=review_rejected,
+        decision_id=decision_id, trace_id="t-test",
+    )
+
+
+def test_pass_does_not_publish_decision_event(session, profile):
+    from src.shared.models.event_store import EventOutbox
+    _check_with_outbox(session, profile, _open_long())  # PASS
+    rows = session.execute(select(EventOutbox)).scalars().all()
+    assert rows == []  # PASS 不发 decision.* 事件
+
+
+def test_degrade_publishes_decision_degraded(session, profile):
+    from src.shared.models.event_store import EventOutbox
+    r = _check_with_outbox(
+        session, profile, _open_long(), regime="chaotic",
+    )
+    assert r.result == "DEGRADE"
+    rows = session.execute(select(EventOutbox)).scalars().all()
+    assert len(rows) == 1
+    row = rows[0]
+    assert row.event_type == "decision.degraded"
+    assert row.aggregate_id == 42
+    payload = row.payload_json["payload"]
+    assert payload["decision_id"] == 42
+    assert payload["original_action"] == "OPEN_LONG"
+    assert payload["modified_action"] == "HOLD"
+    assert "chaotic" in payload["reason"]
+
+
+def test_reject_publishes_decision_rejected(session, profile):
+    from src.shared.models.event_store import EventOutbox
+    r = _check_with_outbox(
+        session, profile, _open_long(), daily_pnl_pct=-0.04,
+    )
+    assert r.result == "REJECT"
+    rows = session.execute(
+        select(EventOutbox).where(EventOutbox.event_type == "decision.rejected")
+    ).scalars().all()
+    assert len(rows) == 1
+    payload = rows[0].payload_json["payload"]
+    assert payload["decision_id"] == 42
+    assert "daily_loss" in payload["reason"]
+
+
+def test_no_decision_id_skips_publish(session, profile):
+    """decision_id=None 时不应 publish (没有 ai_decisions 行可关联)."""
+    from src.shared.models.event_store import EventOutbox
+    _check_with_outbox(
+        session, profile, _open_long(), regime="chaotic", decision_id=None,
+    )
+    rows = session.execute(select(EventOutbox)).scalars().all()
+    assert rows == []
+
+
+def test_no_outbox_no_publish(session, profile):
+    """不注入 outbox 时, 行为与原版一致 — 只写 risk_events, 不发事件."""
+    from src.shared.models.event_store import EventOutbox
+    _check(session, profile, _open_long(), regime="chaotic")  # 默认无 outbox
+    rows = session.execute(select(EventOutbox)).scalars().all()
+    assert rows == []

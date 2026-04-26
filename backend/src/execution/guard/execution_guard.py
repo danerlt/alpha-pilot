@@ -13,17 +13,24 @@
  10. review_rejected → REJECT
 
 每次调用都写 risk_events 审计行 (PASS / REJECT / DEGRADE 都写)。
+
+Outbox 发布 (Plan 5 codereview I11):
+  注入 outbox + decision_id (调用方知道) 后, REJECT 命中发布 decision.rejected,
+  DEGRADE 命中发布 decision.degraded; PASS / HOLD 不发. decision_id 缺失 (None)
+  时跳过 publish — 没有 ai_decisions 行可关联.
 """
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Literal, Optional
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.events.contracts import DecisionDegraded, DecisionRejected
+from src.events.outbox import OutboxWriter
 from src.shared.enums import PositionStatus
 from src.shared.models.account_entity import RiskProfile
 from src.shared.models.position import Position
@@ -42,9 +49,16 @@ class GuardDecision:
 
 
 class ExecutionGuard:
-    def __init__(self, session: Session, *, risk_profile: RiskProfile):
+    def __init__(
+        self,
+        session: Session,
+        *,
+        risk_profile: RiskProfile,
+        outbox: Optional[OutboxWriter] = None,
+    ):
         self._session = session
         self._profile = risk_profile
+        self._outbox = outbox
 
     def check(
         self,
@@ -58,8 +72,14 @@ class ExecutionGuard:
         daily_pnl_pct: float,
         atr: float,
         review_rejected: bool = False,
+        decision_id: int | None = None,
+        trace_id: str | None = None,
     ) -> GuardDecision:
         """逐条规则检查; 命中即短路写审计 + 返回。"""
+        self._cur_decision_id = decision_id  # _record 内部用
+        self._cur_trading_mode = trading_mode
+        self._cur_trace_id = trace_id or f"guard:{proposal.symbol}:{datetime.now(tz=timezone.utc).timestamp()}"
+
         # HOLD 直接 PASS, 不耗规则。
         if proposal.action == "HOLD":
             return self._record(proposal, "PASS", "hold_no_check")
@@ -178,7 +198,7 @@ class ExecutionGuard:
         reason: str,
         modified: str | None = None,
     ) -> GuardDecision:
-        """写 risk_events + 返回 GuardDecision。"""
+        """写 risk_events + 视情况发 decision.degraded / decision.rejected + 返回 GuardDecision。"""
         self._session.add(RiskEvent(
             account_id=proposal.account_id,
             event_type=f"GUARD_{result}",
@@ -188,6 +208,45 @@ class ExecutionGuard:
             resolved=(result == "PASS"),
         ))
         self._session.flush()
+
+        # publish 给 Notifier / UI: 只在有 outbox + decision_id 时发, PASS / HOLD 不发
+        decision_id = getattr(self, "_cur_decision_id", None)
+        if (
+            self._outbox is not None
+            and decision_id is not None
+            and result in {"REJECT", "DEGRADE"}
+        ):
+            try:
+                if result == "DEGRADE":
+                    self._outbox.record(
+                        self._session,
+                        aggregate_type="ai_decision", aggregate_id=decision_id,
+                        event=DecisionDegraded(
+                            decision_id=decision_id,
+                            original_action=proposal.action,
+                            modified_action=modified or "HOLD",
+                            reason=reason,
+                        ),
+                        account_id=proposal.account_id,
+                        trading_mode=getattr(self, "_cur_trading_mode", "testnet"),
+                        trace_id=getattr(self, "_cur_trace_id", "guard"),
+                    )
+                else:  # REJECT
+                    self._outbox.record(
+                        self._session,
+                        aggregate_type="ai_decision", aggregate_id=decision_id,
+                        event=DecisionRejected(
+                            decision_id=decision_id,
+                            reason=reason,
+                        ),
+                        account_id=proposal.account_id,
+                        trading_mode=getattr(self, "_cur_trading_mode", "testnet"),
+                        trace_id=getattr(self, "_cur_trace_id", "guard"),
+                    )
+            except Exception:
+                # publish 失败不应阻塞 guard 决策
+                logger.exception("guard outbox publish failed (non-fatal)")
+
         return GuardDecision(
             result=result,  # type: ignore[arg-type]
             reason=reason,

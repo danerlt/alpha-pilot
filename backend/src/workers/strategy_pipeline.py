@@ -269,12 +269,14 @@ def _run_one_symbol_tf(
             trace_id=trace_id,
         )
 
-    # 9. 执行守卫
+    # 9. 执行守卫 (decision_id + trace_id 让 Guard 在 DEGRADE/REJECT 时
+    # 能 publish decision.degraded / decision.rejected)
     guard_dec = deps.guard.check(
         proposal=proposal, trading_mode=trading_mode,
         current_price=current_price, regime=regime_result.regime,
         available_usdt=available_usdt, daily_pnl=daily_pnl,
         daily_pnl_pct=daily_pnl_pct, atr=values.atr or 0.0,
+        decision_id=decision_id, trace_id=trace_id,
     )
 
     # 10. 按 guard 结果路由
@@ -335,7 +337,7 @@ def run_strategy_pipeline_once(
         factor_computer=FactorComputer(db),
         regime_classifier=RegimeClassifier(),
         router=StrategyRouter(db, ai_trader=ait),
-        guard=ExecutionGuard(db, risk_profile=risk_profile),
+        guard=ExecutionGuard(db, risk_profile=risk_profile, outbox=outbox),
         executor=OrderExecutor(db, adapter, outbox=outbox),
         adapter=adapter,
         outbox=outbox,
