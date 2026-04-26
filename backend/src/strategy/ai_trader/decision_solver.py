@@ -37,6 +37,16 @@ def _strip_code_fences(text: str) -> str:
     return _CODE_FENCE_RE.sub("", text).strip()
 
 
+def _reject_non_finite(value):
+    """json.loads 的 parse_constant hook: 显式拒 NaN / Infinity / -Infinity.
+
+    Python json 默认接受这三个非标准扩展, 让恶意/越狱 LLM 可输出
+    {"stop_loss": NaN} 后在下游绕过所有数值比较 (NaN 与任何值比较都是
+    False). post-Plan5 安全审计 C6.
+    """
+    raise ValueError(f"non-finite JSON constant rejected: {value!r}")
+
+
 def _parse_llm_json(raw: str) -> dict:
     """Extract the first JSON object from the raw LLM output."""
     cleaned = _strip_code_fences(raw)
@@ -45,7 +55,7 @@ def _parse_llm_json(raw: str) -> dict:
     end = cleaned.rfind("}")
     if start == -1 or end == -1 or end <= start:
         raise ValueError(f"no JSON object found in LLM output: {raw[:120]!r}")
-    return json.loads(cleaned[start:end + 1])
+    return json.loads(cleaned[start:end + 1], parse_constant=_reject_non_finite)
 
 
 class DecisionSolver:

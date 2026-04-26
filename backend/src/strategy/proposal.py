@@ -14,9 +14,10 @@ analysis.
 """
 from __future__ import annotations
 
+import math
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class DecisionProposal(BaseModel):
@@ -26,10 +27,26 @@ class DecisionProposal(BaseModel):
     action: Literal["OPEN_LONG", "CLOSE_LONG", "HOLD"]
     confidence: float = Field(ge=0.0, le=1.0)
     entry_type: Literal["MARKET", "LIMIT"] | None = None
-    entry_price: float | None = None
-    stop_loss: float | None = None
-    take_profit: float | None = None
+    # 价格 / SL / TP 必须 > 0 (post-Plan5 安全审计 C6: 防 NaN/Inf/<=0 绕过 Guard)
+    entry_price: float | None = Field(default=None, gt=0.0)
+    stop_loss: float | None = Field(default=None, gt=0.0)
+    take_profit: float | None = Field(default=None, gt=0.0)
     position_size_pct: float | None = Field(default=None, ge=0.0, le=1.0)
+
+    @field_validator("entry_price", "stop_loss", "take_profit", "position_size_pct", "confidence")
+    @classmethod
+    def _reject_non_finite(cls, v):
+        """Pydantic 的 ge/gt/le 约束会接受 NaN (NaN 在所有比较中都返回 False), 必须显式拒.
+
+        触发场景: LLM 返回 NaN/Infinity (Python 标准 json.loads 接受这些
+        非标准 JSON 扩展), Pydantic 没有 finite 约束就放行 → ExecutionGuard
+        的 risk_pct, sl_distance 等计算全部 NaN → 所有规则被绕过.
+        """
+        if v is None:
+            return v
+        if not math.isfinite(v):
+            raise ValueError(f"value must be finite (got {v!r})")
+        return v
     strategy_mode: Literal[
         "ai_trend", "ai_breakout", "ai_observation",
         "program_trend", "program_breakout",

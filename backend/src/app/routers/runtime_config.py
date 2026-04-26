@@ -50,7 +50,10 @@ class RuntimeConfigUpdate(BaseModel):
 
 
 @router.get("/runtime")
-def get_runtime_config(db: Session = Depends(get_db)):
+def get_runtime_config(
+    db: Session = Depends(get_db),
+    current_admin=Depends(require_admin),
+):
     base_settings = get_base_settings()
     settings = get_settings()
     raw = get_runtime_config_manager().get_raw()
@@ -120,4 +123,4 @@ def update_runtime_config(
         master_key=base_settings.APP_CONFIG_MASTER_KEY,
         default_trading_mode=base_settings.TRADING_MODE,
     )
-    return get_runtime_config(db)
+    return get_runtime_config(db=db, current_admin=current_admin)

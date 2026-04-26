@@ -86,6 +86,86 @@ def test_position_size_pct_bounds():
         )
 
 
+# post-Plan5 安全审计 C6: NaN / Inf / 负数价格必须被 Pydantic 拒
+class TestRejectsNonFiniteAndNegative:
+    def test_nan_stop_loss_rejected(self):
+        with pytest.raises(ValidationError):
+            DecisionProposal(
+                account_id=1, symbol="X", timeframe="1h",
+                action="OPEN_LONG", confidence=0.5,
+                entry_type="MARKET", entry_price=50000.0,
+                stop_loss=float("nan"), take_profit=51000.0,
+                position_size_pct=0.1,
+                strategy_mode="ai_trend", source="ai_trader",
+            )
+
+    def test_inf_take_profit_rejected(self):
+        with pytest.raises(ValidationError):
+            DecisionProposal(
+                account_id=1, symbol="X", timeframe="1h",
+                action="OPEN_LONG", confidence=0.5,
+                entry_type="MARKET", entry_price=50000.0,
+                stop_loss=49000.0, take_profit=float("inf"),
+                position_size_pct=0.1,
+                strategy_mode="ai_trend", source="ai_trader",
+            )
+
+    def test_negative_entry_price_rejected(self):
+        with pytest.raises(ValidationError):
+            DecisionProposal(
+                account_id=1, symbol="X", timeframe="1h",
+                action="OPEN_LONG", confidence=0.5,
+                entry_type="MARKET", entry_price=-50000.0,
+                stop_loss=49000.0, take_profit=51000.0,
+                position_size_pct=0.1,
+                strategy_mode="ai_trend", source="ai_trader",
+            )
+
+    def test_zero_stop_loss_rejected(self):
+        with pytest.raises(ValidationError):
+            DecisionProposal(
+                account_id=1, symbol="X", timeframe="1h",
+                action="OPEN_LONG", confidence=0.5,
+                entry_type="MARKET", entry_price=50000.0,
+                stop_loss=0.0, take_profit=51000.0,
+                position_size_pct=0.1,
+                strategy_mode="ai_trend", source="ai_trader",
+            )
+
+    def test_nan_position_size_rejected(self):
+        with pytest.raises(ValidationError):
+            DecisionProposal(
+                account_id=1, symbol="X", timeframe="1h",
+                action="HOLD", confidence=0.0,
+                position_size_pct=float("nan"),
+                strategy_mode="ai_observation", source="ai_trader",
+            )
+
+    def test_nan_confidence_rejected(self):
+        with pytest.raises(ValidationError):
+            DecisionProposal(
+                account_id=1, symbol="X", timeframe="1h",
+                action="HOLD", confidence=float("nan"),
+                strategy_mode="ai_observation", source="ai_trader",
+            )
+
+
+def test_decision_solver_rejects_nan_in_llm_json():
+    """post-Plan5 安全审计 C6: LLM 输出 {"stop_loss": NaN} 必须在 json.loads
+    阶段就被拒, 不能让 NaN 进 Pydantic."""
+    from src.strategy.ai_trader.decision_solver import _parse_llm_json
+
+    with pytest.raises(ValueError, match="non-finite"):
+        _parse_llm_json('{"action":"OPEN_LONG","stop_loss":NaN,"position_size_pct":0.1}')
+
+
+def test_decision_solver_rejects_infinity():
+    from src.strategy.ai_trader.decision_solver import _parse_llm_json
+
+    with pytest.raises(ValueError, match="non-finite"):
+        _parse_llm_json('{"take_profit": Infinity}')
+
+
 def test_fallback_hold_factory():
     p = DecisionProposal.fallback_hold(
         account_id=1, symbol="BTCUSDT", timeframe="1h",

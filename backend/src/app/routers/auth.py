@@ -35,38 +35,20 @@ class LoginRequest(BaseModel):
 
 @router.post("/register")
 def register(payload: RegisterRequest, db: Session = Depends(get_db)):
-    username = payload.username.strip()
-    email = payload.email.lower().strip()
-    if len(payload.password) < 8:
-        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+    """V0.1 单管理员场景下公开注册被禁用 (post-Plan5 安全审计 C5).
 
-    exists = db.query(User).filter((User.username == username) | (User.email == email)).first()
-    if exists:
-        raise HTTPException(status_code=409, detail="Username or email already exists")
+    所有账号必须由 admin 通过 admin_bootstrap (.env DEFAULT_ADMIN_*) 引导,
+    或通过 POST /api/admin/users 创建. 公开 register 在生产 = 任何人都能拿
+    USER 角色读 /api/positions, /api/trades, /api/account, /api/decisions
+    /api/events/catchup 等敏感接口 (虽然只回当前 user 的, 但 V0.1 当前无
+    account 隔离, 实际上是全局可读).
 
-    user = User(
-        username=username,
-        email=email,
-        password_hash=hash_password(payload.password),
-        role=UserRole.USER.value,
-        status=UserStatus.ACTIVE.value,
+    V0.1.x 多账户场景重启用时, 必须改成 invite-token 流程 + 限速 + 邮箱验证.
+    """
+    raise HTTPException(
+        status_code=403,
+        detail="Public registration disabled. Contact your admin.",
     )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-
-    token = create_access_token(
-        subject=str(user.id), role=user.role,
-        secret_key=get_base_settings().APP_AUTH_SECRET_KEY,
-    )
-    return {
-        "access_token": token,
-        "token_type": "bearer",
-        "user": {
-            "id": user.id, "username": user.username, "email": user.email,
-            "role": user.role, "status": user.status,
-        },
-    }
 
 
 @router.post("/login")

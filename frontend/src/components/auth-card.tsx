@@ -174,9 +174,9 @@ export function AuthCard({ mode }: AuthCardProps) {
 
         <div className="authFooter">
           {mode === 'login' ? (
-            <>
-              还没有账号？ <Link href={nextPath ? `/register?next=${encodeURIComponent(nextPath)}` : '/register'}>去注册</Link>
-            </>
+            // 公开注册在 V0.1 已关闭 (post-Plan5 安全审计 C5);
+            // 只保留管理员引导提示, 不再展示注册链接.
+            <>账号由管理员引导创建; 没有账号请联系管理员.</>
           ) : (
             <>
               已有账号？ <Link href={nextPath ? `/login?next=${encodeURIComponent(nextPath)}` : '/login'}>去登录</Link>

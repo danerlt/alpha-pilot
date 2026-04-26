@@ -56,6 +56,10 @@ async def test_get_runtime_config_masks_secrets_and_reports_config_state(monkeyp
         yield DummyDB()
 
     app.dependency_overrides[get_db] = override_db
+    # post-Plan5 安全审计 C4: GET /api/config/runtime 现在 require_admin
+    app.dependency_overrides[router_module.require_admin] = lambda: SimpleNamespace(
+        id=1, username="admin", role="admin", status="active",
+    )
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/api/config/runtime")
@@ -70,6 +74,22 @@ async def test_get_runtime_config_masks_secrets_and_reports_config_state(monkeyp
     assert data["llm_api_key_configured"] is True
     assert data["config_source"] == "database_overrides"
     assert "api_secret" not in str(data).lower()
+
+
+@pytest.mark.asyncio
+async def test_get_runtime_config_requires_admin():
+    """post-Plan5 安全审计 C4: 没鉴权时直接 401 (FastAPI 默认行为是无 dep override)."""
+    def override_db():
+        yield DummyDB()
+
+    app.dependency_overrides[get_db] = override_db
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get("/api/config/runtime")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 401
 
 
 @pytest.mark.asyncio
