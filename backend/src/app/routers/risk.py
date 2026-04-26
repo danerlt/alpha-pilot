@@ -7,7 +7,7 @@ resolve 路径走 ManualOpsService.manual_resolve_circuit_breaker, 与
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -28,7 +28,8 @@ class ResolveRiskEventRequest(BaseModel):
 
 @router.get("")
 def list_risk_events(
-    limit: int = 50,
+    # post-Plan5 安全审计 M3: limit 加上限防 DoS / OOM
+    limit: int = Query(default=50, ge=1, le=500),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):

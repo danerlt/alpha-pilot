@@ -10,7 +10,11 @@ from src.shared.enums import UserRole, UserStatus
 
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 12
+# JWT TTL — post-Plan5 安全审计 H7: 12h → 60min.
+# Mainnet 上线后 token 一旦泄露窗口期降到 1h, 配合 H7 完整方案 (jti 撤销表
+# + logout 端点) 后可手动撤销.
+# V0.1.x 引入 refresh token 流程后, access token 应进一步降到 ~15min.
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 
 def hash_password(password: str) -> str:

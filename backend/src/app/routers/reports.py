@@ -4,7 +4,7 @@ GET 要求登录, POST 要求 admin (生成行为修改 DB)。
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from src.app.dependencies import get_current_user, require_admin
@@ -18,7 +18,8 @@ router = APIRouter(prefix="/api/reports", tags=["reports"])
 
 @router.get("")
 def list_reports(
-    limit: int = 30,
+    # post-Plan5 安全审计 M3: limit 加上限防 DoS / OOM
+    limit: int = Query(default=30, ge=1, le=365),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):

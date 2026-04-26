@@ -114,7 +114,16 @@ def _run_one_symbol_tf(
 
     本函数只负责"业务流"; 异常吞噬 / commit / rollback 留给 caller, 让
     每个 symbol 的事务边界清晰。
+
+    KillSwitch 二次检查 (post-Plan5 安全审计 H9): 整轮入口的检查在 cycle
+    开始时已做, 但 cycle 中段 admin 按 pause 时, 后续 symbol 必须立即生效.
+    每个 symbol 入口再查一次, 确保 pause 信号传播延迟 < 一个 symbol 周期.
     """
+    if KillSwitchService(db).should_block_new_trades(
+        account_id=account_id, trading_mode=trading_mode,
+    ):
+        return {"action": "SKIP", "reason": "blocked_by_kill_switch"}
+
     trace_id = f"pipeline:{symbol}:{tf}:{datetime.now(timezone.utc).timestamp()}"
 
     # 1. 拉 K 线

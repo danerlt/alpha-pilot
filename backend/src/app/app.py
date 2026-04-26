@@ -125,11 +125,27 @@ async def lifespan(app: FastAPI):
         logger.info("Scheduler stopped")
 
 
+# post-Plan5 安全审计 L9: 生产环境 (TRADING_MODE=mainnet) 关闭 /docs /redoc /openapi.json
+# 避免泄露端点结构 + 让攻击者更难做 endpoint enumeration. dev/testnet 仍开方便联调.
+def _docs_enabled() -> bool:
+    """testnet 默认开 docs, mainnet 默认关. 可被 ALPHAPILOT_FORCE_DOCS=1 强开."""
+    import os
+    if os.getenv("ALPHAPILOT_FORCE_DOCS") == "1":
+        return True
+    settings = get_base_settings()
+    mode = settings.TRADING_MODE.value if hasattr(settings.TRADING_MODE, "value") else settings.TRADING_MODE
+    return mode != "mainnet"
+
+
+_docs_on = _docs_enabled()
 app = FastAPI(
     title="AlphaPilot API",
     description="AI Autonomous Trading System",
     version="0.1.0",
     lifespan=lifespan,
+    docs_url="/docs" if _docs_on else None,
+    redoc_url="/redoc" if _docs_on else None,
+    openapi_url="/openapi.json" if _docs_on else None,
 )
 
 app.include_router(router)

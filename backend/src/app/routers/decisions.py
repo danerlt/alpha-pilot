@@ -1,7 +1,7 @@
 """Decisions — /api/decisions."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from src.app.dependencies import get_current_user
@@ -14,7 +14,8 @@ router = APIRouter(prefix="/api/decisions", tags=["decisions"])
 
 @router.get("")
 def list_decisions(
-    limit: int = 20,
+    # post-Plan5 安全审计 M3: limit 加上限防 DoS / OOM
+    limit: int = Query(default=20, ge=1, le=200),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):

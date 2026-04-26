@@ -62,6 +62,10 @@ def _verify_token(token: str | None) -> int:
     用 4xxx 范围里的 close code (RFC 6455 application-defined) 给前端区分:
       4401 = unauthenticated  (类比 HTTP 401)
       4403 = user disabled    (类比 HTTP 403)
+
+    本函数只验签, **不查 user 是否被禁用**. 被禁用 user 的 token 在 12h TTL
+    内仍能签名校验通过 — 必须配合 _verify_user_active 使用 (post-Plan5
+    安全审计 H1).
     """
     if not token:
         raise WebSocketException(code=4401, reason="missing token")
@@ -75,7 +79,39 @@ def _verify_token(token: str | None) -> int:
     except WebSocketException:
         raise
     except Exception as e:  # noqa: BLE001
-        raise WebSocketException(code=4401, reason=f"jwt decode failed: {e}") from e
+        # 异常细节不要暴露给客户端 (避免泄露内部库信息)
+        logger.warning("ws token decode failed: %s", e)
+        raise WebSocketException(code=4401, reason="invalid token") from e
+
+
+def _verify_user_active(user_id: int) -> None:
+    """握手时查 user 表确认账号未被禁用.
+
+    HTTP 端点 get_current_user 每次都查 DB, 因此 admin 禁用 user 立即生效;
+    但 WebSocket 长连接如果只在 connect 时验签不查 DB, 旧 token 在禁用后仍
+    可持续 12h 接收交易事件 (post-Plan5 安全审计 H1).
+
+    每个 ws 连接 connect 时查一次 DB. 长连接期间 status 变 disabled 不会
+    实时切断 (会话内不查 DB), 这是可接受的妥协 — 真正紧急情况下走
+    JWT 撤销机制 (H7 跟进).
+    """
+    SessionLocal = get_session_factory()
+    try:
+        with SessionLocal() as db:
+            from src.shared.models.user import User
+            user = db.query(User).filter(User.id == user_id).first()
+            if user is None:
+                raise WebSocketException(code=4401, reason="user not found")
+            from src.services.auth import ensure_user_is_active
+            try:
+                ensure_user_is_active(user.status)
+            except ValueError:
+                raise WebSocketException(code=4403, reason="user disabled")
+    except WebSocketException:
+        raise
+    except Exception as e:  # noqa: BLE001
+        logger.exception("ws user lookup failed")
+        raise WebSocketException(code=4401, reason="auth check failed") from e
 
 
 async def _replay_since(ws: WebSocket, since: str | None, limit: int = 200) -> None:
@@ -122,7 +158,8 @@ async def websocket_endpoint(ws: WebSocket) -> None:
     since = ws.query_params.get("since")
 
     try:
-        _verify_token(token)
+        user_id = _verify_token(token)
+        _verify_user_active(user_id)
     except WebSocketException as e:
         # 必须 accept 之后才能 close, 否则握手层直接 403
         await ws.accept()

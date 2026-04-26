@@ -3,11 +3,12 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
 from src.app.dependencies import get_current_user
+from src.app.rate_limit import login_email_limiter, login_ip_limiter
 from src.services.auth import (
     create_access_token,
     ensure_user_is_active,
@@ -18,6 +19,11 @@ from src.shared.config import get_base_settings
 from src.shared.db import get_db
 from src.shared.enums import UserRole, UserStatus
 from src.shared.models.user import User
+
+# 用于 timing-equal: user 不存在时也跑一次 verify_password 让响应时延一致,
+# 防止 attacker 通过响应时延差推断 email 是否注册.
+# 这是一个 hash_password("dummy-password-for-timing-attack-protection") 的预算结果.
+_DUMMY_PASSWORD_HASH = hash_password("dummy-password-for-timing-equal-only")
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -52,10 +58,35 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/login")
-def login(payload: LoginRequest, db: Session = Depends(get_db)):
+def login(
+    payload: LoginRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """密码登录 — 带限流 + timing-equal 防 user enumeration.
+
+    限流 (post-Plan5 安全审计 H4):
+      - per-IP 10 次 / 60s
+      - per-email 5 次 / 60s
+      超阈值返 429 + Retry-After.
+
+    timing-equal: user 不存在时也跑一次 verify_password 让响应时延一致.
+    """
     email = payload.email.lower().strip()
+
+    # nginx 经反代时 client.host 是 nginx, 真实 IP 在 X-Forwarded-For 第一段
+    ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() \
+        or (request.client.host if request.client else "unknown")
+    login_ip_limiter.check(f"login:ip:{ip}")
+    login_email_limiter.check(f"login:email:{email}")
+
     user = db.query(User).filter(User.email == email).first()
-    if not user or not verify_password(payload.password, user.password_hash):
+    if user is None:
+        # 不存在时跑 dummy verify 让 timing 一致 (~50ms)
+        verify_password(payload.password, _DUMMY_PASSWORD_HASH)
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    if not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     try:

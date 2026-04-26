@@ -26,6 +26,22 @@ def engine():
     yield eng
 
 
+def _seed_user(engine, *, user_id=1, status="active"):
+    """post-Plan5 安全审计 H1: WebSocket 鉴权后会查 user 表确认 active.
+    所有 WS 测试都需要 seed 一个 user."""
+    from src.services.auth import hash_password
+    from src.shared.models.user import User
+
+    with Session(engine) as s:
+        u = User(
+            id=user_id, username=f"u{user_id}", email=f"u{user_id}@test",
+            password_hash=hash_password("test-password-12345"),
+            role="user", status=status,
+        )
+        s.merge(u)
+        s.commit()
+
+
 @pytest.fixture
 def client(engine, monkeypatch):
     """注入测试 SessionLocal 让 get_session_factory 返回内存 engine 的 session."""
@@ -40,9 +56,12 @@ def client(engine, monkeypatch):
 
     app.dependency_overrides[get_db] = _override_db
 
-    # 让 websocket._replay_since 用同一个 in-memory engine
+    # 让 websocket._replay_since / _verify_user_active 用同一个 in-memory engine
     Local = sessionmaker(bind=engine, autocommit=False, autoflush=False)
     monkeypatch.setattr("src.app.websocket.get_session_factory", lambda: Local)
+
+    # seed 一个 active user (id=1) 让所有 _make_token() 调用握手能过
+    _seed_user(engine, user_id=1, status="active")
 
     yield TestClient(app)
     app.dependency_overrides.clear()
@@ -81,6 +100,65 @@ def test_ws_accepts_valid_token(client):
         # 握手成功本身就是验证 (没有 catchup, 直接进入接收循环)
         # 服务端不主动发欢迎消息, 这里立即关闭即可
         pass
+
+
+def test_ws_rejects_disabled_user(engine, monkeypatch):
+    """post-Plan5 安全审计 H1: 旧 token (12h TTL 内) 被禁用 user 不应被接受."""
+    from sqlalchemy.orm import sessionmaker
+    from starlette.websockets import WebSocketDisconnect
+
+    def _override_db():
+        s = Session(engine)
+        try:
+            yield s
+        finally:
+            s.close()
+
+    app.dependency_overrides[get_db] = _override_db
+    Local = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    monkeypatch.setattr("src.app.websocket.get_session_factory", lambda: Local)
+
+    # 唯一区别: status=disabled
+    _seed_user(engine, user_id=99, status="disabled")
+    token = _make_token(user_id=99)
+
+    cli = TestClient(app)
+    try:
+        with cli.websocket_connect(f"/ws?token={token}") as ws:
+            with pytest.raises(WebSocketDisconnect) as exc:
+                ws.receive_text()
+            assert exc.value.code == 4403
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_ws_rejects_unknown_user(engine, monkeypatch):
+    """post-Plan5 安全审计 H1: token 合法但 user 已被删除时拒."""
+    from sqlalchemy.orm import sessionmaker
+    from starlette.websockets import WebSocketDisconnect
+
+    def _override_db():
+        s = Session(engine)
+        try:
+            yield s
+        finally:
+            s.close()
+
+    app.dependency_overrides[get_db] = _override_db
+    Local = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    monkeypatch.setattr("src.app.websocket.get_session_factory", lambda: Local)
+
+    # token 指向 user_id=999, 但没 seed 这个 user
+    token = _make_token(user_id=999)
+
+    cli = TestClient(app)
+    try:
+        with cli.websocket_connect(f"/ws?token={token}") as ws:
+            with pytest.raises(WebSocketDisconnect) as exc:
+                ws.receive_text()
+            assert exc.value.code == 4401
+    finally:
+        app.dependency_overrides.clear()
 
 
 def test_ws_replays_outbox_when_since_provided(client, engine):
