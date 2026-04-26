@@ -3,9 +3,19 @@ UPSERT the resulting snapshot into factor_snapshots (spec §5.2).
 
 The unique index `ix_factor_snapshots_unique(account_id, trading_mode,
 symbol, timeframe, open_time)` means rerunning the same cycle produces
-one stable row per bar. On SQLite (unit tests) we emulate UPSERT with
-"delete then insert"; on Postgres the same `ON CONFLICT DO UPDATE` works
-natively.
+one stable row per bar.
+
+并发安全 (Plan 5 codereview I6):
+  V0.1 假设单写者 — strategy_pipeline 在 APScheduler 内同步串行调用此函数,
+  全局只有一个 worker 进程; 当前的 "delete-then-insert" UPSERT 在 SQLite
+  和 Postgres 都正确, 无竞态.
+
+  V0.2+ 上多 worker / 多 strategy 后, 同一 (account_id, trading_mode, symbol,
+  timeframe, open_time) 的并发 compute 会触发 IntegrityError (UNIQUE 冲突).
+  届时改 Postgres dialect-specific UPSERT:
+    INSERT ... ON CONFLICT (...) DO UPDATE SET factors_json=EXCLUDED.factors_json
+  通过 sqlalchemy.dialects.postgresql.insert(...).on_conflict_do_update(...).
+  SQLite 测试不变。
 """
 from __future__ import annotations
 

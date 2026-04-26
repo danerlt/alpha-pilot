@@ -17,6 +17,11 @@ Confidence ∈ [0, 1]:
 Missing factors are treated as 0 — this keeps the system from freezing on
 partial data; callers upstream should have already checked indicator/factor
 validity before calling.
+
+并发安全 (Plan 5 codereview I6):
+  classify_and_store 当前用 "delete-then-insert" 模拟 UPSERT, 与
+  FactorComputer 同样要求 V0.1 单 worker 串行运行. V0.2+ 上多 worker 后
+  需要切到 Postgres ON CONFLICT DO UPDATE; SQLite 单测路径不变。
 """
 from __future__ import annotations
 

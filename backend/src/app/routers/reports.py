@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from src.app.dependencies import get_current_user, require_admin
+from src.services.reporting.reporter import generate_daily_report
 from src.shared.config import get_settings
 from src.shared.db import get_db
 from src.shared.models.report import DailyReport
@@ -52,6 +53,5 @@ def generate_report(
     current_admin=Depends(require_admin),
 ):
     """手动触发今日日报生成 (admin only)。"""
-    from src.services.reporting.reporter import generate_daily_report
     report = generate_daily_report(db)
     return {"message": "Report generated", "report_date": report.report_date.isoformat()}

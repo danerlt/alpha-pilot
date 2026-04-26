@@ -8,6 +8,9 @@ from sqlalchemy.orm import Session
 from src.app.dependencies import require_admin
 from src.shared.db import get_db
 from src.shared.enums import UserRole, UserStatus
+from src.shared.models.audit_log import AuditLog
+from src.shared.models.symbol_config import SymbolConfig
+from src.shared.models.user import User
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -45,8 +48,6 @@ class AdminUserUpdate(BaseModel):
 
 @router.get("/symbols")
 def list_symbol_configs(db: Session = Depends(get_db), current_admin=Depends(require_admin)):
-    from src.shared.models.symbol_config import SymbolConfig
-
     items = db.query(SymbolConfig).order_by(
         SymbolConfig.sort_order.asc(), SymbolConfig.symbol.asc()
     ).all()
@@ -69,9 +70,6 @@ def create_symbol_config(
     db: Session = Depends(get_db),
     current_admin=Depends(require_admin),
 ):
-    from src.shared.models.audit_log import AuditLog
-    from src.shared.models.symbol_config import SymbolConfig
-
     symbol = payload.symbol.upper().strip()
     if db.query(SymbolConfig).filter(SymbolConfig.symbol == symbol).first():
         raise HTTPException(status_code=409, detail="Symbol already exists")
@@ -115,9 +113,6 @@ def update_symbol_config(
     db: Session = Depends(get_db),
     current_admin=Depends(require_admin),
 ):
-    from src.shared.models.audit_log import AuditLog
-    from src.shared.models.symbol_config import SymbolConfig
-
     item = db.query(SymbolConfig).filter(SymbolConfig.id == symbol_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Symbol config not found")
@@ -164,8 +159,6 @@ def update_symbol_config(
 
 @router.get("/users")
 def list_users(db: Session = Depends(get_db), current_admin=Depends(require_admin)):
-    from src.shared.models.user import User
-
     users = db.query(User).order_by(User.id.asc()).all()
     return [
         {
@@ -185,9 +178,6 @@ def update_user(
     db: Session = Depends(get_db),
     current_admin=Depends(require_admin),
 ):
-    from src.shared.models.audit_log import AuditLog
-    from src.shared.models.user import User
-
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -233,8 +223,6 @@ def list_audit_logs(
     db: Session = Depends(get_db),
     current_admin=Depends(require_admin),
 ):
-    from src.shared.models.audit_log import AuditLog
-
     safe_limit = min(max(limit, 1), 200)
     items = db.query(AuditLog).order_by(
         AuditLog.created_at.desc(), AuditLog.id.desc()

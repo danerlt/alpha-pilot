@@ -17,6 +17,7 @@ from src.services.auth import (
 from src.shared.config import get_base_settings
 from src.shared.db import get_db
 from src.shared.enums import UserRole, UserStatus
+from src.shared.models.user import User
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -34,8 +35,6 @@ class LoginRequest(BaseModel):
 
 @router.post("/register")
 def register(payload: RegisterRequest, db: Session = Depends(get_db)):
-    from src.shared.models.user import User
-
     username = payload.username.strip()
     email = payload.email.lower().strip()
     if len(payload.password) < 8:
@@ -72,8 +71,6 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
 
 @router.post("/login")
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
-    from src.shared.models.user import User
-
     email = payload.email.lower().strip()
     user = db.query(User).filter(User.email == email).first()
     if not user or not verify_password(payload.password, user.password_hash):
