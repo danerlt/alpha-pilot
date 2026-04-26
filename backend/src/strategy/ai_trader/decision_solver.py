@@ -21,16 +21,13 @@ from datetime import datetime, timezone
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
+from src.shared.constants import MAX_POSITION_SIZE_PCT_HARD_CAP
 from src.shared.models.decision import AIDecision
 from src.strategy.ai_trader.llm_client import LLMClient, LLMResult, LLMTimeout
 from src.strategy.ai_trader.prompt_composer import PromptBundle
 from src.strategy.proposal import DecisionProposal
 
 logger = logging.getLogger(__name__)
-
-# Spec §1.4 hard cap — never learnable. DecisionSolver won't accept an
-# LLM proposal above this even if the LLM claims full confidence.
-MAX_POSITION_SIZE_PCT_HARD_CAP = 0.20
 
 # Strip common code-fence wrappers before json.loads.
 _CODE_FENCE_RE = re.compile(r"^```(?:json)?\s*|\s*```$", re.MULTILINE)

@@ -14,12 +14,12 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.app.dependencies import get_adapter
 from src.control.kill_switch.service import KillSwitchService
 from src.events.outbox import OutboxWriter
 from src.execution.exchange.binance_adapter import BinanceAdapter
 from src.shared.config import get_settings
 from src.shared.db import get_session_factory
-from src.shared.enums import TradingMode
 from src.shared.models.account_entity import RiskProfile
 from src.strategy.ai_trader.llm_client import (
     ClaudeClient,
@@ -33,14 +33,14 @@ from src.workers.strategy_pipeline import run_strategy_pipeline_once
 logger = logging.getLogger(__name__)
 
 
-def _build_adapter(settings) -> BinanceAdapter:
-    """根据 settings.TRADING_MODE 构造 BinanceAdapter (testnet/mainnet)."""
-    mode = settings.TRADING_MODE.value if isinstance(settings.TRADING_MODE, TradingMode) else settings.TRADING_MODE
-    return BinanceAdapter(
-        api_key=settings.BINANCE_API_KEY,
-        api_secret=settings.BINANCE_API_SECRET,
-        trading_mode=mode,
-    )
+def _build_adapter(settings=None) -> BinanceAdapter:
+    """构造 BinanceAdapter — 兼容老调用 (有 settings 入参) 但实际转发到统一的
+    src.app.dependencies.get_adapter, 让 commands router / scheduler_jobs 共用一处.
+
+    settings 入参当前忽略 (从 get_settings 重新取), 主要保留是为了不破现有
+    monkeypatch 测试. 后续 V0.1.1 完整切到 get_adapter 后可删.
+    """
+    return get_adapter()
 
 
 def _build_llm(settings) -> LLMClient:

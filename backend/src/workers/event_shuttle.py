@@ -27,12 +27,13 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
 from src.events.contracts import EventEnvelope
+from src.shared.constants import DEFAULT_EVENT_SHUTTLE_MAX_FAILED_ATTEMPTS
 from src.shared.models.event_store import EventOutbox
 
 logger = logging.getLogger(__name__)
 
-# 默认值, 实际运行时从 settings 读取覆盖. 单测可不传 max_failed_attempts 直接用此值.
-DEFAULT_MAX_FAILED_ATTEMPTS = 3
+# 兼容旧名: 一些测试 import 这个常量名. 实际值已迁到 shared/constants.py.
+DEFAULT_MAX_FAILED_ATTEMPTS = DEFAULT_EVENT_SHUTTLE_MAX_FAILED_ATTEMPTS
 
 
 class _BusLike(Protocol):

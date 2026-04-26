@@ -26,6 +26,7 @@ from src.events.contracts import (
 )
 from src.events.outbox import OutboxWriter
 from src.execution.exchange.adapter import ExchangeAdapter
+from src.shared.datetime_utils import ensure_aware
 from src.execution.exchange.retry import (
     ExchangeTemporarilyUnavailable,
     PermanentExchangeError,
@@ -261,12 +262,8 @@ class OrderExecutor:
         pnl = (exit_price - entry) * qty
         pnl_pct = (exit_price - entry) / entry if entry > 0 else 0.0
         # SQLite 不持久化 timezone, 读回来可能是 naive; 统一按 UTC 处理避免减法错。
-        def _aware(dt):
-            if dt is None:
-                return datetime.now(tz=timezone.utc)
-            return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
-        opened_at = _aware(position.opened_at)
-        closed_at = _aware(position.closed_at)
+        opened_at = ensure_aware(position.opened_at)
+        closed_at = ensure_aware(position.closed_at)
         holding_seconds = int((closed_at - opened_at).total_seconds()) if opened_at else 0
 
         trade = Trade(

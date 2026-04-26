@@ -23,7 +23,8 @@ from fastapi import APIRouter
 
 # Re-export 共享依赖, 兼容老测试通过 `src.app.router.require_admin` 等路径访问.
 from src.app.dependencies import (  # noqa: F401
-    _extract_bearer_token,
+    _extract_bearer_token,  # deprecated 别名, 新代码用 extract_bearer_token
+    extract_bearer_token,
     get_current_user,
     require_admin,
 )

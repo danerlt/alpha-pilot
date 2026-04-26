@@ -16,28 +16,18 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from src.app.dependencies import require_admin
+from src.app.dependencies import get_adapter, require_admin
 from src.control.kill_switch.service import KillSwitchService
 from src.control.manual_ops.service import ManualOpsService
 from src.events.outbox import OutboxWriter
-from src.execution.exchange.binance_adapter import BinanceAdapter
-from src.shared.config import get_settings
 from src.shared.db import get_db
 
 router = APIRouter(prefix="/api/commands", tags=["commands"])
 
 
-def _adapter():
-    """构造 BinanceAdapter; 真实运行时由全局 DI 替换。
-
-    Plan 3 在主路径 + 测试 mock 时都通过这里注入.
-    """
-    settings = get_settings()
-    return BinanceAdapter(
-        api_key=settings.BINANCE_API_KEY,
-        api_secret=settings.BINANCE_API_SECRET,
-        trading_mode=settings.TRADING_MODE.value,
-    )
+# 旧名 _adapter 保留为别名 — 测试通过 monkeypatch src.app.routers.commands._adapter
+# 的方式注入 mock; 见 backend/tests/api/test_commands.py
+_adapter = get_adapter
 
 
 # ----- Request schemas ------------------------------------------------------

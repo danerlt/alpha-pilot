@@ -1,25 +1,36 @@
-"""FastAPI 共享依赖 — 认证 + 角色守卫。
+"""FastAPI 共享依赖 — 认证 + 角色守卫 + 交易所 adapter 装配。
 
 从原 src/app/router.py 抽出, 让所有领域 router 复用 get_current_user /
-require_admin, 不再各自重复实现。
+require_admin / get_adapter, 不再各自重复实现。
 """
 from __future__ import annotations
 
 from fastapi import Depends, Header, HTTPException
 from sqlalchemy.orm import Session
 
+from src.execution.exchange.binance_adapter import BinanceAdapter
 from src.services.auth import (
     decode_access_token,
     ensure_user_is_active,
 )
-from src.shared.config import get_base_settings
+from src.shared.config import get_base_settings, get_settings
 from src.shared.db import get_db
+from src.shared.enums import TradingMode
 
 
-def _extract_bearer_token(authorization: str | None) -> str:
+def extract_bearer_token(authorization: str | None) -> str:
+    """从 'Bearer <jwt>' 头里抽 token; 缺失 / 非 Bearer 抛 401。
+
+    被 get_current_user 内部调用; 也作为 public util 给其他地方
+    (e.g. WebSocket 鉴权) 复用.
+    """
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing bearer token")
     return authorization.replace("Bearer ", "", 1)
+
+
+# 兼容老调用 (router.py facade re-export 还指着这个名字)。新代码用 extract_bearer_token.
+_extract_bearer_token = extract_bearer_token
 
 
 def get_current_user(
@@ -29,7 +40,7 @@ def get_current_user(
     """从 Authorization header 解析 JWT, 返回 User; 异常 → 401/403."""
     from src.shared.models.user import User
 
-    token = _extract_bearer_token(authorization)
+    token = extract_bearer_token(authorization)
     secret_key = get_base_settings().APP_AUTH_SECRET_KEY
     payload = decode_access_token(token, secret_key)
     user_id = payload.get("sub")
@@ -53,3 +64,22 @@ def require_admin(current_user=Depends(get_current_user)):
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     return current_user
+
+
+def get_adapter() -> BinanceAdapter:
+    """构造 BinanceAdapter — Commands router / scheduler_jobs / 测试 mock 都从这取.
+
+    把 settings.TRADING_MODE 解出 testnet/mainnet 字符串, 不论是 enum 还是字符串.
+    单源装配让"换 adapter"(例如 V0.2 多交易所) 只改这一处.
+    """
+    settings = get_settings()
+    mode = (
+        settings.TRADING_MODE.value
+        if isinstance(settings.TRADING_MODE, TradingMode)
+        else settings.TRADING_MODE
+    )
+    return BinanceAdapter(
+        api_key=settings.BINANCE_API_KEY,
+        api_secret=settings.BINANCE_API_SECRET,
+        trading_mode=mode,
+    )

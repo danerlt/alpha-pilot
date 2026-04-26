@@ -14,12 +14,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.shared.constants import CATCHUP_LIMIT_HARD_CAP
 from src.shared.db import get_db
 from src.shared.models.event_store import EventOutbox
 
 router = APIRouter(prefix="/api/events", tags=["events"])
-
-CATCHUP_LIMIT_HARD_CAP = 500
 
 
 @router.get("/catchup")
