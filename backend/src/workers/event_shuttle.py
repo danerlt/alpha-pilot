@@ -13,7 +13,13 @@ Failure handling:
     数据没丢 — 仍在 event_outbox 表里, 后续可手动重放.
 
 可配 (Plan 5 codereview I10):
-  EVENT_SHUTTLE_MAX_FAILED_ATTEMPTS .env 覆盖默认 3 次. 0 / 负数 = 首次失败即死信.
+  EVENT_SHUTTLE_MAX_FAILED_ATTEMPTS .env 覆盖默认 3.
+
+  阈值含义: 每次失败 failed_attempts += 1, 当 failed_attempts >= 阈值 即死信.
+    阈值=3 → 累计 3 次失败时死信 (相当于 1 次首发 + 2 次重试)
+    阈值=2 → 累计 2 次失败时死信 (相当于 1 次首发 + 1 次重试)
+    阈值=1 → 第 1 次失败即死信 (无重试)
+    阈值=0 (或负数, 内部 clamp 到 0) → 同 1, 首次失败即死信
 """
 from __future__ import annotations
 

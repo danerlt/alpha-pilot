@@ -144,3 +144,72 @@ def test_no_circuit_breaker_when_loss_below_threshold(session):
     mon = _build(session, ticker_price=50_000.0)
     out = mon.run_once(account_id=1, trading_mode="testnet")
     assert out.circuit_breaker_triggered is False
+
+
+def test_circuit_breaker_dedupes_within_same_day(session):
+    """post-Plan5 codereview Risk #1: 监控每 10s 跑一次, 一旦
+    daily_pnl_pct 持续低于阈值, 第 N 次调用必须复用第 1 次写的 RiskEvent,
+    不再插新行 — 否则操作员永远 resolve 不完."""
+    trade = Trade(
+        account_id=1, trading_mode="testnet", position_id=999,
+        symbol="ETHUSDT", side="LONG",
+        entry_price=3000, exit_price=2700, quantity=10.0,
+        pnl=-3000.0, pnl_pct=-0.10,
+        opened_at=datetime.now(tz=timezone.utc),
+        closed_at=datetime.now(tz=timezone.utc),
+        exit_reason="stop_loss",
+    )
+    session.add(trade)
+    session.flush()
+
+    mon = _build(session, ticker_price=50_000.0)
+    mon._account.sync_snapshot(account_id=1, trading_mode="testnet")
+
+    # 跑 5 次模拟监控连续触发
+    for _ in range(5):
+        out = mon.run_once(
+            account_id=1, trading_mode="testnet", max_daily_loss_pct=0.03,
+        )
+        assert out.circuit_breaker_triggered is True
+
+    # 5 次只应写 1 条 risk_event (其余被去重)
+    events = session.execute(
+        select(RiskEvent).where(RiskEvent.event_type == "CIRCUIT_BREAKER_TRIGGERED")
+    ).scalars().all()
+    assert len(events) == 1
+
+
+def test_circuit_breaker_writes_again_after_resolve(session):
+    """resolve 旧熔断后再次触发应该重新写 — 操作员 resolve 表达"我看到了, 处理了"
+    的语义, 仍持续亏损就该再次报警."""
+    trade = Trade(
+        account_id=1, trading_mode="testnet", position_id=999,
+        symbol="ETHUSDT", side="LONG",
+        entry_price=3000, exit_price=2700, quantity=10.0,
+        pnl=-3000.0, pnl_pct=-0.10,
+        opened_at=datetime.now(tz=timezone.utc),
+        closed_at=datetime.now(tz=timezone.utc),
+        exit_reason="stop_loss",
+    )
+    session.add(trade)
+    session.flush()
+
+    mon = _build(session, ticker_price=50_000.0)
+    mon._account.sync_snapshot(account_id=1, trading_mode="testnet")
+
+    mon.run_once(account_id=1, trading_mode="testnet", max_daily_loss_pct=0.03)
+    # 操作员手动 resolve 第一条
+    first = session.execute(
+        select(RiskEvent).where(RiskEvent.event_type == "CIRCUIT_BREAKER_TRIGGERED")
+    ).scalars().first()
+    first.resolved = True
+    session.flush()
+
+    # 再跑一次, 应该再写一条新的 (因为已无 unresolved)
+    mon.run_once(account_id=1, trading_mode="testnet", max_daily_loss_pct=0.03)
+    events = session.execute(
+        select(RiskEvent).where(RiskEvent.event_type == "CIRCUIT_BREAKER_TRIGGERED")
+    ).scalars().all()
+    assert len(events) == 2
+    assert events[0].resolved is True
+    assert events[1].resolved is False

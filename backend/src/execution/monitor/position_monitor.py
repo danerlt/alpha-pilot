@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.control.kill_switch.service import KillSwitchService
 from src.events.contracts import (
     CircuitBreakerTriggered,
     PositionUpdated,
@@ -136,18 +137,26 @@ class PositionMonitor:
             account_id=account_id, trading_mode=trading_mode,
         )
         if daily_pnl_pct <= -max_daily_loss_pct:
-            self._record_risk_event(
-                account_id, trading_mode, None, None,
-                "CIRCUIT_BREAKER_TRIGGERED",
-                f"daily_pnl_pct={daily_pnl_pct:.4f}",
+            # 去重 (post-Plan5 codereview Risk #1): 监控每 10s 一次, 一旦
+            # daily_pnl_pct 持续低于阈值, 不去重会让今天写入几千条相同的
+            # CIRCUIT_BREAKER_TRIGGERED, 操作员通过 /api/commands/resolve-breaker
+            # 一次只能 resolve 一条 → 永远追不上, 熔断无法人工解除.
+            already = KillSwitchService(self._session).has_unresolved_circuit_breaker(
+                account_id=account_id, trading_mode=trading_mode,
             )
-            self._publish(
-                aggregate_id=None, account_id=account_id,
-                trading_mode=trading_mode, aggregate_type="risk",
-                event=CircuitBreakerTriggered(
-                    reason=f"daily_loss:{daily_pnl_pct:.4f}",
-                ),
-            )
+            if not already:
+                self._record_risk_event(
+                    account_id, trading_mode, None, None,
+                    "CIRCUIT_BREAKER_TRIGGERED",
+                    f"daily_pnl_pct={daily_pnl_pct:.4f}",
+                )
+                self._publish(
+                    aggregate_id=None, account_id=account_id,
+                    trading_mode=trading_mode, aggregate_type="risk",
+                    event=CircuitBreakerTriggered(
+                        reason=f"daily_loss:{daily_pnl_pct:.4f}",
+                    ),
+                )
             out.circuit_breaker_triggered = True
 
         return out

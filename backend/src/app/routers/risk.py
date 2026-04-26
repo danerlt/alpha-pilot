@@ -1,20 +1,29 @@
 """Risk events — /api/risk-events (GET) / /api/risk-events/{id}/resolve (POST).
 
 GET 要求登录, POST 要求 admin (危险操作: 解除熔断会让自动交易重新开仓)。
+
+resolve 路径走 ManualOpsService.manual_resolve_circuit_breaker, 与
+/api/commands/resolve-breaker 共享审计 + 事件路径 (post-Plan5 codereview Risk #3).
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from src.app.dependencies import get_current_user, require_admin
+from src.app.dependencies import get_adapter, get_current_user, require_admin
+from src.control.manual_ops.service import ManualOpsService
+from src.events.outbox import OutboxWriter
 from src.shared.config import get_settings
 from src.shared.db import get_db
 from src.shared.models.risk_event import RiskEvent
 
 router = APIRouter(prefix="/api/risk-events", tags=["risk"])
+
+
+class ResolveRiskEventRequest(BaseModel):
+    """body 兼容性: reason 可选, 缺省给个标识来源的占位串. 前端最好显式传."""
+    reason: str = "ui_resolve_via_risk_events"
 
 
 @router.get("")
@@ -45,11 +54,17 @@ def list_risk_events(
 @router.post("/{event_id}/resolve")
 def resolve_risk_event(
     event_id: int,
+    body: ResolveRiskEventRequest | None = None,
     db: Session = Depends(get_db),
     current_admin=Depends(require_admin),
 ):
-    """手动解除熔断事件 (admin only)。"""
+    """手动解除熔断事件 (admin only).
+
+    走 ManualOpsService 统一路径 — 写 audit_logs + 发 manual.override 事件,
+    避免与 /api/commands/resolve-breaker/{id} 形成审计盲区 (Risk #3).
+    """
     settings = get_settings()
+    # trading_mode 守卫: 不允许跨模式 resolve
     event = (
         db.query(RiskEvent)
         .filter(
@@ -60,7 +75,16 @@ def resolve_risk_event(
     )
     if not event:
         raise HTTPException(status_code=404, detail="Risk event not found")
-    event.resolved = True
-    event.resolved_at = datetime.now(tz=timezone.utc)
+
+    reason = body.reason if body is not None else "ui_resolve_via_risk_events"
+    svc = ManualOpsService(db, get_adapter(), outbox=OutboxWriter())
+    ok = svc.manual_resolve_circuit_breaker(
+        risk_event_id=event_id,
+        reason=reason,
+        operator_user_id=current_admin.id,
+    )
     db.commit()
+    if not ok:
+        # ManualOpsService 内部找不到 (理论上前面 query 已找到, 防御性兜底)
+        raise HTTPException(status_code=404, detail="Risk event not found")
     return {"message": "Risk event resolved", "id": event_id}
