@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import String, Numeric, DateTime, BigInteger, Integer, JSON, Text, Boolean, ForeignKey
+from sqlalchemy import String, Numeric, DateTime, BigInteger, Integer, JSON, Text, Boolean
 from sqlalchemy.orm import Mapped, mapped_column
 from src.shared.models.base import Base, BigIntPk, TimestampMixin
 from src.shared.enums import TradingMode
@@ -9,7 +9,7 @@ class AIDecision(Base, TimestampMixin):
     __tablename__ = "ai_decisions"
 
     id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
-    account_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("accounts.id"), nullable=False, default=1)
+    account_id: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
     trading_mode: Mapped[str] = mapped_column(String(10), nullable=False, default=TradingMode.TESTNET.value)
     symbol: Mapped[str] = mapped_column(String(20), nullable=False)
     timeframe: Mapped[str] = mapped_column(String(10), nullable=False)
@@ -27,14 +27,10 @@ class AIDecision(Base, TimestampMixin):
     prompt_input: Mapped[dict | None] = mapped_column(JSON)   # 完整 prompt 输入（审计用）
     raw_output: Mapped[str | None] = mapped_column(Text)      # LLM 原始输出（审计用）
     is_fallback: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)  # 是否触发兜底 HOLD
-    proposal_draft_id: Mapped[int | None] = mapped_column(
-        BigInteger, ForeignKey("proposal_drafts.id")
-    )
+    proposal_draft_id: Mapped[int | None] = mapped_column(BigInteger)
     llm_provider: Mapped[str | None] = mapped_column(String(30))
     llm_model: Mapped[str | None] = mapped_column(String(60))
     tokens_used: Mapped[int | None] = mapped_column(Integer)
     latency_ms: Mapped[int | None] = mapped_column(Integer)
     source: Mapped[str] = mapped_column(String(20), nullable=False, default="ai_trader")
-    factor_snapshot_id: Mapped[int | None] = mapped_column(
-        BigInteger, ForeignKey("factor_snapshots.id")
-    )
+    factor_snapshot_id: Mapped[int | None] = mapped_column(BigInteger)

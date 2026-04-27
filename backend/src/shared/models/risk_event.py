@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import String, DateTime, BigInteger, Text, Boolean, ForeignKey
+from sqlalchemy import String, DateTime, BigInteger, Text, Boolean
 from sqlalchemy.orm import Mapped, mapped_column
 from src.shared.models.base import Base, BigIntPk, TimestampMixin
 from src.shared.enums import TradingMode
@@ -9,7 +9,7 @@ class RiskEvent(Base, TimestampMixin):
     __tablename__ = "risk_events"
 
     id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
-    account_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("accounts.id"), nullable=False, default=1)
+    account_id: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
     trading_mode: Mapped[str] = mapped_column(String(10), nullable=False, default=TradingMode.TESTNET.value)
     event_type: Mapped[str] = mapped_column(String(50), nullable=False)
     # 例如: CIRCUIT_BREAKER_TRIGGERED, STOP_LOSS_HIT, API_ERROR, DAILY_LOSS_LIMIT

@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import String, Numeric, DateTime, BigInteger, ForeignKey
+from sqlalchemy import String, Numeric, DateTime, BigInteger
 from sqlalchemy.orm import Mapped, mapped_column
 from src.shared.models.base import Base, BigIntPk, TimestampMixin
 from src.shared.enums import TradingMode, OrderStatus
@@ -9,7 +9,7 @@ class Order(Base, TimestampMixin):
     __tablename__ = "orders"
 
     id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
-    account_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("accounts.id"), nullable=False, default=1)
+    account_id: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
     trading_mode: Mapped[str] = mapped_column(String(10), nullable=False, default=TradingMode.TESTNET.value)
     trace_id: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)  # 幂等 key
     binance_order_id: Mapped[str | None] = mapped_column(String(50))

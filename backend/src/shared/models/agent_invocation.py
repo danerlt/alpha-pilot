@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, Integer, JSON, Numeric, String, Text
+from sqlalchemy import BigInteger, DateTime, Index, Integer, JSON, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.shared.models.base import Base, BigIntPk, TimestampMixin
@@ -19,7 +19,7 @@ class AgentInvocation(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     # Fresh table — NO Python default; callers must pass account_id explicitly.
     account_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("accounts.id"), nullable=False
+        BigInteger, nullable=False
     )
     agent_type: Mapped[str] = mapped_column(String(30), nullable=False)
     input_hash: Mapped[str] = mapped_column(String(64), nullable=False)

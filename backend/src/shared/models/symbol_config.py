@@ -1,4 +1,4 @@
-from sqlalchemy import BigInteger, Boolean, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import BigInteger, Boolean, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.shared.models.base import Base, TimestampMixin
@@ -8,7 +8,7 @@ class SymbolConfig(Base, TimestampMixin):
     __tablename__ = "symbol_configs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    account_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("accounts.id"), nullable=False, default=1)
+    account_id: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
     symbol: Mapped[str] = mapped_column(String(20), nullable=False, unique=True)
     base_asset: Mapped[str] = mapped_column(String(20), nullable=False)
     quote_asset: Mapped[str] = mapped_column(String(20), nullable=False, default="USDT")

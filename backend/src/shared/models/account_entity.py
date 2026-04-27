@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, JSON, Numeric, String, Text
+from sqlalchemy import BigInteger, Boolean, DateTime, Integer, JSON, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.shared.models.base import Base, BigIntPk, TimestampMixin
@@ -35,7 +35,7 @@ class RiskProfile(Base, TimestampMixin):
     # fresh rows so "forgot to pass account_id" surfaces as a programming
     # error rather than silently defaulting to 1.
     account_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("accounts.id"), nullable=False
+        BigInteger, nullable=False
     )
     name: Mapped[str] = mapped_column(String(80), nullable=False)
     max_position_size_pct: Mapped[float] = mapped_column(Numeric(5, 4), nullable=False, default=0.20)
@@ -56,9 +56,9 @@ class ParameterVersion(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     # No Python-level default — see RiskProfile comment above.
     account_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("accounts.id"), nullable=False
+        BigInteger, nullable=False
     )
-    profile_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("risk_profiles.id"))
+    profile_id: Mapped[int | None] = mapped_column(BigInteger)
     change_type: Mapped[str] = mapped_column(String(40), nullable=False)
     old_value_json: Mapped[dict | None] = mapped_column(JSON)
     new_value_json: Mapped[dict | None] = mapped_column(JSON)

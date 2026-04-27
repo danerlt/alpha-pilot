@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import BigInteger, Boolean, ForeignKey, Index, Integer, JSON, String, Text
+from sqlalchemy import BigInteger, Boolean, Index, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.shared.models.base import Base, BigIntPk, TimestampMixin
@@ -28,12 +28,12 @@ class ProposalDraft(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     # Fresh table — NO Python default; callers must pass account_id explicitly.
     account_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("accounts.id"), nullable=False
+        BigInteger, nullable=False
     )
     trading_mode: Mapped[str] = mapped_column(String(10), nullable=False, default="testnet")
     symbol: Mapped[str] = mapped_column(String(20), nullable=False)
     timeframe: Mapped[str] = mapped_column(String(10), nullable=False)
-    template_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("prompt_templates.id"))
+    template_id: Mapped[int | None] = mapped_column(BigInteger)
     context_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     rendered_system: Mapped[str] = mapped_column(Text, nullable=False)
     rendered_user: Mapped[str] = mapped_column(Text, nullable=False)

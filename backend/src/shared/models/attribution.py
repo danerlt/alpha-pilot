@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, Integer, JSON, Numeric, String, Text
+from sqlalchemy import BigInteger, DateTime, Index, Integer, JSON, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.shared.models.base import Base, BigIntPk, TimestampMixin
@@ -16,7 +16,7 @@ class TradeAttribution(Base, TimestampMixin):
     )
 
     id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
-    trade_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("trades.id"), nullable=False)
+    trade_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     by_symbol: Mapped[dict | None] = mapped_column(JSON)
     by_time_bucket: Mapped[str | None] = mapped_column(String(40))
     by_exit_reason: Mapped[str | None] = mapped_column(String(30))
@@ -40,7 +40,7 @@ class StrategyScore(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     # Fresh table — NO Python default on account_id.
     account_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("accounts.id"), nullable=False
+        BigInteger, nullable=False
     )
     strategy_mode: Mapped[str] = mapped_column(String(30), nullable=False)
     symbol: Mapped[str] = mapped_column(String(20), nullable=False)

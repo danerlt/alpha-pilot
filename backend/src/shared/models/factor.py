@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Index, Integer, JSON, String, Text
+from sqlalchemy import BigInteger, Boolean, DateTime, Index, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.shared.models.base import Base, BigIntPk, TimestampMixin
@@ -42,7 +42,7 @@ class FactorSnapshot(Base, TimestampMixin):
     # Fresh table — NO Python default; callers must set account_id explicitly
     # (see Task 1 convention).
     account_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("accounts.id"), nullable=False
+        BigInteger, nullable=False
     )
     trading_mode: Mapped[str] = mapped_column(String(10), nullable=False, default="testnet")
     symbol: Mapped[str] = mapped_column(String(20), nullable=False)
