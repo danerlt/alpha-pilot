@@ -6,8 +6,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from src.shared.enums import TradingMode
 from src.shared.runtime_config import get_runtime_config_manager
 
-# .env 位于项目根目录（backend/src/shared/config.py 上三级）
-_ENV_FILE = Path(__file__).parent.parent.parent.parent / ".env"
+# .env 位于项目根目录（backend/src/shared/config.py 上三级）。
+# .resolve() 必须有: alembic 跑 env.py 时 sys.path 插入 "../" 导致
+# __file__ 含未规范化的 ".." (.../migrations/../src/shared/config.py),
+# 直接 .parent 链会算回到 migrations/ 而不是项目根, 读不到 .env.
+_ENV_FILE = Path(__file__).resolve().parent.parent.parent.parent / ".env"
 
 
 class Settings(BaseSettings):
