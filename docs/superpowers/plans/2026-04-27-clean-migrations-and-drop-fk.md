@@ -19,7 +19,7 @@
 
 - 当前 git 状态干净（除 `backend/uv.lock` 和 `AlphaPilot Design System/` 目录），spec 已 commit
 - 本地 docker 栈可启停（`make local-up` / `make local-down`）
-- 假设 `make local-up` 已运行，PostgreSQL 容器在跑（端口 5432）
+- 假设 `make dev-up` 已运行，PostgreSQL 容器在跑（端口 5442，DB 名 `alphapilot`）
 - backend 虚拟环境已就绪（`backend/.venv`）
 
 ---
@@ -47,15 +47,15 @@
 - [ ] **Step 1：确认 docker 栈在跑**
 
 ```bash
-docker compose -f docker/docker-compose.local.yml ps
+docker compose -f docker/docker-compose.dev.yml ps
 ```
-Expected：`postgres` 容器状态为 `running (healthy)`。如果没起，先 `make local-up`。
+Expected：`postgres` 容器状态为 `running (healthy)`。如果没起，先 `make dev-up`。
 
 - [ ] **Step 2：drop 并重建本地数据库**
 
 ```bash
-docker compose -f docker/docker-compose.local.yml exec -T postgres psql -U alphapilot -d postgres -c "DROP DATABASE IF EXISTS alphapilot_dev;"
-docker compose -f docker/docker-compose.local.yml exec -T postgres psql -U alphapilot -d postgres -c "CREATE DATABASE alphapilot_dev OWNER alphapilot;"
+docker compose -f docker/docker-compose.dev.yml exec -T postgres psql -U alphapilot -d postgres -c "DROP DATABASE IF EXISTS alphapilot;"
+docker compose -f docker/docker-compose.dev.yml exec -T postgres psql -U alphapilot -d postgres -c "CREATE DATABASE alphapilot OWNER alphapilot;"
 ```
 Expected：`DROP DATABASE` / `CREATE DATABASE` 成功输出。
 
@@ -349,13 +349,12 @@ EOF
 
 - [ ] **Step 1：确认环境变量**
 
-确认 `backend/.env`（或者 backend 进程能拿到）的 `DATABASE_URL` 指向本地 `alphapilot_dev`：
+确认根目录 `.env` 的 `DATABASE_URL` 指向本地 `alphapilot`：
 
 ```bash
-grep DATABASE_URL backend/.env 2>/dev/null || echo "请确认 DATABASE_URL 配置正确"
+grep DATABASE_URL .env
 ```
-
-如果用的是 `make` 的本地栈，对应的 env 是 `.env.local`，但 alembic 直接读 `src.shared.config.get_settings()`，会从 `BACKEND_ENV` 决定。一般本地 venv 跑 alembic 会拿到 `.env`。
+Expected：`DATABASE_URL=postgresql://alphapilot:alphapilot@localhost:5442/alphapilot`
 
 - [ ] **Step 2：跑 autogenerate**
 
@@ -423,12 +422,12 @@ Expected：`INFO ... Running upgrade  -> <hash>, init_schema`，无错误。
 - [ ] **Step 2：验证 schema 创建**
 
 ```bash
-docker compose -f docker/docker-compose.local.yml exec -T postgres psql -U alphapilot -d alphapilot_dev -c "\dt"
+docker compose -f docker/docker-compose.dev.yml exec -T postgres psql -U alphapilot -d alphapilot -c "\dt"
 ```
 Expected：列出 30+ 张表。
 
 ```bash
-docker compose -f docker/docker-compose.local.yml exec -T postgres psql -U alphapilot -d alphapilot_dev -c "SELECT count(*) FROM pg_constraint WHERE contype='f';"
+docker compose -f docker/docker-compose.dev.yml exec -T postgres psql -U alphapilot -d alphapilot -c "SELECT count(*) FROM pg_constraint WHERE contype='f';"
 ```
 Expected：`count = 0`（数据库内 0 条 FK 约束）。
 
