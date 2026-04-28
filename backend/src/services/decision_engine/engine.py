@@ -16,18 +16,36 @@ from src.services.decision_engine.prompt import (
 from src.shared.config import get_settings
 from src.shared.config_diagnostics import can_call_llm, get_runtime_credential_status
 from src.shared.models.decision import AIDecision
+from src.strategy.ai_trader.llm_client import LLMTier
 
 logger = logging.getLogger(__name__)
 
 
-def _call_llm(system: str, user: str) -> str:
-    """调用 LLM (OpenAI 兼容协议)，返回原始文本输出。超时或失败返回空字符串。"""
+def _resolve_model(settings, tier: LLMTier) -> str:
+    """按 tier 解析具体 model 名; fast 留空时回退 strong."""
+    if tier == "fast":
+        fast = getattr(settings, "LLM_MODEL_FAST", None)
+        if fast:
+            return fast
+        logger.debug("LLM_MODEL_FAST 未配置, fast tier 回退到 LLM_MODEL")
+    return settings.LLM_MODEL
+
+
+def _call_llm(system: str, user: str, *, tier: LLMTier = "strong") -> str:
+    """调用 LLM (OpenAI 兼容协议)，返回原始文本输出。超时或失败返回空字符串。
+
+    tier:
+      - "strong" (默认) → 使用 LLM_MODEL, 主决策路径都走这里.
+      - "fast"          → 使用 LLM_MODEL_FAST (留空回退 strong), 给摘要 / 分类
+                          / 解析重试等轻量场景用.
+    """
     settings = get_settings()
     if not can_call_llm(settings):
         diag = get_runtime_credential_status(settings)["llm"]
         logger.warning("Skipping LLM call because runtime LLM config is not usable: %s", diag["reason"])
         return ""
 
+    model = _resolve_model(settings, tier)
     try:
         import openai
         client_kwargs: dict[str, object] = {"api_key": settings.LLM_API_KEY}
@@ -35,7 +53,7 @@ def _call_llm(system: str, user: str) -> str:
             client_kwargs["base_url"] = settings.LLM_BASE_URL
         client = openai.OpenAI(**client_kwargs)
         response = client.chat.completions.create(
-            model=settings.LLM_MODEL,
+            model=model,
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
@@ -45,7 +63,7 @@ def _call_llm(system: str, user: str) -> str:
         )
         return response.choices[0].message.content or ""
     except Exception as e:
-        logger.error("LLM call failed: %s", e)
+        logger.error("LLM call failed (tier=%s model=%s): %s", tier, model, e)
         return ""
 
 

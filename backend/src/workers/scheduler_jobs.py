@@ -23,8 +23,10 @@ from src.shared.db import get_session_factory
 from src.shared.models.account_entity import RiskProfile
 from src.strategy.ai_trader.llm_client import (
     LLMClient,
+    LLMClients,
     MockLLMClient,
     OpenAIClient,
+    build_llm_clients,
 )
 from src.workers.position_monitor_worker import run_position_monitor_once
 from src.workers.strategy_pipeline import run_strategy_pipeline_once
@@ -42,17 +44,39 @@ def _build_adapter(settings=None) -> BinanceAdapter:
     return get_adapter()
 
 
-def _build_llm(settings) -> LLMClient:
-    """统一走 OpenAI 兼容客户端; 占位 key 时回退 MockLLMClient (永远 HOLD)."""
+_HOLD_CANNED = (
+    '{"action":"HOLD","confidence":0.0,"strategy_mode":"ai_observation",'
+    '"reasoning":["llm_disabled"]}'
+)
+
+
+def _build_llm_clients(settings) -> LLMClients:
+    """构造 strong + fast 双 tier LLM 客户端容器.
+
+    占位 key 时两个 tier 都回退 MockLLMClient (永远 HOLD), 保证 dev / test 环境
+    能跑通整条链路而不会真的去调外部 API.
+    """
     api_key = settings.LLM_API_KEY
     if not api_key or api_key.startswith("test-"):
-        logger.warning("LLM_API_KEY is placeholder; using MockLLMClient (HOLD only)")
-        return MockLLMClient(canned_response='{"action":"HOLD","confidence":0.0,"strategy_mode":"ai_observation","reasoning":["llm_disabled"]}')
-    return OpenAIClient(
+        logger.warning("LLM_API_KEY is placeholder; using MockLLMClient for both tiers (HOLD only)")
+        mock = MockLLMClient(canned_response=_HOLD_CANNED)
+        return LLMClients(strong=mock, fast=mock)
+    return build_llm_clients(
         api_key=api_key,
-        model=settings.LLM_MODEL,
         base_url=settings.LLM_BASE_URL,
+        strong_model=settings.LLM_MODEL,
+        fast_model=getattr(settings, "LLM_MODEL_FAST", None),
     )
+
+
+def _build_llm(settings) -> LLMClient:
+    """Backwards-compatible thin wrapper: 只取 strong tier.
+
+    现存调用方 (老的 strategy_pipeline 装配 / 测试 monkeypatch) 都还是单客户端
+    口径, 暂保留这个函数避免破坏现有契约; 新调用方应直接走 _build_llm_clients
+    才能用上 fast tier.
+    """
+    return _build_llm_clients(settings).strong
 
 
 def _load_active_risk_profile(session: Session, account_id: int) -> Optional[RiskProfile]:
@@ -87,7 +111,10 @@ def new_strategy_pipeline_job() -> None:
             logger.warning("no active risk_profile for account_id=1; pipeline skipped")
             return
         adapter = _build_adapter(settings)
-        llm = _build_llm(settings)
+        # 用双 tier factory 构造, 主决策仍走 strong tier;
+        # fast tier 已就位, 后续轻量场景 (e.g. summarize / classify) 可直接复用.
+        llm_clients = _build_llm_clients(settings)
+        llm = llm_clients.strong
         outbox = OutboxWriter()
         symbols = _parse_csv(settings.PIPELINE_SYMBOLS)
         timeframes = _parse_csv(settings.PIPELINE_TIMEFRAMES)
