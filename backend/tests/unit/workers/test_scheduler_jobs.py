@@ -31,8 +31,9 @@ def session_factory(engine):
 
 def test_build_llm_falls_back_to_mock_on_placeholder_key():
     settings = SimpleNamespace(
-        LLM_PROVIDER="claude", LLM_API_KEY="test-llm-api-key",
-        LLM_MODEL="claude-opus-4-6",
+        LLM_BASE_URL="https://api.deepseek.com/v1",
+        LLM_API_KEY="test-llm-api-key",
+        LLM_MODEL="deepseek-chat",
     )
     llm = scheduler_jobs._build_llm(settings)
     # MockLLMClient 永远返回 HOLD 兜底字符串
@@ -40,10 +41,11 @@ def test_build_llm_falls_back_to_mock_on_placeholder_key():
     assert "HOLD" in out.raw_text
 
 
-def test_build_llm_falls_back_on_unknown_provider():
+def test_build_llm_falls_back_to_mock_on_empty_key():
     settings = SimpleNamespace(
-        LLM_PROVIDER="something-weird", LLM_API_KEY="real-key-prefix-xxxx",
-        LLM_MODEL="model-x",
+        LLM_BASE_URL="https://api.deepseek.com/v1",
+        LLM_API_KEY="",
+        LLM_MODEL="deepseek-chat",
     )
     llm = scheduler_jobs._build_llm(settings)
     out = llm.complete(system="x", user="y")
@@ -109,7 +111,7 @@ def test_strategy_job_returns_early_when_no_active_risk_profile(
     monkeypatch.setattr(scheduler_jobs, "get_settings", lambda: SimpleNamespace(
         TRADING_MODE=SimpleNamespace(value="testnet"),
         BINANCE_API_KEY="x", BINANCE_API_SECRET="y",
-        LLM_PROVIDER="claude", LLM_API_KEY="test-x", LLM_MODEL="m",
+        LLM_BASE_URL="https://api.deepseek.com/v1", LLM_API_KEY="test-x", LLM_MODEL="m",
         PIPELINE_SYMBOLS="BTCUSDT", PIPELINE_TIMEFRAMES="1h",
     ))
 

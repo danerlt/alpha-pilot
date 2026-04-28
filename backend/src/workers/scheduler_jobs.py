@@ -22,7 +22,6 @@ from src.shared.config import get_settings
 from src.shared.db import get_session_factory
 from src.shared.models.account_entity import RiskProfile
 from src.strategy.ai_trader.llm_client import (
-    ClaudeClient,
     LLMClient,
     MockLLMClient,
     OpenAIClient,
@@ -44,18 +43,16 @@ def _build_adapter(settings=None) -> BinanceAdapter:
 
 
 def _build_llm(settings) -> LLMClient:
-    """按配置选 Claude / OpenAI; 占位 key 时回退 MockLLMClient (永远 HOLD)."""
-    provider = settings.LLM_PROVIDER.lower()
+    """统一走 OpenAI 兼容客户端; 占位 key 时回退 MockLLMClient (永远 HOLD)."""
     api_key = settings.LLM_API_KEY
     if not api_key or api_key.startswith("test-"):
         logger.warning("LLM_API_KEY is placeholder; using MockLLMClient (HOLD only)")
         return MockLLMClient(canned_response='{"action":"HOLD","confidence":0.0,"strategy_mode":"ai_observation","reasoning":["llm_disabled"]}')
-    if provider == "claude":
-        return ClaudeClient(api_key=api_key, model=settings.LLM_MODEL)
-    if provider == "openai":
-        return OpenAIClient(api_key=api_key, model=settings.LLM_MODEL)
-    logger.warning("unknown LLM_PROVIDER=%s; using Mock", provider)
-    return MockLLMClient(canned_response='{"action":"HOLD","confidence":0.0,"strategy_mode":"ai_observation","reasoning":["llm_unknown_provider"]}')
+    return OpenAIClient(
+        api_key=api_key,
+        model=settings.LLM_MODEL,
+        base_url=settings.LLM_BASE_URL,
+    )
 
 
 def _load_active_risk_profile(session: Session, account_id: int) -> Optional[RiskProfile]:

@@ -61,8 +61,8 @@ async def test_runtime_config_update_allows_admin(monkeypatch):
         "get_settings",
         lambda: SimpleNamespace(
             TRADING_MODE=TradingMode.TESTNET,
-            LLM_PROVIDER="anthropic",
-            LLM_MODEL="claude-test",
+            LLM_BASE_URL="https://api.deepseek.com/v1",
+            LLM_MODEL="deepseek-chat",
             MAX_POSITION_SIZE_PCT=0.3,
             MAX_DAILY_LOSS_PCT=0.05,
             MAX_CONSECUTIVE_LOSSES=6,

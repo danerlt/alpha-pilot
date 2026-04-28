@@ -30,8 +30,8 @@ async def test_get_runtime_config_masks_secrets_and_reports_config_state(monkeyp
         "get_settings",
         lambda: SimpleNamespace(
             TRADING_MODE=TradingMode.MAINNET,
-            LLM_PROVIDER="openai",
-            LLM_MODEL="gpt-test",
+            LLM_BASE_URL="https://api.deepseek.com/v1",
+            LLM_MODEL="deepseek-chat",
             MAX_POSITION_SIZE_PCT=0.25,
             MAX_DAILY_LOSS_PCT=0.04,
             MAX_CONSECUTIVE_LOSSES=5,
@@ -110,8 +110,8 @@ async def test_update_runtime_config_persists_and_refreshes(monkeypatch):
         "get_settings",
         lambda: SimpleNamespace(
             TRADING_MODE=TradingMode.MAINNET,
-            LLM_PROVIDER="anthropic",
-            LLM_MODEL="claude-test",
+            LLM_BASE_URL="https://api.deepseek.com/v1",
+            LLM_MODEL="deepseek-chat",
             MAX_POSITION_SIZE_PCT=0.3,
             MAX_DAILY_LOSS_PCT=0.05,
             MAX_CONSECUTIVE_LOSSES=6,

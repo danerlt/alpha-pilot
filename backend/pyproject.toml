@@ -17,7 +17,6 @@ dependencies = [
     "python-binance>=1.0.19",
     "pandas>=2.2.0",
     "pandas-ta>=0.3.14b",
-    "anthropic>=0.40.0",
     "openai>=1.58.0",
     "python-dotenv>=1.0.0",
     "uuid6>=2024.7.10",

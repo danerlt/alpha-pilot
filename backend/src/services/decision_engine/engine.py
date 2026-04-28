@@ -21,45 +21,29 @@ logger = logging.getLogger(__name__)
 
 
 def _call_llm(system: str, user: str) -> str:
-    """调用 LLM，返回原始文本输出。超时或失败返回空字符串。"""
+    """调用 LLM (OpenAI 兼容协议)，返回原始文本输出。超时或失败返回空字符串。"""
     settings = get_settings()
-    provider = settings.LLM_PROVIDER.lower()
     if not can_call_llm(settings):
         diag = get_runtime_credential_status(settings)["llm"]
         logger.warning("Skipping LLM call because runtime LLM config is not usable: %s", diag["reason"])
         return ""
 
     try:
-        if provider == "claude":
-            import anthropic
-            client = anthropic.Anthropic(api_key=settings.LLM_API_KEY)
-            message = client.messages.create(
-                model=settings.LLM_MODEL,
-                max_tokens=1024,
-                timeout=settings.LLM_TIMEOUT_SECONDS,
-                system=system,
-                messages=[{"role": "user", "content": user}],
-            )
-            return message.content[0].text
-
-        elif provider == "openai":
-            import openai
-            client = openai.OpenAI(api_key=settings.LLM_API_KEY)
-            response = client.chat.completions.create(
-                model=settings.LLM_MODEL,
-                messages=[
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user},
-                ],
-                max_tokens=1024,
-                timeout=settings.LLM_TIMEOUT_SECONDS,
-            )
-            return response.choices[0].message.content or ""
-
-        else:
-            logger.error("Unsupported LLM provider: %s", provider)
-            return ""
-
+        import openai
+        client_kwargs: dict[str, object] = {"api_key": settings.LLM_API_KEY}
+        if settings.LLM_BASE_URL:
+            client_kwargs["base_url"] = settings.LLM_BASE_URL
+        client = openai.OpenAI(**client_kwargs)
+        response = client.chat.completions.create(
+            model=settings.LLM_MODEL,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            max_tokens=1024,
+            timeout=settings.LLM_TIMEOUT_SECONDS,
+        )
+        return response.choices[0].message.content or ""
     except Exception as e:
         logger.error("LLM call failed: %s", e)
         return ""

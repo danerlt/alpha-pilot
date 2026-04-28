@@ -1,9 +1,7 @@
-"""LLMClient abstraction — DecisionSolver never imports anthropic/openai directly.
+"""LLMClient abstraction — DecisionSolver never imports openai directly.
 
-Three implementations:
-  - ClaudeClient   (anthropic SDK)
-  - OpenAIClient   (openai SDK)
-  - MockLLMClient  (test fixture; returns a canned response)
+只支持 OpenAI 兼容协议 (含 DeepSeek / vLLM / 任意自托管 OpenAI-compatible endpoint),
+通过 base_url + api_key + model 三元组配置。
 
 The `complete(system, user, *, max_tokens, timeout_s)` signature is the
 contract. Timeouts surface as LLMTimeout so callers can funnel them
@@ -22,7 +20,7 @@ class LLMResult:
     tokens_used: int | None = None
     latency_ms: int | None = None
     model: str = ""
-    provider: str = ""
+    provider: str = "openai"
 
 
 class LLMTimeout(Exception):
@@ -42,52 +40,15 @@ class LLMClient(Protocol):
     ) -> LLMResult: ...
 
 
-class ClaudeClient:
-    """Anthropic API wrapper."""
-
-    def __init__(self, api_key: str, model: str):
-        import anthropic  # local import so this module stays importable without anthropic
-        self._client = anthropic.Anthropic(api_key=api_key)
-        self._model = model
-
-    def complete(
-        self, *, system: str, user: str,
-        max_tokens: int = 1024, timeout_s: int = 30,
-    ) -> LLMResult:
-        start = time.monotonic()
-        try:
-            msg = self._client.messages.create(
-                model=self._model,
-                max_tokens=max_tokens,
-                timeout=timeout_s,
-                system=system,
-                messages=[{"role": "user", "content": user}],
-            )
-        except Exception as e:
-            if "timeout" in str(e).lower():
-                raise LLMTimeout(str(e)) from e
-            raise
-
-        latency_ms = int((time.monotonic() - start) * 1000)
-        text = msg.content[0].text if msg.content else ""
-        usage = getattr(msg, "usage", None)
-        tokens = None
-        if usage is not None:
-            input_t = getattr(usage, "input_tokens", 0) or 0
-            output_t = getattr(usage, "output_tokens", 0) or 0
-            tokens = input_t + output_t
-        return LLMResult(
-            raw_text=text, tokens_used=tokens, latency_ms=latency_ms,
-            model=self._model, provider="claude",
-        )
-
-
 class OpenAIClient:
-    """OpenAI Chat Completions API wrapper."""
+    """OpenAI Chat Completions API wrapper (兼容 DeepSeek / 任意 OpenAI 协议端点)."""
 
-    def __init__(self, api_key: str, model: str):
+    def __init__(self, api_key: str, model: str, base_url: str | None = None):
         import openai
-        self._client = openai.OpenAI(api_key=api_key)
+        kwargs: dict[str, object] = {"api_key": api_key}
+        if base_url:
+            kwargs["base_url"] = base_url
+        self._client = openai.OpenAI(**kwargs)
         self._model = model
 
     def complete(

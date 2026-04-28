@@ -19,7 +19,7 @@
 | 层级 | 技术 |
 |------|------|
 | 后端 | Python 3.12, FastAPI, SQLAlchemy 2.x, Alembic, APScheduler |
-| LLM | Claude claude-opus-4-6 / OpenAI（可配置） |
+| LLM | OpenAI 兼容协议（默认 DeepSeek，可配 base_url 切换任意端点） |
 | 交易所 | Binance Testnet + Mainnet（python-binance） |
 | 数据库 | PostgreSQL 16 |
 | 缓存/事件总线 | Redis 7（含 Pub/Sub） |
@@ -101,11 +101,22 @@ make test-unit      # 仅运行单元测试
 
 ---
 
-## 环境变量访问规则
+## 环境变量访问规则（全局强制）
 
-- 禁止主动读取真实环境文件：如 `.env`、`.env.local`、`.env.dev-server`、`.env.test`、`.env.prod`
-- 允许读取模板/示例文件：如 `.env.example`、`.env.local.example`、`.env.prod.example`
-- 如需调整配置结构，应基于 example 文件、代码结构和数据库配置中心推进，避免接触真实密钥
+**严格禁止**通过任何工具（Read / Grep / Bash cat / 其他）读取以下真实环境文件：
+
+- `.env`
+- `.env.dev-server`
+- `.env.local`
+- `.env.test`
+- `.env.prod`
+- 任何同级目录下的同名变体（如 `backend/.env`、`frontend/.env.local`）
+
+**允许**读取模板/示例文件（这些不含真实密钥）：
+
+- `.env.example`、`.env.local.example`、`.env.dev-server.example`、`.env.prod.example`
+
+调整配置结构时，统一基于 example 文件、代码默认值、数据库配置中心（system_settings）推进；如怀疑某个 .env 真实值导致行为差异，请告知老板让其手动 paste 相关行而非直接读取。
 
 ## 环境变量配置
 
@@ -115,9 +126,10 @@ make test-unit      # 仅运行单元测试
 TRADING_MODE=testnet
 BINANCE_API_KEY=<testnet key>
 BINANCE_API_SECRET=<testnet secret>
-LLM_PROVIDER=claude
-LLM_API_KEY=<anthropic api key>
-LLM_MODEL=claude-opus-4-6
+LLM_BASE_URL=https://api.deepseek.com/v1
+LLM_API_KEY=<your llm api key>
+LLM_MODEL=deepseek-v4-pro
+LLM_MODEL_FAST=deepseek-v4-flash
 DATABASE_URL=postgresql://alphapilot:alphapilot@localhost:5442/alphapilot
 REDIS_URL=redis://localhost:6389/0
 MAX_POSITION_SIZE_PCT=0.20

@@ -86,7 +86,7 @@ interface LiveEvent {
 
 interface RuntimeConfig {
   trading_mode: 'testnet' | 'mainnet'
-  llm_provider: string
+  llm_base_url: string
   llm_model: string
   max_position_size_pct: number
   max_daily_loss_pct: number

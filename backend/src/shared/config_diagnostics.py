@@ -43,7 +43,7 @@ def get_runtime_credential_status(settings: Settings) -> dict[str, dict[str, obj
         },
         "llm": {
             **llm,
-            "provider": getattr(settings, "LLM_PROVIDER", "unknown"),
+            "base_url": getattr(settings, "LLM_BASE_URL", "unknown"),
             "model": getattr(settings, "LLM_MODEL", "unknown"),
         },
     }

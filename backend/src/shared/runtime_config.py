@@ -20,7 +20,7 @@ BINANCE_TESTNET_API_SECRET = "binance.testnet.api_secret"
 BINANCE_MAINNET_API_KEY = "binance.mainnet.api_key"
 BINANCE_MAINNET_API_SECRET = "binance.mainnet.api_secret"
 LLM_API_KEY = "llm.api_key"
-LLM_PROVIDER = "llm.provider"
+LLM_BASE_URL = "llm.base_url"
 LLM_MODEL = "llm.model"
 MAX_POSITION_SIZE_PCT = "risk.max_position_size_pct"
 MAX_DAILY_LOSS_PCT = "risk.max_daily_loss_pct"
@@ -75,7 +75,7 @@ class RuntimeConfigManager:
         }
 
         direct_map = {
-            LLM_PROVIDER: "LLM_PROVIDER",
+            LLM_BASE_URL: "LLM_BASE_URL",
             LLM_MODEL: "LLM_MODEL",
             MAX_POSITION_SIZE_PCT: "MAX_POSITION_SIZE_PCT",
             MAX_DAILY_LOSS_PCT: "MAX_DAILY_LOSS_PCT",

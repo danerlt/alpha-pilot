@@ -18,8 +18,8 @@ from src.shared.runtime_config import (
     BINANCE_TESTNET_API_KEY,
     BINANCE_TESTNET_API_SECRET,
     LLM_API_KEY,
+    LLM_BASE_URL,
     LLM_MODEL,
-    LLM_PROVIDER,
     MAX_CONSECUTIVE_LOSSES,
     MAX_DAILY_LOSS_PCT,
     MAX_POSITION_SIZE_PCT,
@@ -40,7 +40,7 @@ class RuntimeConfigUpdate(BaseModel):
     binance_testnet_api_secret: str | None = None
     binance_mainnet_api_key: str | None = None
     binance_mainnet_api_secret: str | None = None
-    llm_provider: str | None = None
+    llm_base_url: str | None = None
     llm_model: str | None = None
     llm_api_key: str | None = None
     max_position_size_pct: float | None = None
@@ -61,7 +61,7 @@ def get_runtime_config(
     runtime_credentials = get_runtime_credential_status(settings)
     return {
         "trading_mode": settings.TRADING_MODE.value,
-        "llm_provider": settings.LLM_PROVIDER,
+        "llm_base_url": settings.LLM_BASE_URL,
         "llm_model": settings.LLM_MODEL,
         "max_position_size_pct": settings.MAX_POSITION_SIZE_PCT,
         "max_daily_loss_pct": settings.MAX_DAILY_LOSS_PCT,
@@ -96,8 +96,8 @@ def update_runtime_config(
         update_map.append((BINANCE_MAINNET_API_KEY, payload.binance_mainnet_api_key, "Binance Mainnet API Key"))
     if payload.binance_mainnet_api_secret:
         update_map.append((BINANCE_MAINNET_API_SECRET, payload.binance_mainnet_api_secret, "Binance Mainnet API Secret"))
-    if payload.llm_provider:
-        update_map.append((LLM_PROVIDER, payload.llm_provider, "LLM provider"))
+    if payload.llm_base_url:
+        update_map.append((LLM_BASE_URL, payload.llm_base_url, "LLM base URL"))
     if payload.llm_model:
         update_map.append((LLM_MODEL, payload.llm_model, "LLM model"))
     if payload.llm_api_key:
