@@ -45,7 +45,7 @@
 
 ## 对应 commit
 
-见 `git log -1` 的 commit hash（提交后回填）。
+`3c7b732 feat(llm) 引入 strong/fast 双 tier 客户端路由能力`
 
 ## 未解决 / 后续
 
