@@ -46,7 +46,7 @@ help:
 
 # ── 本地环境 ──────────────────────────────────────────────────────────────────
 local-up:
-	$(COMPOSE_LOCAL) --env-file .env.local up -d
+	$(COMPOSE_LOCAL) --env-file envs/local.env up -d
 
 local-down:
 	$(COMPOSE_LOCAL) down
@@ -56,7 +56,7 @@ local-deploy:
 
 # ── 服务器开发环境 ─────────────────────────────────────────────────────────────
 dev-up:
-	$(COMPOSE_DEV) --env-file .env.dev-server up -d
+	$(COMPOSE_DEV) --env-file envs/dev.env up -d
 
 dev-down:
 	$(COMPOSE_DEV) down
@@ -66,7 +66,7 @@ dev-deploy:
 
 # ── 服务器测试环境 ─────────────────────────────────────────────────────────────
 test-up:
-	$(COMPOSE_TEST) --env-file .env.test up -d
+	$(COMPOSE_TEST) --env-file envs/test.env up -d
 
 test-down:
 	$(COMPOSE_TEST) down

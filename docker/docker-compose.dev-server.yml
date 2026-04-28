@@ -36,7 +36,7 @@ services:
       context: ../backend
       dockerfile: ../docker/Dockerfile.backend
     env_file:
-      - ../.env.dev-server
+      - ../envs/dev.env
     environment:
       DATABASE_URL: postgresql://alphapilot:${DB_PASSWORD:-alphapilot}@postgres:5432/alphapilot_dev
       REDIS_URL: redis://redis:6379/0

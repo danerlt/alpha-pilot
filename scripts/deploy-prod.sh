@@ -7,7 +7,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 COMPOSE_FILE="$PROJECT_DIR/docker/docker-compose.prod.yml"
-ENV_FILE="$PROJECT_DIR/.env.prod"
+ENV_FILE="$PROJECT_DIR/envs/prod.env"
 
 echo "========================================"
 echo " AlphaPilot 生产环境部署"

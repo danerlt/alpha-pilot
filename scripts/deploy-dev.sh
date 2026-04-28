@@ -8,7 +8,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 COMPOSE_FILE="$PROJECT_DIR/docker/docker-compose.dev-server.yml"
-ENV_FILE="$PROJECT_DIR/.env.dev-server"
+ENV_FILE="$PROJECT_DIR/envs/dev.env"
 
 echo "========================================"
 echo " AlphaPilot Dev 环境自动部署"
@@ -16,7 +16,7 @@ echo "========================================"
 
 if [ ! -f "$ENV_FILE" ]; then
     echo "❌ 未找到 $ENV_FILE"
-    echo "   请先复制 .env.example 为 .env.dev-server 并填写配置"
+    echo "   请先复制 example.env 为 envs/dev.env 并填写配置"
     exit 1
 fi
 

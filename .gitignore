@@ -14,17 +14,14 @@ build/
 venv/
 env/
 
-# Environment files（含真实 key，不提交）
+# Environment files —— 任何真实 env 文件都不提交; envs/ 整个目录是老板本地存档.
+# 必须同时覆盖三种命名: `.env`, `.env.*` (如 .env.local), `*.env` (如 dev.env).
+# 唯一模板 example.env 通过反向规则保留.
 .env
-.env.local
-.env.dev-server
-.env.test
-.env.prod
-# 模板文件保留（可提交）
-!.env.example
-!.env.local.example
-!.env.dev-server.example
-!.env.prod.example
+.env.*
+*.env
+!example.env
+envs/
 
 # IDE
 .idea/

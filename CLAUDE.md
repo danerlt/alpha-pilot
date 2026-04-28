@@ -103,20 +103,36 @@ make test-unit      # 仅运行单元测试
 
 ## 环境变量访问规则（全局强制）
 
-**严格禁止**通过任何工具（Read / Grep / Bash cat / 其他）读取以下真实环境文件：
+文件布局：
 
-- `.env`
-- `.env.dev-server`
-- `.env.local`
-- `.env.test`
-- `.env.prod`
-- 任何同级目录下的同名变体（如 `backend/.env`、`frontend/.env.local`）
+```
+alpha-pilot/
+├── example.env       # ✅ 唯一模板, Claude 可读写, 提交 git
+├── .env              # ❌ 老板专属, 不提交, 应用默认入口 (dotenv)
+└── envs/             # ❌ 老板专属本地存档目录, 整目录 gitignore
+    ├── local.env     #    本机开发
+    ├── dev.env       #    远程 dev 服务器
+    ├── test.env      #    自动化测试 / CI
+    └── prod.env      #    生产
+```
 
-**允许**读取模板/示例文件（这些不含真实密钥）：
+**白名单（Claude 可读写）：**
+- `example.env`
 
-- `.env.example`、`.env.local.example`、`.env.dev-server.example`、`.env.prod.example`
+**黑名单（任何工具——Read / Grep / Bash cat / Glob——一律禁止访问）：**
+- 项目根 `.env`
+- `envs/` 整个目录及其下所有文件
+- 任何子目录的真实 env（`backend/.env`、`frontend/.env.local`、`*.env` 但 `example.env` 除外）
 
-调整配置结构时，统一基于 example 文件、代码默认值、数据库配置中心（system_settings）推进；如怀疑某个 .env 真实值导致行为差异，请告知老板让其手动 paste 相关行而非直接读取。
+**配置变更工作流：**
+1. Claude 改字段 → 只动 `example.env` 和代码默认值
+2. 老板 review diff → 手动同步到 `envs/<env>.env` 与根 `.env`
+3. 怀疑某真实值导致 bug → 老板手动 paste 相关行，Claude 不主动读
+
+**部署加载方式：**
+- Makefile / `scripts/deploy-*.sh` 通过 `--env-file envs/<env>.env` 加载
+- docker-compose.{local,dev-server,test,prod}.yml 的 `env_file` 已指向 `../envs/<env>.env`
+- 直接 `python` 跑应用时，dotenv 读项目根 `.env`（老板从 envs/ 拷贝过去）
 
 ## 环境变量配置
 

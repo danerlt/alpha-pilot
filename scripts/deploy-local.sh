@@ -7,7 +7,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 COMPOSE_FILE="$PROJECT_DIR/docker/docker-compose.local.yml"
-ENV_FILE="$PROJECT_DIR/.env.local"
+ENV_FILE="$PROJECT_DIR/envs/local.env"
 
 echo "========================================"
 echo " AlphaPilot 本地环境部署"
@@ -15,7 +15,7 @@ echo "========================================"
 
 if [ ! -f "$ENV_FILE" ]; then
     echo "❌ 未找到 $ENV_FILE"
-    echo "   请先复制 .env.example 为 .env.local 并填写配置"
+    echo "   请先复制 example.env 为 envs/local.env 并填写配置"
     exit 1
 fi
 
