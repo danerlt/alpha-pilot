@@ -13,9 +13,8 @@ from src.app.routers.commands import router as commands_router
 from src.app.routers.events_catchup import router as events_catchup_router
 from src.app.websocket import redis_subscriber, websocket_endpoint
 from src.control.kill_switch.service import KillSwitchService
-from src.shared.config import get_base_settings, get_settings
+from src.configs.app_configs import get_app_config
 from src.shared.db import get_session_factory
-from src.shared.runtime_config import apply_runtime_settings_refresh
 from src.services.admin_bootstrap import ensure_default_admin
 
 logger = logging.getLogger(__name__)
@@ -57,20 +56,13 @@ def _monitor_job() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _scheduler
-    base_settings = get_base_settings()
+    settings = get_app_config()
     SessionLocal = get_session_factory()
     db = SessionLocal()
     try:
-        apply_runtime_settings_refresh(
-            db,
-            master_key=base_settings.APP_CONFIG_MASTER_KEY,
-            default_trading_mode=base_settings.TRADING_MODE,
-        )
-        ensure_default_admin(db, base_settings)
+        ensure_default_admin(db, settings)
     finally:
         db.close()
-
-    settings = get_settings()
 
     _scheduler = BackgroundScheduler()
     if getattr(settings, "USE_NEW_PIPELINE_WORKER", False):
@@ -132,7 +124,7 @@ def _docs_enabled() -> bool:
     import os
     if os.getenv("ALPHAPILOT_FORCE_DOCS") == "1":
         return True
-    settings = get_base_settings()
+    settings = get_app_config()
     mode = settings.TRADING_MODE.value if hasattr(settings.TRADING_MODE, "value") else settings.TRADING_MODE
     return mode != "mainnet"
 

@@ -11,7 +11,6 @@ Endpoints (各自所在文件):
   /health, /api/health               → routers/health.py
   /api/auth/*                        → routers/auth.py
   /api/admin/symbols, users, audit-logs → routers/admin.py
-  /api/config/runtime                → routers/runtime_config.py
   /api/positions/*                   → routers/positions.py
   /api/trades                        → routers/trades.py
   /api/decisions                     → routers/decisions.py
@@ -36,7 +35,6 @@ from src.app.routers.health import router as _health_router
 from src.app.routers.positions import router as _positions_router
 from src.app.routers.reports import router as _reports_router
 from src.app.routers.risk import router as _risk_router
-from src.app.routers.runtime_config import router as _runtime_config_router
 from src.app.routers.trades import router as _trades_router
 
 # 把 9 个 domain router 合并; app.py 仍然可以 `include_router(router)`.
@@ -44,7 +42,6 @@ router = APIRouter()
 router.include_router(_health_router)
 router.include_router(_auth_router)
 router.include_router(_admin_router)
-router.include_router(_runtime_config_router)
 router.include_router(_positions_router)
 router.include_router(_trades_router)
 router.include_router(_decisions_router)
