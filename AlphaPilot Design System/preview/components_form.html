@@ -1,0 +1,25 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="../colors_and_type.css">
+<style>html,body{margin:0;padding:0;background:var(--ap-bg-0);color:var(--ap-fg-1);}
+.card{padding:18px;display:flex;flex-direction:column;gap:10px;}
+.field{display:flex;flex-direction:column;gap:6px;}
+.label{font-size:11px;color:var(--ap-fg-3);letter-spacing:.05em;text-transform:uppercase;}
+.input{background:var(--ap-bg-2);border:1px solid var(--ap-line);border-radius:10px;padding:12px 14px;font-size:14px;color:var(--ap-fg-1);font-family:inherit;width:100%;box-sizing:border-box;outline:none;}
+.input.focus{border-color:var(--ap-mint);box-shadow:0 0 0 3px rgba(0,211,149,.12);}
+.switch{position:relative;width:44px;height:26px;background:var(--ap-bg-4);border-radius:999px;cursor:pointer;display:inline-block;}
+.switch.on{background:var(--ap-mint);}
+.knob{position:absolute;top:3px;left:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:.2s;}
+.switch.on .knob{left:21px;}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;background:var(--ap-bg-2);border-radius:12px;}
+.seg{display:inline-flex;background:var(--ap-bg-2);border-radius:10px;padding:3px;border:1px solid var(--ap-line);}
+.seg span{font-size:12px;padding:6px 12px;border-radius:8px;color:var(--ap-fg-3);cursor:pointer;font-family:var(--ap-font-mono);}
+.seg span.sel{background:var(--ap-bg-4);color:var(--ap-fg-1);}
+</style></head>
+<body><div class="card">
+  <div class="field"><span class="label">API Key</span><input class="input focus" value="bnx_••••••••••3f2a" readonly></div>
+  <div class="row"><span style="font-size:13px;">自动交易</span><span class="switch on"><span class="knob"></span></span></div>
+  <div class="row"><span style="font-size:13px;">测试盘模式</span><span class="switch"><span class="knob"></span></span></div>
+  <div class="field"><span class="label">周期</span>
+    <div class="seg"><span>5m</span><span class="sel">15m</span><span>1h</span><span>4h</span><span>1d</span></div>
+  </div>
+</div></body></html>

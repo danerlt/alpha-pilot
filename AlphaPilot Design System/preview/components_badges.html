@@ -1,0 +1,30 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="../colors_and_type.css">
+<style>html,body{margin:0;padding:0;background:var(--ap-bg-0);color:var(--ap-fg-1);}
+.card{padding:20px;display:flex;flex-direction:column;gap:14px;}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:4px 10px;border-radius:999px;}
+.dot{width:6px;height:6px;border-radius:50%;}
+</style></head>
+<body><div class="card">
+<div class="ap-label">Guard status · 执行守卫状态</div>
+<div class="row">
+  <span class="pill" style="background:var(--ap-mint-soft);color:var(--ap-mint);"><span class="dot" style="background:var(--ap-mint);box-shadow:0 0 8px var(--ap-mint);"></span>PASS · 通过</span>
+  <span class="pill" style="background:var(--ap-rose-soft);color:var(--ap-rose);"><span class="dot" style="background:var(--ap-rose);"></span>REJECT · 拒绝</span>
+  <span class="pill" style="background:var(--ap-amber-soft);color:var(--ap-amber);"><span class="dot" style="background:var(--ap-amber);"></span>DEGRADE · 降级</span>
+  <span class="pill" style="background:#22283833;color:var(--ap-fg-3);"><span class="dot" style="background:var(--ap-fg-4);"></span>HALTED · 熔断</span>
+</div>
+<div class="ap-label">Market regime · 市场状态</div>
+<div class="row">
+  <span class="pill" style="background:var(--ap-mint-soft);color:var(--ap-mint);">↑ trending_up</span>
+  <span class="pill" style="background:var(--ap-rose-soft);color:var(--ap-rose);">↓ trending_down</span>
+  <span class="pill" style="background:var(--ap-cyan-soft);color:var(--ap-cyan);">≈ ranging</span>
+  <span class="pill" style="background:var(--ap-amber-soft);color:var(--ap-amber);">✦ chaotic</span>
+</div>
+<div class="ap-label">Action · AI 决策动作</div>
+<div class="row">
+  <span class="pill" style="background:var(--ap-mint);color:#001a12;font-family:var(--ap-font-mono);font-weight:600;">OPEN_LONG</span>
+  <span class="pill" style="background:var(--ap-rose);color:#2a0510;font-family:var(--ap-font-mono);font-weight:600;">CLOSE_LONG</span>
+  <span class="pill" style="background:var(--ap-bg-3);color:var(--ap-fg-2);font-family:var(--ap-font-mono);font-weight:600;border:1px solid var(--ap-line);">HOLD</span>
+</div>
+</div></body></html>

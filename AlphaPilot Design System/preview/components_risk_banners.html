@@ -1,0 +1,22 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="../colors_and_type.css">
+<style>html,body{margin:0;padding:0;background:var(--ap-bg-0);color:var(--ap-fg-1);}
+.card{padding:18px;display:flex;flex-direction:column;gap:10px;}
+.risk{background:var(--ap-bg-2);border-radius:14px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--ap-line-soft);}
+.r-ok{border-left:3px solid var(--ap-mint);}
+.r-warn{border-left:3px solid var(--ap-amber);background:linear-gradient(90deg,rgba(240,185,11,.08),transparent 60%);}
+.r-halt{border-left:3px solid var(--ap-rose);background:linear-gradient(90deg,rgba(255,77,109,.1),transparent 60%);}
+.ic{width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.ic-ok{background:var(--ap-mint-soft);color:var(--ap-mint);}
+.ic-warn{background:var(--ap-amber-soft);color:var(--ap-amber);}
+.ic-halt{background:var(--ap-rose-soft);color:var(--ap-rose);}
+.txt{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;}
+.t1{font-size:13px;font-weight:600;}
+.t2{font-size:11px;color:var(--ap-fg-3);font-family:var(--ap-font-mono);}
+.val{font-family:var(--ap-font-mono);font-size:13px;font-weight:600;}
+</style></head>
+<body><div class="card">
+  <div class="risk r-ok"><div class="ic ic-ok">✓</div><div class="txt"><span class="t1">风控正常</span><span class="t2">日损 −0.48% · 阈值 −2.00%</span></div><span class="val ap-pos">PASS</span></div>
+  <div class="risk r-warn"><div class="ic ic-warn">!</div><div class="txt"><span class="t1">接近熔断阈值</span><span class="t2">连续 2 笔亏损 · 阈值 3 笔</span></div><span class="val" style="color:var(--ap-amber);">WARN</span></div>
+  <div class="risk r-halt"><div class="ic ic-halt">⛔</div><div class="txt"><span class="t1">日亏熔断已触发</span><span class="t2">−2.10% ≥ 阈值 2.00% · 已停止新开仓</span></div><span class="val ap-neg">HALTED</span></div>
+</div></body></html>

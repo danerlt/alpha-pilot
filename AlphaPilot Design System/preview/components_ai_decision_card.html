@@ -1,0 +1,28 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="../colors_and_type.css">
+<style>html,body{margin:0;padding:0;background:var(--ap-bg-0);color:var(--ap-fg-1);}
+.card{padding:18px;display:flex;flex-direction:column;gap:10px;}
+.dcard{background:var(--ap-bg-2);border-radius:16px;padding:14px;border:1px solid var(--ap-violet);box-shadow:0 0 24px rgba(124,92,255,.18);position:relative;overflow:hidden;}
+.dcard::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at top right, rgba(124,92,255,.1), transparent 60%);pointer-events:none;}
+.head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.ai-tag{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--ap-violet);font-weight:600;letter-spacing:.04em;}
+.ai-tag .d{width:6px;height:6px;background:var(--ap-violet);border-radius:50%;box-shadow:0 0 6px var(--ap-violet);}
+.sym{font-family:var(--ap-font-mono);font-size:13px;color:var(--ap-fg-2);}
+.action{font-family:var(--ap-font-mono);font-size:22px;font-weight:700;color:var(--ap-mint);letter-spacing:.02em;}
+.fields{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px;font-family:var(--ap-font-mono);font-size:11px;}
+.f{display:flex;flex-direction:column;gap:2px;}
+.f .l{color:var(--ap-fg-3);font-size:10px;}
+.f .v{color:var(--ap-fg-1);font-weight:500;}
+</style></head>
+<body><div class="card">
+<div class="dcard">
+  <div class="head"><span class="ai-tag"><span class="d"></span>AI DECISION</span><span class="sym">BTCUSDT · 15m</span></div>
+  <div style="display:flex;align-items:baseline;gap:10px;"><span class="action">OPEN_LONG</span><span style="color:var(--ap-fg-3);font-family:var(--ap-font-mono);font-size:12px;">confidence 0.78 · 趋势跟随</span></div>
+  <div class="fields">
+    <div class="f"><span class="l">ENTRY</span><span class="v">67,420.50</span></div>
+    <div class="f"><span class="l">SIZE</span><span class="v">2.5%</span></div>
+    <div class="f"><span class="l">SL</span><span class="v ap-neg">64,210.00</span></div>
+    <div class="f"><span class="l">TP</span><span class="v ap-pos">68,900.00</span></div>
+  </div>
+</div>
+</div></body></html>

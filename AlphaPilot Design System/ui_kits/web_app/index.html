@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=1440"/>
+<title>AlphaPilot · Web UI Kit</title>
+<link rel="stylesheet" href="../../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:0;height:100vh;background:var(--ap-bg-0);overflow:hidden;}
+  #root{width:100%;height:100%;}
+  ::-webkit-scrollbar{width:10px;height:10px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:var(--ap-bg-3);border-radius:10px;border:2px solid var(--ap-bg-0);}
+  ::-webkit-scrollbar-thumb:hover{background:var(--ap-bg-4);}
+  .tweaks{position:fixed;bottom:20px;right:20px;background:var(--ap-bg-2);border:1px solid var(--ap-line);border-radius:12px;padding:14px;box-shadow:var(--ap-shadow-3);display:none;flex-direction:column;gap:10px;width:240px;z-index:1000;}
+  .tweaks.visible{display:flex;}
+  .tweaks h3{font-size:11px;margin:0 0 4px;color:var(--ap-fg-2);letter-spacing:.08em;text-transform:uppercase;}
+  .tw-row{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--ap-fg-2);gap:8px;}
+  .tw-seg{display:inline-flex;gap:3px;background:var(--ap-bg-3);border-radius:8px;padding:2px;}
+  .tw-seg span{font-size:10px;padding:4px 8px;border-radius:6px;color:var(--ap-fg-3);cursor:pointer;font-family:var(--ap-font-mono);}
+  .tw-seg span.sel{background:var(--ap-bg-4);color:var(--ap-fg-1);}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<div id="tweaks" class="tweaks">
+  <h3>Tweaks</h3>
+  <div class="tw-row">AI 卡片样式
+    <div class="tw-seg" id="tw-variant">
+      <span data-v="stepper" class="sel">Stepper</span>
+      <span data-v="timeline">Timeline</span>
+      <span data-v="graph">Graph</span>
+    </div>
+  </div>
+  <div class="tw-row">场景
+    <div class="tw-seg" id="tw-scene">
+      <span data-v="profit" class="sel">盈利</span>
+      <span data-v="warn">接近熔断</span>
+      <span data-v="halted">已熔断</span>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="components/shell.jsx"></script>
+<script type="text/babel" src="components/ai_card.jsx"></script>
+<script type="text/babel" src="components/pages.jsx"></script>
+
+<script type="text/babel" data-presets="env,react">
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "variant": "stepper",
+  "scene": "profit"
+}/*EDITMODE-END*/;
+
+const scenes = {
+  profit: { riskState:'OK', dayLossPct:-0.48, regime:'trending_up' },
+  warn:   { riskState:'WARN', dayLossPct:-1.72, regime:'chaotic' },
+  halted: { riskState:'HALTED', dayLossPct:-2.10, regime:'chaotic' },
+};
+
+const PAGES = {
+  dashboard: { title:'主控制台', sub:'ALPHAPILOT · COCKPIT', render: (p)=><WDashboard aiVariant={p.variant} onNav={p.onNav}/> },
+  ai:        { title:'AI 决策流', sub:'DECISION STREAM', render: (p)=><WAIPage aiVariant={p.variant}/> },
+  positions: { title:'持仓与订单', sub:'POSITIONS · ORDERS', render: ()=><WPositionsPage/> },
+  backtest:  { title:'回测与绩效', sub:'PERFORMANCE ANALYTICS', render: ()=><WBacktestPage/> },
+  risk:      { title:'策略与风控', sub:'STRATEGY · RISK', render: ()=><WRiskPage/> },
+  audit:     { title:'审计日志', sub:'AUDIT LOG', render: ()=><WAuditPage/> },
+  settings:  { title:'设置', sub:'SETTINGS', render: ()=><div style={{padding:40,color:'var(--ap-fg-3)'}}>账户、API、通知偏好等（占位）</div> },
+};
+
+function App(){
+  const [state, setState] = React.useState(TWEAK_DEFAULTS);
+  const [page, setPage] = React.useState('dashboard');
+
+  React.useEffect(()=>{ Object.assign(W_MOCK, scenes[state.scene]); }, [state.scene]);
+
+  React.useEffect(()=>{
+    try{ const s=JSON.parse(localStorage.getItem('ap-web-tweaks')||'null'); if(s) setState(s); const p=localStorage.getItem('ap-web-page'); if(p) setPage(p); }catch(e){}
+  },[]);
+  React.useEffect(()=>{ try{localStorage.setItem('ap-web-page',page);}catch(e){} },[page]);
+
+  const updateKey = (k,v) => {
+    setState(s=>{ const n={...s,[k]:v}; try{localStorage.setItem('ap-web-tweaks',JSON.stringify(n));window.parent.postMessage({type:'__edit_mode_set_keys',edits:{[k]:v}},'*');}catch(e){} return n; });
+  };
+
+  React.useEffect(()=>{
+    const wire = (id, key)=>{
+      const el=document.getElementById(id); if(!el) return;
+      el.querySelectorAll('span').forEach(sp=>{
+        sp.onclick = ()=>{ el.querySelectorAll('span').forEach(s=>s.classList.remove('sel')); sp.classList.add('sel'); updateKey(key, sp.dataset.v); };
+      });
+    };
+    wire('tw-variant','variant'); wire('tw-scene','scene');
+  },[]);
+
+  React.useEffect(()=>{
+    const handler = (e)=>{
+      if(e.data?.type==='__activate_edit_mode') document.getElementById('tweaks').classList.add('visible');
+      else if(e.data?.type==='__deactivate_edit_mode') document.getElementById('tweaks').classList.remove('visible');
+    };
+    window.addEventListener('message', handler);
+    window.parent.postMessage({type:'__edit_mode_available'}, '*');
+    return ()=>window.removeEventListener('message', handler);
+  },[]);
+
+  // sync tweak UI selected state
+  React.useEffect(()=>{
+    ['tw-variant','tw-scene'].forEach(id=>{
+      const el=document.getElementById(id); if(!el) return;
+      const key = id==='tw-variant'?'variant':'scene';
+      el.querySelectorAll('span').forEach(s=>{
+        s.classList.toggle('sel', s.dataset.v===state[key]);
+      });
+    });
+  }, [state]);
+
+  const pg = PAGES[page];
+  const sc = scenes[state.scene];
+  return (
+    <PageShell active={page} onNav={setPage} title={pg.title} sub={pg.sub}
+      riskState={sc.riskState} regime={sc.regime} dayLossPct={sc.dayLossPct} positionsPct={W_MOCK.positionsPct}>
+      <div key={state.scene+':'+state.variant+':'+page}>
+        {pg.render({variant:state.variant, onNav:setPage})}
+      </div>
+    </PageShell>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body></html>

@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>AlphaPilot · Mobile UI Kit</title>
+<link rel="stylesheet" href="../../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:0;min-height:100vh;background:radial-gradient(ellipse at top, #12182a 0%, var(--ap-bg-0) 60%);overflow-x:hidden;}
+  .stage{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 20px;box-sizing:border-box;}
+  .phone-wrap{display:flex;gap:40px;align-items:center;flex-wrap:wrap;justify-content:center;}
+  .side{max-width:360px;color:var(--ap-fg-2);}
+  .side h1{font-size:36px;font-weight:700;letter-spacing:-.03em;margin:0 0 12px;color:var(--ap-fg-1);}
+  .side h1 .ai{color:var(--ap-mint);}
+  .side p{font-size:14px;line-height:1.6;margin:0 0 18px;color:var(--ap-fg-3);}
+  .side .meta{font-family:var(--ap-font-mono);font-size:11px;color:var(--ap-fg-4);letter-spacing:.04em;margin-top:18px;padding-top:18px;border-top:1px solid var(--ap-line);}
+  .screen-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:18px 0;}
+  .st{padding:6px 12px;border-radius:999px;font-size:11px;background:var(--ap-bg-2);color:var(--ap-fg-3);border:1px solid var(--ap-line);cursor:pointer;font-family:var(--ap-font-mono);}
+  .st.active{background:var(--ap-mint);color:var(--ap-bg-0);border-color:var(--ap-mint);}
+  .tweaks{position:fixed;bottom:20px;right:20px;background:var(--ap-bg-2);border:1px solid var(--ap-line);border-radius:14px;padding:14px;box-shadow:var(--ap-shadow-3);display:none;flex-direction:column;gap:10px;width:220px;z-index:1000;}
+  .tweaks.visible{display:flex;}
+  .tweaks h3{font-size:12px;margin:0 0 4px;color:var(--ap-fg-2);letter-spacing:.05em;text-transform:uppercase;}
+  .tw-row{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--ap-fg-2);}
+  .tw-seg{display:inline-flex;gap:3px;background:var(--ap-bg-3);border-radius:8px;padding:2px;}
+  .tw-seg span{font-size:10px;padding:4px 8px;border-radius:6px;color:var(--ap-fg-3);cursor:pointer;font-family:var(--ap-font-mono);}
+  .tw-seg span.sel{background:var(--ap-bg-4);color:var(--ap-fg-1);}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<!-- Tweaks panel -->
+<div id="tweaks" class="tweaks">
+  <h3>Tweaks</h3>
+  <div class="tw-row">场景
+    <div class="tw-seg" id="tw-scene">
+      <span data-v="profit" class="sel">盈利</span>
+      <span data-v="warn">接近熔断</span>
+      <span data-v="halted">已熔断</span>
+    </div>
+  </div>
+  <div class="tw-row">屏幕
+    <div class="tw-seg" id="tw-screen">
+      <span data-v="home" class="sel">仪表盘</span>
+      <span data-v="ai">AI</span>
+      <span data-v="pos">持仓</span>
+      <span data-v="log">日志</span>
+      <span data-v="cfg">配置</span>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="components/atoms.jsx"></script>
+<script type="text/babel" src="components/screens.jsx"></script>
+
+<script type="text/babel" data-presets="env,react">
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "scene": "halted",
+  "screen": "cfg"
+}/*EDITMODE-END*/;
+
+const scenes = {
+  profit: { riskState:'OK', dayLossPct:-0.48, todayPnl:1248.05, todayPnlPct:0.98, regime:'trending_up' },
+  warn:   { riskState:'WARN', dayLossPct:-1.72, todayPnl:-210.12, todayPnlPct:-0.16, regime:'chaotic' },
+  halted: { riskState:'HALTED', dayLossPct:-2.10, todayPnl:-980.45, todayPnlPct:-0.76, regime:'chaotic' },
+};
+
+function App(){
+  const [state, setState] = React.useState(TWEAK_DEFAULTS);
+  const [tab, setTab] = React.useState(TWEAK_DEFAULTS.screen);
+
+  // apply scene to MOCK
+  React.useEffect(()=>{
+    Object.assign(MOCK, scenes[state.scene]);
+  }, [state.scene]);
+
+  React.useEffect(()=>{ setTab(state.screen); }, [state.screen]);
+
+  // persist
+  const updateKey = (k,v) => {
+    setState(s=>{ const n={...s,[k]:v}; try{ localStorage.setItem('ap-tweaks',JSON.stringify(n)); window.parent.postMessage({type:'__edit_mode_set_keys', edits:{[k]:v}}, '*'); }catch(e){} return n; });
+  };
+
+  // on mount restore
+  React.useEffect(()=>{
+    try{ const s = JSON.parse(localStorage.getItem('ap-tweaks')||'null'); if(s){ setState(s); setTab(s.screen); } }catch(e){}
+  },[]);
+
+  // wire tweak UI
+  React.useEffect(()=>{
+    const wire = (id, key) => {
+      const el = document.getElementById(id);
+      if(!el) return;
+      el.querySelectorAll('span').forEach(sp=>{
+        sp.onclick = ()=>{
+          el.querySelectorAll('span').forEach(s=>s.classList.remove('sel'));
+          sp.classList.add('sel');
+          updateKey(key, sp.dataset.v);
+        };
+      });
+    };
+    wire('tw-scene','scene');
+    wire('tw-screen','screen');
+  },[]);
+
+  // edit mode protocol
+  React.useEffect(()=>{
+    const handler = (e)=>{
+      if(e.data?.type==='__activate_edit_mode') document.getElementById('tweaks').classList.add('visible');
+      else if(e.data?.type==='__deactivate_edit_mode') document.getElementById('tweaks').classList.remove('visible');
+    };
+    window.addEventListener('message', handler);
+    window.parent.postMessage({type:'__edit_mode_available'}, '*');
+    return ()=>window.removeEventListener('message', handler);
+  },[]);
+
+  // re-render MOCK dependent content when scene changes — force key change
+  const mockKey = state.scene;
+
+  const screens = {
+    home: <DashboardScreen key={mockKey} onOpenDecision={()=>setTab('ai')}/>,
+    ai:   <AIScreen key={mockKey}/>,
+    pos:  <PositionsScreen key={mockKey}/>,
+    log:  <LogScreen key={mockKey}/>,
+    cfg:  <ConfigScreen key={mockKey}/>,
+  };
+  const labels = {home:'仪表盘',ai:'AI 决策',pos:'持仓',log:'日志',cfg:'配置'};
+
+  return (
+    <div className="stage">
+      <div className="phone-wrap">
+        <div className="side">
+          <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:20}}>
+            <img src="../../assets/logo_app.png" style={{width:56,height:56,borderRadius:14,background:'var(--ap-bg-2)',padding:4}}/>
+            <div>
+              <div style={{fontSize:11,color:'var(--ap-fg-3)',letterSpacing:'.1em',textTransform:'uppercase'}}>Alpha<span style={{color:'var(--ap-mint)'}}>Pilot</span></div>
+              <div style={{fontSize:11,color:'var(--ap-fg-4)',fontFamily:'var(--ap-font-mono)'}}>Mobile UI Kit · v0.1</div>
+            </div>
+          </div>
+          <h1>AI 自主交易<br/><span className="ai">在边界内</span> 运行</h1>
+          <p>AlphaPilot 是面向 Binance 的 AI 数字货币交易系统。它在严格风控和受限策略框架下自动决策、执行与进化——而不是又一个发信号的助手。</p>
+          <p style={{fontSize:13}}>左侧为可交互原型。底部 Tab 切换屏幕，或用 Tweaks（右下角触发器或主工具栏开关）切换场景与屏幕。</p>
+          <div className="screen-tabs">
+            {Object.entries(labels).map(([k,l])=>(
+              <div key={k} className={'st '+(tab===k?'active':'')} onClick={()=>setTab(k)}>{l}</div>
+            ))}
+          </div>
+          <div className="meta">
+            5 screens · 12 components · Inter + JetBrains Mono<br/>
+            Scene: <b style={{color:'var(--ap-fg-2)'}}>{state.scene}</b> · Screen: <b style={{color:'var(--ap-fg-2)'}}>{tab}</b>
+          </div>
+        </div>
+
+        <IOSDevice dark width={402} height={874}>
+          {screens[tab]}
+          <TabBar active={tab} onChange={setTab}/>
+        </IOSDevice>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body></html>

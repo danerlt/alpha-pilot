@@ -1,0 +1,31 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="../colors_and_type.css">
+<style>html,body{margin:0;padding:0;background:var(--ap-bg-0);color:var(--ap-fg-1);}
+.card{padding:20px;display:flex;flex-direction:column;gap:14px;}
+.row{display:flex;gap:12px;flex-wrap:wrap;}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border-radius:12px;font-size:14px;font-weight:600;border:none;cursor:pointer;font-family:inherit;}
+.b-primary{background:var(--ap-mint);color:#001a12;}
+.b-primary:hover{box-shadow:0 0 24px var(--ap-mint-glow);}
+.b-danger{background:var(--ap-rose);color:#fff;}
+.b-ghost{background:var(--ap-bg-3);color:var(--ap-fg-1);border:1px solid var(--ap-line);}
+.b-ai{background:linear-gradient(180deg,#8E73FF,#6646FF);color:#fff;box-shadow:0 0 20px rgba(124,92,255,.3);}
+.b-sm{padding:6px 12px;font-size:12px;border-radius:8px;}
+.b-disabled{opacity:.4;cursor:not-allowed;}
+</style></head>
+<body><div class="card">
+<div class="ap-label">Primary actions</div>
+<div class="row">
+  <button class="btn b-primary">开仓 OPEN_LONG</button>
+  <button class="btn b-danger">立即平仓</button>
+  <button class="btn b-ai">✦ 让 AI 决策</button>
+  <button class="btn b-ghost">取消</button>
+  <button class="btn b-primary b-disabled">守卫阻止</button>
+</div>
+<div class="ap-label">Small / inline</div>
+<div class="row">
+  <button class="btn b-primary b-sm">确认</button>
+  <button class="btn b-ghost b-sm">查看详情</button>
+  <button class="btn b-ghost b-sm">复盘</button>
+  <button class="btn b-ghost b-sm">导出 CSV</button>
+</div>
+</div></body></html>

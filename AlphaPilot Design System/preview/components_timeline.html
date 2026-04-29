@@ -1,0 +1,24 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="../colors_and_type.css">
+<style>html,body{margin:0;padding:0;background:var(--ap-bg-0);color:var(--ap-fg-1);}
+.card{padding:20px;}
+.timeline{display:flex;flex-direction:column;gap:0;position:relative;padding-left:24px;}
+.timeline::before{content:'';position:absolute;left:6px;top:8px;bottom:8px;width:1px;background:var(--ap-line);}
+.step{display:flex;gap:12px;padding:8px 0;position:relative;}
+.step::before{content:'';position:absolute;left:-24px;top:12px;width:13px;height:13px;border-radius:50%;border:2px solid var(--ap-bg-0);}
+.s-violet::before{background:var(--ap-violet);box-shadow:0 0 8px var(--ap-violet-glow);}
+.s-mint::before{background:var(--ap-mint);}
+.s-line::before{background:var(--ap-bg-3);border-color:var(--ap-line);}
+.t{font-family:var(--ap-font-mono);font-size:11px;color:var(--ap-fg-3);min-width:60px;}
+.msg{font-size:13px;color:var(--ap-fg-1);}
+.tag{font-family:var(--ap-font-mono);font-size:10px;padding:1px 6px;border-radius:4px;margin-left:6px;}
+</style></head>
+<body><div class="card">
+<div class="ap-label" style="margin-bottom:10px;">Decision pipeline · 决策管道时间轴</div>
+<div class="timeline">
+  <div class="step s-violet"><span class="t">14:23:08</span><span class="msg"><span class="ap-ai">AI</span> 输出决策 <span class="tag" style="background:var(--ap-violet-soft);color:var(--ap-violet);">OPEN_LONG</span> 置信度 0.78</span></div>
+  <div class="step s-mint"><span class="t">14:23:08</span><span class="msg">守卫 <span class="tag" style="background:var(--ap-mint-soft);color:var(--ap-mint);">PASS</span> · 检查 8/8</span></div>
+  <div class="step s-mint"><span class="t">14:23:09</span><span class="msg">市价单成交 0.048 BTC @ 67,420.50</span></div>
+  <div class="step s-line"><span class="t">14:23:09</span><span class="msg" style="color:var(--ap-fg-2);">止损 64,210.00 · 止盈 68,900.00 已挂</span></div>
+</div>
+</div></body></html>
