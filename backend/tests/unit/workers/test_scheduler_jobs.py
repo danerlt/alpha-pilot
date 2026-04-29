@@ -52,46 +52,6 @@ def test_build_llm_falls_back_to_mock_on_empty_key():
     assert "HOLD" in out.raw_text
 
 
-# --- _build_llm_clients: 双 tier 装配 ------------------------------------
-
-def test_build_llm_clients_falls_back_to_mock_on_placeholder_key():
-    """占位 key 时 strong / fast 都应是 MockLLMClient (永远 HOLD)."""
-    settings = SimpleNamespace(
-        LLM_BASE_URL="https://api.deepseek.com/v1",
-        LLM_API_KEY="test-llm-api-key",
-        LLM_MODEL="deepseek-v4-pro",
-        LLM_MODEL_FAST="deepseek-v4-flash",
-    )
-    clients = scheduler_jobs._build_llm_clients(settings)
-    assert clients.strong is clients.fast  # 占位时同一个 mock 复用
-    out = clients.get("fast").complete(system="x", user="y")
-    assert "HOLD" in out.raw_text
-
-
-def test_build_llm_clients_fast_falls_back_to_strong_when_fast_unset(monkeypatch):
-    """非占位 key + LLM_MODEL_FAST 留空 → fast tier 复用 strong 实例."""
-    settings = SimpleNamespace(
-        LLM_BASE_URL="https://api.deepseek.com/v1",
-        LLM_API_KEY="sk-real-looking-key",
-        LLM_MODEL="deepseek-v4-pro",
-        LLM_MODEL_FAST="",
-    )
-    # spy OpenAIClient.__init__ 避免触达真实 openai SDK
-    from src.strategy.ai_trader import llm_client as llm_mod
-    real_init = llm_mod.OpenAIClient.__init__
-
-    def _spy_init(self, api_key, model, base_url=None):
-        self._client = object()
-        self._model = model
-    monkeypatch.setattr(llm_mod.OpenAIClient, "__init__", _spy_init)
-
-    clients = scheduler_jobs._build_llm_clients(settings)
-    assert clients.fast is clients.strong
-    assert clients.strong._model == "deepseek-v4-pro"
-
-    monkeypatch.setattr(llm_mod.OpenAIClient, "__init__", real_init)
-
-
 # --- _parse_csv ----------------------------------------------------------
 
 def test_parse_csv_strips_and_filters_empty():

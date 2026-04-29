@@ -30,12 +30,9 @@ class Settings(BaseSettings):
     BINANCE_API_SECRET: str = "test-binance-api-secret"
 
     # LLM (OpenAI 兼容协议; 默认指向 DeepSeek)
-    # LLM_MODEL       — 主决策用 (强模型, 默认 deepseek-v4-pro)
-    # LLM_MODEL_FAST  — 轻量 / 高频场景 (普通模型, 默认 deepseek-v4-flash)
     LLM_BASE_URL: str = "https://api.deepseek.com/v1"
     LLM_API_KEY: str = "test-llm-api-key"
     LLM_MODEL: str = "deepseek-v4-pro"
-    LLM_MODEL_FAST: str = "deepseek-v4-flash"
     LLM_TIMEOUT_SECONDS: int = 30
 
     # 数据库

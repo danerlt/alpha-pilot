@@ -12,6 +12,18 @@
 
 ---
 
+## 后端 Python 包导入规则（强制）
+
+- PYTHONPATH 根目录为 `backend/`（pytest `pythonpath = ["."]`，alembic `prepend_sys_path = .`）
+- **所有项目内部 import 一律以 `src.` 开头**，例如：
+  - ✅ `from src.app.app import app`
+  - ✅ `from src.shared.models.position import Position`
+  - ❌ `from app.app import app` / `from services.xxx import yyy` / `from shared.xxx import zzz`
+- ASGI 入口统一为 `src.app.app:app`（main.py / Makefile / scripts/start.sh / docker entrypoint）
+- 第三方依赖通过 `uv sync --extra dev` 安装；新增依赖改 `backend/pyproject.toml` 后必须 `uv sync` 一遍并提交 `uv.lock`
+
+---
+
 ## 项目简介
 
 **AlphaPilot** — AI 自主数字货币现货交易系统，面向 Binance，V0.1 仅支持现货做多。
@@ -136,7 +148,7 @@ alpha-pilot/
 
 ## 环境变量配置
 
-复制 `.env.example` 为 `.env` 并填写：
+从 `example.env` 拷贝到 `envs/<env>.env` 填写后，再 `cp envs/<env>.env .env`：
 
 ```env
 TRADING_MODE=testnet
@@ -145,7 +157,6 @@ BINANCE_API_SECRET=<testnet secret>
 LLM_BASE_URL=https://api.deepseek.com/v1
 LLM_API_KEY=<your llm api key>
 LLM_MODEL=deepseek-v4-pro
-LLM_MODEL_FAST=deepseek-v4-flash
 DATABASE_URL=postgresql://alphapilot:alphapilot@localhost:5442/alphapilot
 REDIS_URL=redis://localhost:6389/0
 MAX_POSITION_SIZE_PCT=0.20
