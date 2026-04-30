@@ -595,15 +595,17 @@ class ErrorCode(Enum):
 ```python
 import logging
 import sys
+import traceback as tb_mod
 from typing import ClassVar
 
 logger = logging.getLogger("app.exception")
 
 
 class AppBaseException(Exception):
-    """所有自定义异常的根基类。抛出时自动记 ERROR 日志，含文件名 + 行号。"""
+    """所有自定义异常的根基类。抛出时自动记 ERROR 日志，含文件名 + 行号 + 调用栈。"""
 
-    auto_log: ClassVar[bool] = True
+    auto_log: ClassVar[bool] = True            # 是否自动记日志
+    auto_log_stack: ClassVar[bool] = True      # 是否带调用栈（高频/客户端类异常可关闭）
 
     def __init__(self, error_code: ErrorCode = ErrorCode.SYS_ERROR, message: str = "") -> None:
         self.error_code = error_code
@@ -614,31 +616,35 @@ class AppBaseException(Exception):
             self._auto_log()
 
     def _auto_log(self) -> None:
-        """统一 ERROR 级；显式提取真实 raise 行的文件名 + 行号 + trace_id。
+        """统一 ERROR 级；显式提取真实 raise 行的文件名 + 行号 + trace_id + 调用栈。
 
-        sys._getframe(2) 取栈帧：0=_auto_log, 1=__init__, 2=raise 该异常的业务代码行。
-        trace_id 从 starlette-context（HTTP）/ contextvars（scheduler）读取，无则 "-"。
-        本方法是该异常的**唯一日志记录点** —— 全局 handler 不再重复记录，避免同一异常打多条日志。
+        - sys._getframe(2) 取栈帧：0=_auto_log, 1=__init__, 2=raise 该异常的业务代码行
+        - trace_id 从 starlette-context（HTTP）/ contextvars（scheduler）读取，无则 "-"
+        - traceback.format_stack() 抓当前调用栈（call stack 等价于 raise 时即将传播的 traceback）
+        - 本方法是该异常的**唯一日志记录点** —— 全局 handler 不再重复记录
         """
         frame = sys._getframe(2)
         filename = frame.f_code.co_filename
         lineno = frame.f_lineno
         funcname = frame.f_code.co_name
 
-        # trace_id 从当前请求上下文读取（HTTP 链路由 CorrelationId 中间件注入；
-        # scheduler 链路在任务消费循环入口手动 set，无则 None）
         from src.utils.trace_id import get_trace_id   # 延迟 import 避免循环依赖
         trace_id = get_trace_id() or "-"
 
+        # 抓调用栈（去掉 _auto_log + __init__ 两帧）
+        stack_str = ""
+        if self.auto_log_stack:
+            stack_str = "".join(tb_mod.format_stack()[:-2])
+
+        log_fmt = "[%s] code=%s msg=%s at %s:%d in %s() trace_id=%s"
+        log_args: list = [type(self).__name__, self.code, self.message,
+                          filename, lineno, funcname, trace_id]
+        if stack_str:
+            log_fmt += "\nCall stack:\n%s"
+            log_args.append(stack_str)
+
         logger.error(
-            "[%s] code=%s msg=%s at %s:%d in %s() trace_id=%s",
-            type(self).__name__,
-            self.code,
-            self.message,
-            filename,
-            lineno,
-            funcname,
-            trace_id,
+            log_fmt, *log_args,
             stacklevel=3,
             extra={
                 "exc_class": type(self).__name__,
@@ -663,6 +669,8 @@ class DBException(AppBaseException):
 
 
 class ParamsException(AppBaseException):
+    auto_log_stack = False                # 客户端参数错误，stack 无价值，关掉避免日志膨胀
+
     def __init__(self, message: str = "") -> None:
         super().__init__(error_code=ErrorCode.PARAM_ERROR, message=message)
 
@@ -704,19 +712,42 @@ class LLMResponseInvalidException(ServiceException):
 # 业务代码（src/services/execution/execution_guard.py:87）
 raise RiskRejectedException("日内亏损达 3.2% > 3%")
 
-# 日志输出（一行，含完整定位信息）：
-# 2026-04-30 10:23:45 ERROR [RiskRejectedException] code=600002 msg=日内亏损达 3.2% > 3% \
-#   at /app/src/services/execution/execution_guard.py:87 in check_daily_loss()
-#
+# 日志输出（一条记录，含定位 + 调用栈）：
+2026-04-30 10:23:45 ERROR [RiskRejectedException] code=600002 msg=日内亏损达 3.2% > 3% \
+  at /app/src/services/execution/execution_guard.py:87 in check_daily_loss() trace_id=abc-123
+Call stack:
+  File "/app/scripts/start_api.py", line 5, in <module>
+    main()
+  File "/app/src/controllers/api/v1/execution/positions.py", line 45, in close_all
+    result = order_execution_service.close_all(session, user_id)
+  File "/app/src/services/execution/order_execution.py", line 78, in close_all
+    execution_guard_service.check_daily_loss(session)
+  File "/app/src/services/execution/execution_guard.py", line 87, in check_daily_loss
+    raise RiskRejectedException(f"日内亏损达 {pct}% > {limit}%")
+
 # extra 结构化字段（供日志聚合 / 告警过滤用）：
-#   {
-#     "exc_class": "RiskRejectedException",
-#     "exc_code": "600002",
-#     "exc_file": "/app/src/services/execution/execution_guard.py",
-#     "exc_lineno": 87,
-#     "exc_func": "check_daily_loss"
-#   }
+#   {"exc_class": "RiskRejectedException", "exc_code": "600002",
+#    "exc_file": "/app/src/services/execution/execution_guard.py", "exc_lineno": 87,
+#    "exc_func": "check_daily_loss", "trace_id": "abc-123"}
 ```
+
+**Stack 控制**（按异常子类配置）：
+
+| 子类 | `auto_log_stack` | 说明 |
+|------|----------------|------|
+| `AppBaseException`（默认） | `True` | 业务异常都带 stack，便于追溯调用链 |
+| `ServiceException` / `DBException` / `RedisException` 及其子类 | 继承 `True` | 默认带 stack |
+| `ParamsException` | **`False`** | 客户端参数错误，stack 无价值，关掉避免恶意刷接口日志膨胀 |
+| `KillSwitchPausedException` | 继承 `True`（自定义子类可按需关） | 紧急停机有意为之，stack 帮助定位"在哪个业务环节被熔断" |
+
+**异常包装链 ≠ 重复**：业务里 `try/except + raise from` 链路上的每个 `AppBaseException` 实例都记自己的 stack，这是异常传播的真实记录。例：
+
+```
+ERROR [RiskRejectedException] code=600002 ... at guard.py:87 ...
+ERROR [IdempotencyConflictException] code=600003 ... at order.py:120 ...
+```
+
+是两个不同异常实例的两条日志，**不算重复**，反而提供了完整的传播链信息。
 
 **抛错规范**：
 - CRUD 层（`get` 不存在）→ 抛 `DBException(error_code=ErrorCode.NOT_FOUND)`
