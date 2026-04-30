@@ -588,37 +588,78 @@ class ErrorCode(Enum):
         return self.value[1]
 ```
 
-#### 4.6.3 异常树（`src/common/exception/errors.py`）
+#### 4.6.3 异常树（`src/common/exception/errors.py`）— 抛出时自动记 ERROR 日志
+
+**核心特性**：所有 `AppBaseException` 子类抛出时**自动以 ERROR 级别记日志**，并通过 `type(self).__name__` 自动识别真实子类。日志同时输出 `extra={"exc_class", "exc_code"}` 用于结构化检索 / 告警过滤。
 
 ```python
+import logging
+import sys
+from typing import ClassVar
+
+logger = logging.getLogger("app.exception")
+
+
 class AppBaseException(Exception):
-    """所有自定义异常的根基类"""
+    """所有自定义异常的根基类。抛出时自动记 ERROR 日志，含文件名 + 行号。"""
+
+    auto_log: ClassVar[bool] = True
+
     def __init__(self, error_code: ErrorCode = ErrorCode.SYS_ERROR, message: str = "") -> None:
         self.error_code = error_code
         self.code = error_code.code
         self.message = message or error_code.msg
+        super().__init__(self.message)
+        if self.auto_log:
+            self._auto_log()
+
+    def _auto_log(self) -> None:
+        """统一 ERROR 级；显式提取真实 raise 行的文件名 + 行号，不依赖 formatter 配置。
+
+        sys._getframe(2) 取栈帧：0=_auto_log, 1=__init__, 2=raise 该异常的业务代码行。
+        stacklevel=3 同时让 logger 的 %(filename)s/%(lineno)d 也指向真实 raise 行（如果 formatter 配置了的话）。
+        """
+        frame = sys._getframe(2)
+        filename = frame.f_code.co_filename
+        lineno = frame.f_lineno
+        funcname = frame.f_code.co_name
+
+        logger.error(
+            "[%s] code=%s msg=%s at %s:%d in %s()",
+            type(self).__name__,
+            self.code,
+            self.message,
+            filename,
+            lineno,
+            funcname,
+            stacklevel=3,
+            extra={
+                "exc_class": type(self).__name__,
+                "exc_code": self.code,
+                "exc_file": filename,
+                "exc_lineno": lineno,
+                "exc_func": funcname,
+            },
+        )
 
 
+# ── 框架级异常 ──────────────────────────────────────────────────────────
 class ServiceException(AppBaseException):
-    """Service 层业务异常（业务层默认抛这个）"""
     def __init__(self, message: str = "", error_code: ErrorCode = ErrorCode.SERVICE_ERROR) -> None:
         super().__init__(error_code=error_code, message=message)
 
 
 class DBException(AppBaseException):
-    """CRUD 层异常（含 NOT_FOUND 语义）"""
     def __init__(self, message: str = "", error_code: ErrorCode = ErrorCode.DB_ERROR) -> None:
         super().__init__(error_code=error_code, message=message)
 
 
 class ParamsException(AppBaseException):
-    """参数异常"""
     def __init__(self, message: str = "") -> None:
         super().__init__(error_code=ErrorCode.PARAM_ERROR, message=message)
 
 
 class RedisException(AppBaseException):
-    """Redis 异常"""
     def __init__(self, message: str = "") -> None:
         super().__init__(error_code=ErrorCode.REDIS_ERROR, message=message)
 
@@ -628,37 +669,57 @@ class KillSwitchPausedException(ServiceException):
     def __init__(self, message: str = "") -> None:
         super().__init__(message=message, error_code=ErrorCode.KILL_SWITCH_PAUSED)
 
-
 class RiskRejectedException(ServiceException):
     def __init__(self, message: str = "") -> None:
         super().__init__(message=message, error_code=ErrorCode.RISK_REJECTED)
-
 
 class IdempotencyConflictException(ServiceException):
     def __init__(self, message: str = "") -> None:
         super().__init__(message=message, error_code=ErrorCode.IDEMPOTENCY_CONFLICT)
 
-
 class InsufficientBalanceException(ServiceException):
     def __init__(self, message: str = "") -> None:
         super().__init__(message=message, error_code=ErrorCode.INSUFFICIENT_BALANCE)
 
-
 class ExchangeApiException(ServiceException):
     def __init__(self, message: str = "") -> None:
         super().__init__(message=message, error_code=ErrorCode.EXCHANGE_API_ERROR)
-
 
 class LLMResponseInvalidException(ServiceException):
     def __init__(self, message: str = "") -> None:
         super().__init__(message=message, error_code=ErrorCode.LLM_RESPONSE_INVALID)
 ```
 
+**自动记日志的行为**：
+
+```python
+# 业务代码（src/services/execution/execution_guard.py:87）
+raise RiskRejectedException("日内亏损达 3.2% > 3%")
+
+# 日志输出（一行，含完整定位信息）：
+# 2026-04-30 10:23:45 ERROR [RiskRejectedException] code=600002 msg=日内亏损达 3.2% > 3% \
+#   at /app/src/services/execution/execution_guard.py:87 in check_daily_loss()
+#
+# extra 结构化字段（供日志聚合 / 告警过滤用）：
+#   {
+#     "exc_class": "RiskRejectedException",
+#     "exc_code": "600002",
+#     "exc_file": "/app/src/services/execution/execution_guard.py",
+#     "exc_lineno": 87,
+#     "exc_func": "check_daily_loss"
+#   }
+```
+
 **抛错规范**：
 - CRUD 层（`get` 不存在）→ 抛 `DBException(error_code=ErrorCode.NOT_FOUND)`
-- Service 层业务规则违反 → 抛 `ServiceException(message="...")` 或具体子类
+- Service 层业务规则违反 → 抛 `ServiceException(...)` 或具体子类
 - 参数非法 → 抛 `ParamsException("xxx 不能为空")`
-- 业务代码**禁止就地** `class XxxError(Exception)`，需要新语义就在 `errors.py` 增子类
+- 业务代码**禁止就地** `class XxxError(Exception)`，需要新语义在 `errors.py` 增子类
+- **重抛时禁止双记**：`except DBException: raise` 不要再 `logger.exception()`；需要补上下文用 `logger.error(..., extra={...})` 不要 raise 新异常
+
+**完整 traceback 兜底**：`__init__` 里 `sys.exc_info()` 为空，无法记 traceback。完整 traceback 由全局 exception handler / scheduler 任务包装器在 except 块中通过 `exc_info=exc` 记录（详见 §4.6.5）。两层日志通过 `exc_class + trace_id` 关联：抛出点定位 raise 行，handler 端补 request 上下文 + 完整调用栈。
+
+**测试静音**：`tests/conftest.py` 加 `monkeypatch.setattr(AppBaseException, "auto_log", False)`，避免 `pytest.raises` 触发的日志污染输出。
 
 #### 4.6.4 `@api_response()` 装饰器
 
