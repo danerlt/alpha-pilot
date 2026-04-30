@@ -34,7 +34,7 @@ def test_settings_safe_placeholders_for_tests(monkeypatch):
     assert s.BINANCE_API_SECRET == "test-binance-api-secret"
     assert s.LLM_API_KEY == "test-llm-api-key"
     assert s.DATABASE_URL == "sqlite:///./alphapilot.db"
-    assert s.REDIS_URL == "redis://localhost:6379/0"
+    assert s.REDIS_URL == "redis://localhost:6389/0"  # docker-compose 映射端口
 
 
 def test_trading_mode_enum():
