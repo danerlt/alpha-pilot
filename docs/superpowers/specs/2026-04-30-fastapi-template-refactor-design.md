@@ -241,7 +241,7 @@ backend/
         ├── redis.py                        # redis_client + 锁工具
         ├── time.py                         # 北京时间工具
         ├── uuid.py
-        ├── trace_id.py
+        ├── request_id.py                # HTTP 链路 X-Request-ID 读取工具（不是业务幂等 trace_id）
         ├── json.py                         # 自定义 JSON 编解码（datetime/Enum/Decimal）
         └── serializers.py                  # FastAPI 响应类（如有特殊定制）
 ```
@@ -260,7 +260,8 @@ backend/
 │   职责:                       │   职责:                            │
 │   - FastAPI HTTP 服务         │   - APScheduler 调度策略循环/监控  │
 │   - WebSocket /ws            │   - SQLAlchemyJobStore (PG)        │
-│   - Redis Pub/Sub 订阅广播   │   - BlockingScheduler 单进程       │
+│   - Redis Pub/Sub 订阅广播   │   - APScheduler 后台线程 + 主线程 │
+│                              │     BRPOP 消费任务队列            │
 │   - lifespan 不启动 scheduler│   - 业务直接执行（不分发到 worker）│
 │                              │                                    │
 │   uvicorn workers=N (按 CPU) │   单实例运行（无 leader 选举）     │
@@ -477,6 +478,76 @@ order_execution_service = OrderExecutionService()
 
 **跨领域编排**：放在领域语义最强的 service 里（如完整策略循环放 `services/strategy/pipeline.py`，因为这是策略域的"主流程"）。
 
+**事件总线接口约定**（`src/services/event_bus.py`）：
+
+```python
+# src/common/events.py — 所有事件的基类
+class BaseEvent(BaseModel):
+    user_id: int | None = None
+    request_id: str | None = None              # HTTP 链路 ID（如有）
+    occurred_at: datetime = Field(default_factory=TimeUtils.now)
+
+# 业务事件示例
+class StrategyDecisionEvent(BaseEvent):
+    decision_id: int
+    symbol: str
+    action: str
+
+class OrderCreatedEvent(BaseEvent):
+    order_id: int
+    decision_id: int
+    symbol: str
+
+class TaskStateChangedEvent(BaseEvent):
+    task_id: int
+    status: str                                # running/done/failed
+    result: dict | None = None
+    error: str | None = None
+
+class TaskProgressEvent(BaseEvent):
+    task_id: int
+    progress: int                              # 0-100
+    current_item: dict | None = None
+
+
+# src/services/event_bus.py
+class EventBusService:
+    def publish(self, session: Session, event: BaseEvent) -> None:
+        """写 outbox 表（持久化）。后续由 EventShuttle worker 异步推送到
+        Redis Pub/Sub（确保不丢消息），api 进程的 redis_to_ws_broadcaster 协程
+        消费 Redis Pub/Sub 转发给 WebSocket 客户端。
+
+        约定：本方法**不 commit**，commit 由调用方（service 编排层）控制；
+              这样事件落库与业务数据写入处于同一事务，保证原子性。
+        """
+        outbox_crud.add(
+            session,
+            event_type=type(event).__name__,
+            payload=event.model_dump(mode="json"),
+            user_id=event.user_id,
+            status="pending",
+        )
+
+event_bus_service = EventBusService()
+```
+
+**事件流向链路**：
+```
+Service 层
+  ↓ event_bus_service.publish(session, event)  [写 outbox 表]
+  ↓ session.commit()                            [业务数据 + outbox 同事务提交]
+
+EventShuttle worker（独立 daemon thread / scheduler job）
+  ↓ 扫描 outbox.status=pending
+  ↓ 推送到 Redis Pub/Sub channel "alphapilot:events"
+  ↓ 标记 outbox.status=published
+
+api 进程（每个 worker 各一个协程）
+  ↓ redis_to_ws_broadcaster 订阅 Redis channel
+  ↓ 按 event.user_id 路由到对应 WebSocket 连接
+  ↓ ws.send_json(event)
+```
+
 ### 4.5 Controller 层（`src/controllers/api/v1/{domain}/`）
 
 ```python
@@ -520,6 +591,33 @@ def close_position(position_id: str, session: CurrentSession) -> PositionRead:
 | service 之间传递的内部 dataclass | 业务名（无后缀） | `DecisionContext`, `GuardCheckResult`（放 `src/common/dataclasses.py`） |
 
 **禁止使用的命名后缀**：`xxxVO`（Java 风）、`xxxDTO`（Java 风）、`xxxRes`（缩写违反 PEP 20）、`xxxResponse`（与外层 `Response[T]` envelope 撞名）、`xxxSchema`（过于宽泛）。
+
+**`Paginated[T]` 泛型分页响应**（`src/common/schemas/pagination.py`）：
+
+```python
+from typing import Generic, TypeVar
+from pydantic import BaseModel, Field
+
+T = TypeVar("T")
+
+class Paginated(BaseModel, Generic[T]):
+    items: list[T] = Field(default_factory=list, description="当前页数据列表")
+    total: int = Field(0, description="总条数")
+    page_index: int = Field(1, description="当前页码（1-based）")
+    page_size: int = Field(20, description="每页大小")
+    pages: int = Field(0, description="总页数 = ceil(total / page_size)")
+```
+
+使用：`@router.get("", response_model=Response[Paginated[OrderRead]])`。
+
+**字段语义（强制）**：
+- `items` —— 当前页的数据列表
+- `total` —— 总条数
+- `page_index` —— 当前页码（1-based，第一页 = 1）
+- `page_size` —— 每页大小
+- `pages` —— 总页数（向上取整）
+
+入参方向（`xxxQuery` 类）也用 `page_index` / `page_size` 命名，保持读写对称。
 
 ### 4.6 响应/异常体系（严格按模板 §8）
 
@@ -616,10 +714,11 @@ class AppBaseException(Exception):
             self._auto_log()
 
     def _auto_log(self) -> None:
-        """统一 ERROR 级；显式提取真实 raise 行的文件名 + 行号 + trace_id + 调用栈。
+        """统一 ERROR 级；显式提取真实 raise 行的文件名 + 行号 + request_id + 调用栈。
 
         - sys._getframe(2) 取栈帧：0=_auto_log, 1=__init__, 2=raise 该异常的业务代码行
-        - trace_id 从 starlette-context（HTTP）/ contextvars（scheduler）读取，无则 "-"
+        - request_id 从 asgi-correlation-id（HTTP 链路）/ contextvars（scheduler 链路）读取，无则 "-"
+          注意：这里的 request_id 指 HTTP 请求追踪 ID（X-Request-ID），与业务幂等 trace_id（如 Order.trace_id）不同
         - traceback.format_stack() 抓当前调用栈（call stack 等价于 raise 时即将传播的 traceback）
         - 本方法是该异常的**唯一日志记录点** —— 全局 handler 不再重复记录
         """
@@ -628,17 +727,17 @@ class AppBaseException(Exception):
         lineno = frame.f_lineno
         funcname = frame.f_code.co_name
 
-        from src.utils.trace_id import get_trace_id   # 延迟 import 避免循环依赖
-        trace_id = get_trace_id() or "-"
+        from src.utils.request_id import get_request_id   # 延迟 import 避免循环依赖
+        request_id = get_request_id() or "-"
 
         # 抓调用栈（去掉 _auto_log + __init__ 两帧）
         stack_str = ""
         if self.auto_log_stack:
             stack_str = "".join(tb_mod.format_stack()[:-2])
 
-        log_fmt = "[%s] code=%s msg=%s at %s:%d in %s() trace_id=%s"
+        log_fmt = "[%s] code=%s msg=%s at %s:%d in %s() request_id=%s"
         log_args: list = [type(self).__name__, self.code, self.message,
-                          filename, lineno, funcname, trace_id]
+                          filename, lineno, funcname, request_id]
         if stack_str:
             log_fmt += "\nCall stack:\n%s"
             log_args.append(stack_str)
@@ -652,7 +751,7 @@ class AppBaseException(Exception):
                 "exc_file": filename,
                 "exc_lineno": lineno,
                 "exc_func": funcname,
-                "trace_id": trace_id,
+                "request_id": request_id,
             },
         )
 
@@ -714,7 +813,7 @@ raise RiskRejectedException("日内亏损达 3.2% > 3%")
 
 # 日志输出（一条记录，含定位 + 调用栈）：
 2026-04-30 10:23:45 ERROR [RiskRejectedException] code=600002 msg=日内亏损达 3.2% > 3% \
-  at /app/src/services/execution/execution_guard.py:87 in check_daily_loss() trace_id=abc-123
+  at /app/src/services/execution/execution_guard.py:87 in check_daily_loss() request_id=550e8400e29b41d4a716446655440000
 Call stack:
   File "/app/scripts/start_api.py", line 5, in <module>
     main()
@@ -728,7 +827,7 @@ Call stack:
 # extra 结构化字段（供日志聚合 / 告警过滤用）：
 #   {"exc_class": "RiskRejectedException", "exc_code": "600002",
 #    "exc_file": "/app/src/services/execution/execution_guard.py", "exc_lineno": 87,
-#    "exc_func": "check_daily_loss", "trace_id": "abc-123"}
+#    "exc_func": "check_daily_loss", "request_id": "550e8400e29b41d4a716446655440000"}
 ```
 
 **Stack 控制**（按异常子类配置）：
@@ -758,7 +857,7 @@ ERROR [IdempotencyConflictException] code=600003 ... at order.py:120 ...
 
 **唯一日志记录点（核心约束）**：
 - **每个异常恰好 1 条 ERROR 日志，永不重复**
-- `AppBaseException` 子类：`_auto_log` 在抛出点记一行，含定位 + trace_id；全局 handler **不再 logger.error()**，仅做 JSON 响应转换
+- `AppBaseException` 子类：`_auto_log` 在抛出点记一行，含定位 + request_id；全局 handler **不再 logger.error()**，仅做 JSON 响应转换
 - 未识别的 `Exception`（非 `AppBaseException` 子类）：由全局 handler 兜底记一行 + 完整 traceback（详见 §4.6.5）
 - traceback 不在 `auto_log` 里记（`__init__` 时 `sys.exc_info()` 为空），也不通过 handler 重复记 `AppBaseException`；如果排查需要完整调用栈，靠 `exc_file:exc_lineno` + 业务代码定位即可（pytest / debugger 可重现）
 
@@ -774,19 +873,29 @@ def api_response(schema: Any = None) -> Callable:
     def decorator(fn: Callable) -> Callable:
         @functools.wraps(fn)
         def wrapper(*args: Any, **kwargs: Any) -> Response:
-            try:
-                raw = fn(*args, **kwargs)
-                payload = to_schema(raw, schema)        # ORM → Pydantic 自动转
-                return response_base.success(data=payload)
-            except AppBaseException as exc:
-                logger.exception(f"[{type(exc).__name__}] {fn.__module__}.{fn.__qualname__} -> {exc.message}")
-                raise
-            except Exception:
-                logger.exception(f"[Unexpected] {fn.__module__}.{fn.__qualname__}")
-                raise
+            raw = fn(*args, **kwargs)                  # 业务异常直接抛出，由 handler 处理
+            payload = to_schema(raw, schema)            # ORM → Pydantic 自动转
+            return response_base.success(data=payload)
         return wrapper
     return decorator
+
+
+def to_schema(raw: Any, schema: type[BaseModel] | None) -> Any:
+    """ORM → Pydantic 自动转换。支持 None / dict / BaseModel / ORM 实例 / list / Paginated。
+
+    schema 由 controller 函数签名的返回类型注入，或显式传给装饰器：
+        @api_response(schema=PositionRead)
+    """
+    if raw is None or schema is None:
+        return raw
+    if isinstance(raw, BaseModel):
+        return raw                                      # 已经是 Pydantic schema
+    if isinstance(raw, list):
+        return [schema.model_validate(item) for item in raw]
+    return schema.model_validate(raw)                   # ORM model → Pydantic
 ```
+
+注：装饰器**不再 try/except** —— 业务异常的日志由 `AppBaseException._auto_log` 自记，未识别异常由全局 exception handler 兜底（详见 §4.6.5）。装饰器只做"成功响应包装"。
 
 #### 4.6.5 全局 Exception Handler（`src/common/exception/exception_handler.py`）
 
@@ -794,7 +903,7 @@ def api_response(schema: Any = None) -> Callable:
 
 | Handler | 处理对象 | 是否记日志 | 行为 |
 |---------|----------|----------|------|
-| `AppBaseException` | 所有自定义业务异常 | ❌ **不记**（auto_log 已记） | HTTP 200 + body `{success: false, code, message, trace_id}` |
+| `AppBaseException` | 所有自定义业务异常 | ❌ **不记**（auto_log 已记） | HTTP 200 + body `{success: false, code, message, request_id}` |
 | `RequestValidationError` | FastAPI 请求体校验 | ⚠️ INFO（非 error，客户端问题） | HTTP 200 + `VALIDATION_ERROR`，dev 环境携带完整 errors 列表 |
 | `ValidationError` | Pydantic 模型校验 | ⚠️ INFO | 同上 |
 | `ValueError` | 业务参数非法 | ⚠️ INFO | HTTP 200 + `PARAM_ERROR` |
@@ -813,9 +922,16 @@ async def app_exc_handler(request: Request, exc: AppBaseException) -> JSONRespon
             "code": exc.code,
             "message": exc.message,
             "data": None,
-            "trace_id": current_trace_id(),
+            "request_id": current_request_id(),
         },
     )
+
+# current_request_id() 来自 src/utils/request_id.py：
+# from asgi_correlation_id import correlation_id
+# def get_request_id() -> str | None:
+#     """HTTP 链路返回 32 字符 hex（UUID 去横线）；scheduler 链路无值返 None"""
+#     return correlation_id.get()
+# def current_request_id() -> str: return get_request_id() or "-"
 
 # 未识别异常：记 ERROR + traceback（这类没有 auto_log）
 @app.exception_handler(Exception)
@@ -824,7 +940,7 @@ async def unhandled_exc_handler(request: Request, exc: Exception) -> JSONRespons
         "[Unhandled] %s %s — %s",
         request.method, request.url.path, str(exc),
         exc_info=exc,                    # 完整 traceback
-        extra={"trace_id": current_trace_id(), "method": request.method, "path": request.url.path},
+        extra={"request_id": current_request_id(), "method": request.method, "path": request.url.path},
     )
     return JSONResponse(
         status_code=200,
@@ -833,7 +949,7 @@ async def unhandled_exc_handler(request: Request, exc: Exception) -> JSONRespons
             "code": ErrorCode.SYS_ERROR.code,
             "message": ErrorCode.SYS_ERROR.msg,
             "data": None,
-            "trace_id": current_trace_id(),
+            "request_id": current_request_id(),
         },
     )
 ```
@@ -858,16 +974,36 @@ app.add_middleware(ErrorLoggingMiddleware)            # 内层：捕获未处理
 app.add_middleware(RequestLoggingMiddleware)          # 中层：req/resp 时间 + 路径日志
 if configs.ENABLE_CORS:
     app.add_middleware(CORSMiddleware, ...)
-app.add_middleware(CorrelationIdMiddleware,           # 最外层：X-Request-ID 注入
-                   header_name="X-Request-ID",
-                   update_request_header=True)
+
+from src.utils.uuid import get_uuid_without_hyphen     # 复用现有 utils
+app.add_middleware(
+    CorrelationIdMiddleware,                          # 最外层：X-Request-ID 注入
+    header_name="X-Request-ID",
+    generator=get_uuid_without_hyphen,                # 强制：UUID 去横线版（32 字符 hex）
+    update_request_header=True,
+)
 ```
 
-`trace_id`（`X-Request-ID`）通过 `starlette-context` 在请求生命周期内可读，注入到 `Response[T]` 与日志中。
+`request_id`（HTTP 头 `X-Request-ID`）通过 `asgi-correlation-id` 中间件注入 ContextVar，在请求生命周期内任意位置可读（`src.utils.request_id.get_request_id()`），注入到 `Response[T]` body 与所有日志的 `extra` 字段中。
+
+**`request_id` 格式约定（强制）**：
+- **UUID4 去横线**（`uuid4().hex` / `get_uuid_without_hyphen()`），32 字符 hex 字符串
+- 例：`550e8400e29b41d4a716446655440000`（不是 `550e8400-e29b-41d4-a716-446655440000`）
+- 与项目现有主键生成器一致；前端 / 日志聚合系统 grep 时无需处理横线
+- 客户端如果在 `X-Request-ID` 头主动传入，需自行保证格式一致（中间件不强校验，但日志会反映传入值）
+
+**与业务幂等键 `trace_id` 的区分**（项目内严格遵守）：
+
+| 字段 | 用途 | 来源 / 生成 | 类型 |
+|------|------|-----------|------|
+| `request_id` | HTTP 请求链路追踪 | CorrelationId 中间件，每次请求生成 UUID | str（uuid4） |
+| `Order.trace_id`（业务幂等键） | 防重复下单 | `SHA256(decision_id:symbol:action)` | `String(64)` |
+
+两者不互相替代、不互相覆盖；命名清晰避免歧义。
 
 ### 4.8 Scheduler 进程
 
-scheduler 部署为 docker-compose 的单容器（`replicas: 1`），不引入 leader 选举，启动逻辑极简。
+scheduler 部署为 docker-compose 的单容器（`replicas: 1`），不引入 leader 选举。**单 Python 进程同时承担两个职责**：APScheduler（后台线程跑定时任务）+ Redis BRPOP（主线程阻塞消费异步任务队列）。
 
 #### 4.8.1 `scripts/start_scheduler.py`
 
@@ -875,13 +1011,26 @@ scheduler 部署为 docker-compose 的单容器（`replicas: 1`），不引入 l
 from src.utils.log import init_logger
 init_logger("scheduler", "scheduler.log")
 
-from src.configs import configs
-from apscheduler.schedulers.blocking import BlockingScheduler
+import json
+import logging
+import signal
+import threading
+import time
+
+from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 
+from src.configs import configs
+from src.db.session import get_db_session
+from src.utils.redis import get_redis_client
 
-def main() -> None:
-    scheduler = BlockingScheduler(
+logger = logging.getLogger("scheduler")
+_stop_flag = threading.Event()
+
+
+def _setup_scheduler() -> BackgroundScheduler:
+    """启动 APScheduler 后台线程，注册定时任务。"""
+    scheduler = BackgroundScheduler(
         jobstores={
             "default": SQLAlchemyJobStore(
                 url=configs.db_uri,
@@ -891,7 +1040,7 @@ def main() -> None:
         job_defaults={
             "coalesce": True,           # 错过的多次触发合并为 1 次
             "misfire_grace_time": 60,   # 容忍 60s misfire
-            "max_instances": 1,         # 同一 job 不并发（重要：避免策略循环重叠）
+            "max_instances": 1,         # 同一 job 不并发（避免策略循环重叠）
         },
     )
 
@@ -908,8 +1057,58 @@ def main() -> None:
         seconds=configs.POSITION_MONITOR_INTERVAL_SECONDS,
         id="position_monitor", replace_existing=True,
     )
+    scheduler.start()
+    logger.info("APScheduler started in background thread")
+    return scheduler
 
-    scheduler.start()  # 阻塞
+
+def _consume_task_queue() -> None:
+    """主线程阻塞消费 Redis 异步任务队列。"""
+    from src.services.task_dispatcher import task_dispatcher_service
+
+    redis_client = get_redis_client()
+    queue_key = configs.TASK_QUEUE_KEY  # 默认 "alphapilot:tasks"
+
+    logger.info("Task queue consumer started; queue=%s", queue_key)
+    while not _stop_flag.is_set():
+        try:
+            # 短 timeout 让循环能定期感知 stop_flag，便于 graceful shutdown
+            item = redis_client.brpop(queue_key, timeout=1)
+            if item is None:
+                continue
+            task = json.loads(item[1])
+            with get_db_session() as session:
+                task_dispatcher_service.execute(session, task)
+        except Exception:
+            # 仅捕获未识别异常 + 兜底记一次（AppBaseException 已 auto_log）
+            logger.exception("task queue loop unhandled error")
+            time.sleep(1)  # 避免疯狂重试
+
+
+def _recover_orphan_tasks() -> None:
+    """启动时清理上次崩溃留下的孤儿任务。"""
+    from src.services.task_dispatcher import task_dispatcher_service
+    with get_db_session() as session:
+        task_dispatcher_service.recover_orphans(session)
+
+
+def _install_signal_handlers() -> None:
+    def _on_signal(*_):
+        logger.info("Received signal, exiting gracefully...")
+        _stop_flag.set()
+    signal.signal(signal.SIGTERM, _on_signal)
+    signal.signal(signal.SIGINT, _on_signal)
+
+
+def main() -> None:
+    _install_signal_handlers()
+    _recover_orphan_tasks()
+    scheduler = _setup_scheduler()
+    try:
+        _consume_task_queue()       # 主线程阻塞
+    finally:
+        scheduler.shutdown(wait=False)
+        logger.info("Scheduler container exiting")
 
 
 if __name__ == "__main__":
@@ -917,9 +1116,21 @@ if __name__ == "__main__":
 ```
 
 **关键点**：
-- 容器进程只此一个，scheduler 直接 `start()` 阻塞运行；容器异常退出时由 Docker `restart: always` 拉起
+- **`BackgroundScheduler`（不是 `BlockingScheduler`）**：APScheduler 在后台线程跑，主线程才能跑 `_consume_task_queue` 阻塞 BRPOP
+- **同一 Python 进程承担两个职责**：定时任务（后台线程）+ 异步任务消费（主线程），共享同一个 SQLAlchemy engine 与 Redis 连接池
+- **graceful shutdown**：BRPOP 用 `timeout=1` 短轮询让循环能感知 `_stop_flag`；SIGTERM 触发 `_stop_flag.set()`，主循环退出 → `scheduler.shutdown()`
 - `replace_existing=True`：每次启动覆盖 PG `apscheduler_jobs` 表里的 job 定义，避免代码改了 interval 但 DB 里仍是旧值
-- `apscheduler_jobs` 表由 SQLAlchemyJobStore 自动建表（首次启动时）；alembic 不管理这张表（在 `env.py` 通过 `include_object` 排除）
+- `apscheduler_jobs` 表由 SQLAlchemyJobStore 自动建表（首次启动时）；alembic 通过 `env.py::include_object` 排除该表
+
+```python
+# src/db/migrations/env.py — 排除 apscheduler_jobs
+def include_object(object, name, type_, reflected, compare_to):
+    if type_ == "table" and name == "apscheduler_jobs":
+        return False  # 该表由 SQLAlchemyJobStore 自动管理，不进 alembic
+    return True
+
+context.configure(target_metadata=Base.metadata, include_object=include_object, ...)
+```
 
 #### 4.8.2 Scheduler 与业务的解耦
 
@@ -1047,11 +1258,125 @@ def login(body: LoginCreate, bg: BackgroundTasks, session: CurrentSession) -> Lo
 - 不要执行长任务（> 5s）；长任务用 4.9.1
 - 不要在 BackgroundTasks 里 commit 业务数据；commit 应该已经在 endpoint 同步段完成
 
-### 4.10 WebSocket（保留现状，迁移代码位置）
+### 4.10 日志 formatter 配置（让 extra 字段真正显示出来）
 
-- `web` 进程的 `lifespan` 启动 `redis_subscriber` 异步任务（Redis Pub/Sub → WebSocket 广播）
-- WebSocket 路由从 `src/app/websocket.py` 迁移到 `src/controllers/system/websocket.py`（或保留独立位置）
-- payload 不走 `Response[T]` envelope，直接推送事件结构
+异常 `_auto_log` 在 `extra` 里输出 `request_id` / `exc_class` / `exc_code` 等字段，**只有 logger formatter 配置消费这些字段时才会出现在日志输出里**。本节给出统一 formatter 与 ContextFilter，确保字段不丢。
+
+```python
+# src/utils/log.py
+import logging
+from src.utils.request_id import get_request_id
+
+
+class ContextFilter(logging.Filter):
+    """为每条 log record 自动注入 request_id；缺失则填 '-'。"""
+    def filter(self, record: logging.LogRecord) -> bool:
+        if not hasattr(record, "request_id"):
+            record.request_id = get_request_id() or "-"
+        return True
+
+
+LOG_FORMAT = (
+    "%(asctime)s %(levelname)-8s [%(name)s] "
+    "request_id=%(request_id)s "
+    "%(filename)s:%(lineno)d %(funcName)s | %(message)s"
+)
+
+
+def init_logger(name: str = "app", file_name: str | None = None) -> None:
+    """统一日志初始化入口，api/scheduler 都调用一次。"""
+    fmt = logging.Formatter(LOG_FORMAT)
+    handlers: list[logging.Handler] = [logging.StreamHandler()]
+    if file_name:
+        handlers.append(logging.FileHandler(f"logs/{file_name}", encoding="utf-8"))
+    for h in handlers:
+        h.setFormatter(fmt)
+        h.addFilter(ContextFilter())                # 关键：让 %(request_id)s 永远有值
+    logging.basicConfig(level=logging.INFO, handlers=handlers, force=True)
+
+
+def get_logger(name: str) -> logging.Logger:
+    return logging.getLogger(name)
+```
+
+**约定**：
+- formatter 强制包含 `request_id` 字段（`%(request_id)s`）
+- 业务代码调 `logger.info("...", extra={"order_id": 1234})` 添加结构化字段
+- 异常 `_auto_log` 的 `extra` 字段（`exc_class` / `exc_code` 等）暂不进入文本格式（避免行太长），**只通过 JSON 日志聚合系统（如 Loki / ES）按字段查询**
+
+### 4.11 WebSocket（多 worker 兼容设计）
+
+api 多 worker 场景下，每个 worker 进程独立维护 WebSocket 连接 + 独立订阅 Redis Pub/Sub。**不需要"全局连接表"**，因为每个 ws 连接天然只属于一个 worker（接收 upgrade 请求的那个）。多个 worker 各自订阅 Redis 同一 channel 不会重复推送给同一连接（因为每个连接只在一个 worker 内）。
+
+```python
+# src/services/ws_manager.py
+class WSConnectionManager:
+    """单 worker 进程内的 WebSocket 连接管理。多 worker = 多个独立 Manager 实例。"""
+
+    def __init__(self) -> None:
+        self._connections: dict[int, set[WebSocket]] = defaultdict(set)  # user_id → ws set
+
+    async def register(self, user_id: int, ws: WebSocket) -> None:
+        await ws.accept()
+        self._connections[user_id].add(ws)
+
+    def unregister(self, user_id: int, ws: WebSocket) -> None:
+        self._connections.get(user_id, set()).discard(ws)
+
+    async def broadcast_to_user(self, user_id: int, event: dict) -> None:
+        """向指定用户的所有连接（多个浏览器 tab）推送事件。本 worker 内的连接才推；
+        其它 worker 收到同一 Redis 消息会推自己 worker 内的连接。"""
+        dead: list[WebSocket] = []
+        for ws in self._connections.get(user_id, set()):
+            try:
+                await ws.send_json(event)
+            except Exception:
+                dead.append(ws)
+        for ws in dead:
+            self._connections[user_id].discard(ws)
+
+
+ws_manager = WSConnectionManager()
+
+
+# src/controllers/system/websocket.py
+@router.websocket("/ws")
+async def ws_endpoint(ws: WebSocket, current_user: WSAuthUser):
+    await ws_manager.register(current_user.id, ws)
+    try:
+        while True:
+            await ws.receive_text()                # keepalive / 客户端心跳
+    except WebSocketDisconnect:
+        ws_manager.unregister(current_user.id, ws)
+
+
+# src/app.py — lifespan 启动 Redis 订阅协程（每个 worker 一份）
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    task = asyncio.create_task(redis_to_ws_broadcaster())
+    try:
+        yield
+    finally:
+        task.cancel()
+
+
+async def redis_to_ws_broadcaster() -> None:
+    """订阅 Redis Pub/Sub，将事件分发到本 worker 的 WebSocket 连接。"""
+    pubsub = await get_async_redis().pubsub()
+    await pubsub.subscribe("alphapilot:events")
+    async for msg in pubsub.listen():
+        if msg.get("type") != "message":
+            continue
+        event = json.loads(msg["data"])
+        user_id = event.get("user_id")
+        if user_id is not None:
+            await ws_manager.broadcast_to_user(user_id, event)
+```
+
+**WebSocket payload 不走 `Response[T]` envelope**（仅 HTTP 走 envelope），直接推送事件结构：
+```json
+{"type": "task_state_changed", "task_id": 123, "status": "done", "result": {...}, "user_id": 1, "occurred_at": "..."}
+```
 
 ---
 
@@ -1124,9 +1449,10 @@ strategy_pipeline_service = StrategyPipelineService()
 - 拆 `src/db/{engines,session,migrate}.py`
 - 配置类拆 8 个子类多继承（`src/configs/app_configs.py` 重写）
 - 引入 `src/common/{response,exception,pagination,enums,constants,schema,api_response}/`（**仅建立工具，不强制使用**）
-- 引入 `src/utils/{log,redis,time,uuid,trace_id,json,serializers}/`
+- 引入 `src/utils/{log,redis,time,uuid,request_id,json,serializers}/`
 - 引入 `src/middleware/{request_logging,error_logging}/`
-- `src/app/app.py` 中间件栈注入 CorrelationId / RequestLogging / ErrorLogging（**响应/异常体系不变**）
+- **`src/app/app.py` 提级为 `src/app.py`**（FastAPI 应用工厂；模板规定 src 内唯一启动文件就是 `src/app.py`）；保留 `src/app/` 子目录暂存 `routers/` 等文件，阶段 4 重组 controllers 时再清理
+- `src/app.py` 中间件栈注入 CorrelationId / RequestLogging / ErrorLogging（**响应体格式 / 异常处理保持当前行为**，仅注入 request_id 与 access log）
 - 现有 `src/shared/db.py` 改成转发 wrapper（指向 `src/db/session.py`），逐步废弃
 
 **验收**：
@@ -1177,7 +1503,7 @@ strategy_pipeline_service = StrategyPipelineService()
 - 所有 controller 加 `@api_response()` 装饰器，返回 `Response[T]`
 - 引入业务异常树（`AppBaseException` / `ServiceException` / `DBException` / `ParamsException` + 业务专属如 `KillSwitchPausedException`）；现有 `HTTPException(404,...)` 全替换为对应异常（如 CRUD 不存在抛 `DBException(NOT_FOUND)`，业务规则违反抛 `ServiceException`）
 - 注册全局 exception handler
-- **前端 fetch 封装层同步升级**（解 `data` 字段、判 `code` 字段、处理 trace_id）
+- **前端 fetch 封装层同步升级**（解 `data` 字段、判 `code` 字段、处理 request_id 用于错误上报）
 - 前端所有调用点 e2e 验证
 
 **验收**：
@@ -1193,7 +1519,7 @@ strategy_pipeline_service = StrategyPipelineService()
 - `scripts/start_api.py` + `scripts/start_scheduler.py` 创建
 - `src/schedulers/{strategy_pipeline_scanner,position_monitor_scanner}.py` 创建
 - APScheduler 切 `SQLAlchemyJobStore`（PostgreSQL `apscheduler_jobs` 表，由 SQLAlchemyJobStore 首次启动时自动建表；alembic `env.py` 用 `include_object` 排除该表）
-- `src/app.py`（FastAPI 应用工厂） lifespan 移除 scheduler 启动逻辑（仅保留 WebSocket 订阅 + admin bootstrap）
+- `src/app.py`（已在阶段 1 提级到位） lifespan 移除 scheduler 启动逻辑（仅保留 WebSocket 订阅 + admin bootstrap）
 - `docker-compose.{local,dev-server,test,prod}.yml` 改造：
   - 原 `backend` service → `api` service（多 worker）
   - 新增 `scheduler` service（单容器，`replicas: 1`、`restart: always`）
@@ -1331,7 +1657,7 @@ docs/project.md
 │   - 决策与订单的 ID 关联约定
 ├── 10. 日志与可观测性
 │   - logger 命名 / 日志路径
-│   - trace_id 注入
+│   - request_id 注入（HTTP 链路；与业务幂等 trace_id 区分）
 │   - 异常分级（INFO / WARNING / ERROR）
 │   - 不打印敏感字段（API key / token / 用户密码）
 ├── 11. 测试规范
