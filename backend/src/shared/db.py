@@ -1,32 +1,28 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
-from src.shared.config import get_settings
+"""向后兼容转发；新代码应直接 import src.db.session / src.db.engines。
 
-# 模块级单例，确保连接池只创建一次
-_engine = None
-_SessionLocal = None
-
-
-def get_engine():
-    global _engine
-    if _engine is None:
-        _engine = create_engine(get_settings().DATABASE_URL, pool_pre_ping=True)
-    return _engine
+阶段 2 全面迁移完成后本文件会被删除。
+"""
+from src.db.engines import (  # noqa: F401
+    get_engine,
+    get_session_factory,
+    reset_engine,
+)
+from src.db.session import get_db, get_db_session  # noqa: F401
 
 
-def get_session_factory():
-    global _SessionLocal
-    if _SessionLocal is None:
-        # SQLAlchemy 2.x: engine 作为第一个位置参数，不用 bind=
-        _SessionLocal = sessionmaker(get_engine(), autocommit=False, autoflush=False)
-    return _SessionLocal
+# 兼容老代码 from src.shared.db import sync_engine / SessionLocal
+def __getattr__(name: str):
+    if name == "sync_engine":
+        return get_engine()
+    if name == "SessionLocal":
+        return get_session_factory()
+    raise AttributeError(name)
 
 
-def get_db() -> Session:
-    """FastAPI 依赖注入用"""
-    SessionLocal = get_session_factory()
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+__all__ = [
+    "get_engine",
+    "get_session_factory",
+    "reset_engine",
+    "get_db",
+    "get_db_session",
+]
