@@ -484,28 +484,42 @@ order_execution_service = OrderExecutionService()
 from src.common.api_response import api_response
 from src.common.response.response_schema import Response
 from src.db.session import CurrentSession
-from src.schemas.position import PositionVO
+from src.schemas.position import PositionRead
 from src.services.execution.order_execution import order_execution_service
 
 router = APIRouter(prefix="/positions", tags=["execution.positions"])
 
-@router.get("/{position_id}", response_model=Response[PositionVO])
+@router.get("/{position_id}", response_model=Response[PositionRead])
 @api_response()
-def get_position(position_id: str, session: CurrentSession) -> PositionVO:
+def get_position(position_id: str, session: CurrentSession) -> PositionRead:
     position = position_crud.get(session, position_id)   # 不存在自动抛 NotFoundError
-    return PositionVO.model_validate(position)
+    return PositionRead.model_validate(position)
 
-@router.post("/{position_id}/close", response_model=Response[PositionVO])
+@router.post("/{position_id}/close", response_model=Response[PositionRead])
 @api_response()
-def close_position(position_id: str, session: CurrentSession) -> PositionVO:
+def close_position(position_id: str, session: CurrentSession) -> PositionRead:
     position = order_execution_service.close_position_manually(session, position_id)
-    return PositionVO.model_validate(position)
+    return PositionRead.model_validate(position)
 ```
 
 **规范**：
 - controller 只做参数校验 + service 调用 + DTO 转换；**禁止写业务逻辑**
 - 所有 controller 函数加 `@api_response()` 装饰器；返回值就是 `data` 字段内容
-- 业务异常通过抛 `BizError` 子类传递；HTTPException 不再使用
+- 业务异常通过抛 `ServiceException` 等 `AppBaseException` 子类传递；`HTTPException` 不再用于业务错误
+
+**Schema 命名规范（强制）**：
+
+| 用途 | 后缀 | 示例 |
+|------|------|------|
+| 实体响应（GET 返回 / List 元素） | `xxxRead` | `PositionRead`, `OrderRead`, `DecisionRead` |
+| 创建入参（POST body） | `xxxCreate` | `OrderCreate`, `LoginCreate` |
+| 更新入参（PATCH/PUT body） | `xxxUpdate` | `OrderUpdate`, `RuntimeConfigUpdate` |
+| 非实体的操作结果 / 复合返回 | `xxxOut` | `LoginOut`（access_token 包）、`TaskSubmitOut`、`CloseAllSubmitOut` |
+| 复杂查询参数（多字段过滤） | `xxxQuery` | `OrderListQuery`, `TradeFilterQuery` |
+| 分页响应 | `Paginated[xxxRead]` | `Paginated[OrderRead]` |
+| service 之间传递的内部 dataclass | 业务名（无后缀） | `DecisionContext`, `GuardCheckResult`（放 `src/common/dataclasses.py`） |
+
+**禁止使用的命名后缀**：`xxxVO`（Java 风）、`xxxDTO`（Java 风）、`xxxRes`（缩写违反 PEP 20）、`xxxResponse`（与外层 `Response[T]` envelope 撞名）、`xxxSchema`（过于宽泛）。
 
 ### 4.6 响应/异常体系（严格按模板 §8）
 
@@ -877,7 +891,7 @@ def submit_close_all(session: CurrentSession, current_user: CurrentUser) -> dict
 ```python
 @router.post("/login")
 @api_response()
-def login(body: LoginIn, bg: BackgroundTasks, session: CurrentSession) -> LoginVO:
+def login(body: LoginCreate, bg: BackgroundTasks, session: CurrentSession) -> LoginOut:
     user = auth_service.authenticate(session, body.email, body.password)
     bg.add_task(audit_log_service.record_login, user.id, ip=body.client_ip)  # 后台执行
     return auth_service.issue_token(user)
@@ -981,7 +995,7 @@ strategy_pipeline_service = StrategyPipelineService()
 
 **范围**：
 - `shared/models/` → `src/models/`（一实体一文件，~17 个）；每个 model 第一字段为 `id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)`
-- `Base` 类去除 `id`，仅保留 `trading_mode / enable_flag / delete_flag / created_at / updated_at`
+- `Base` 类仅保留通用字段 `enable_flag / delete_flag / created_at / updated_at`；`trading_mode` 通过 `TradingModeMixin` 显式继承（按 §4.2.3 的归属规则）
 - 所有跨表关联列（`Order.position_id`、`Position.decision_id`、`Trade.decision_id`、`RiskEvent.decision_id` 等）改 `BigInteger`
 - 引入 `src/cruds/base_crud.py` + 一实体一 crud（~17 个）；CRUD 层不存在抛 `DBException(NOT_FOUND)`
 - `src/schemas/` 平铺迁移
@@ -1016,7 +1030,7 @@ strategy_pipeline_service = StrategyPipelineService()
 **范围**：
 - `src/app/routers/*` → `src/controllers/api/v1/{domain}/*`
 - 所有 controller 加 `@api_response()` 装饰器，返回 `Response[T]`
-- 引入业务异常树（`BizError` 子类）；现有 `HTTPException(404,...)` 全替换为 `raise NotFoundError(...)`
+- 引入业务异常树（`AppBaseException` / `ServiceException` / `DBException` / `ParamsException` + 业务专属如 `KillSwitchPausedException`）；现有 `HTTPException(404,...)` 全替换为对应异常（如 CRUD 不存在抛 `DBException(NOT_FOUND)`，业务规则违反抛 `ServiceException`）
 - 注册全局 exception handler
 - **前端 fetch 封装层同步升级**（解 `data` 字段、判 `code` 字段、处理 trace_id）
 - 前端所有调用点 e2e 验证
@@ -1098,7 +1112,146 @@ strategy_pipeline_service = StrategyPipelineService()
 
 ---
 
-## 10. 后续工作（不在本次重构内）
+## 10. 项目规范文档（重要交付物）
+
+本次重构最有价值的副产物之一是沉淀**一份属于 alpha-pilot 自己的工程规范**，让所有后续 AI 协作 / 新人开发都有"宪法"可循。规范文档与代码同步演进，**每一条规范都必须在代码里有落地的载体**（不写"墙上规范"）。
+
+### 10.1 文档定位与路径
+
+- **路径**：`docs/project.md`
+- **定位**：alpha-pilot 项目的工程"宪法"，覆盖目录、命名、分层、API 契约、异常、DB、任务模型、Git 流程等
+- **与现有文档关系**：
+  - `CLAUDE.md`（项目入口）：在顶部新增强制项「**开始任何编码工作前，必须先读 `docs/project.md`**」
+  - `.claude/memory/MEMORY.md`（会话记忆索引）：补一行 `[项目工程规范](../../docs/project.md)`
+  - `docs/fastapi-project-template-v3.md`（外部模板原文）：保留作为参考来源，不替代 `project.md`
+  - `docs/worklog/`（工程过程日志）：每阶段产出对应 worklog 文件，记录"做了什么 / 为什么 / 如何验证 / commit"
+
+### 10.2 章节结构（一级目录）
+
+```
+docs/project.md
+├── 0. 阅读须知
+│   - 本文档地位（项目宪法）
+│   - 适用范围（后端 + 前端约定的接口契约部分）
+│   - 变更流程（必须 PR review）
+├── 1. 项目结构
+│   - B-Hybrid 目录布局图
+│   - 各层职责边界（Controller / Service / CRUD / Core / Model）
+│   - 文件命名规范（域路径 / 单复数 / 后缀）
+├── 2. Python 环境与依赖
+│   - Python 3.12 / uv / venv 位置
+│   - PYTHONPATH 与 import 规则（src. 开头）
+│   - 新增依赖工作流
+├── 3. 配置体系
+│   - pydantic-settings 多继承（8 个子配置类归属）
+│   - example.env 同步规则
+│   - 环境变量黑白名单
+├── 4. 数据库规范
+│   - 同步 SQLAlchemy（禁止 AsyncSession）
+│   - Base + TradingModeMixin（trading_mode 归属规则表）
+│   - 主键 BigInteger autoincrement，每个 model 第一字段
+│   - 外键禁止 + index=True
+│   - expire_on_commit=False + service 层 commit/refresh 规范
+│   - Alembic 迁移规则（必须 alembic revision，禁止手写）
+├── 5. 分层与命名规范（核心章节）
+│   - 五层职责清单
+│   - Controller / Service / CRUD / Core / Model / Schema 的类与文件命名
+│   - Schema 命名规范表（Read / Create / Update / Out / Query）
+│   - 禁用命名清单（VO / DTO / Res / Response / Schema）
+│   - import 依赖方向规则（不允许跨领域 import service）
+├── 6. API 契约
+│   - Response[T] 结构与字段含义
+│   - @api_response 装饰器使用
+│   - HTTP 状态码 vs 业务 code 区分
+│   - WebSocket payload 不走 envelope
+│   - 错误码段位（0 / 400xxx / 500xxx / 600xxx 业务专属）
+├── 7. 异常处理
+│   - AppBaseException 树
+│   - 抛错位置规范（CRUD 抛 DBException、Service 抛 ServiceException）
+│   - 业务专属异常一律 errors.py 集中
+│   - 禁止业务代码就地 class XxxError(Exception)
+├── 8. 异步任务与定时任务
+│   - api / scheduler 双容器交互模型图
+│   - 任务持久化三层（PG / Redis List / WebSocket）
+│   - task_requests 表协议与状态机
+│   - 不自动重试原则（交易系统）
+│   - api 进程禁止启动 APScheduler
+│   - 4 类后台任务场景决策表
+├── 9. 业务专属规范（alpha-pilot 特有）
+│   - 交易模式隔离（trading_mode 字段）
+│   - 幂等 trace_id 生成规则（SHA256(decision_id:symbol:action)）
+│   - 风控不可被 LLM 覆盖
+│   - LLM 兜底（解析失败一律 HOLD）
+│   - kill_switch 检查点（每个 service 入口必须检查）
+│   - 决策与订单的 ID 关联约定
+├── 10. 日志与可观测性
+│   - logger 命名 / 日志路径
+│   - trace_id 注入
+│   - 异常分级（INFO / WARNING / ERROR）
+│   - 不打印敏感字段（API key / token / 用户密码）
+├── 11. 测试规范
+│   - tests/unit / tests/integration 分层
+│   - savepoint 隔离 fixture
+│   - 测试命名 test_xxx_when_xxx_then_xxx
+│   - 覆盖率门槛与 CI 集成
+├── 12. Git 与发布流程
+│   - commit message 中文，前缀 feat/fix/refactor/docs/test/chore
+│   - 自动 push（CLAUDE.md 已有规则）
+│   - worklog 路径与格式
+│   - 阶段性 PR 拆分原则
+├── 附录 A. 决策日志（与本 spec §2 对应）
+│   - 不引入 funboost 的理由
+│   - 选同步 session 的理由
+│   - B-Hybrid 目录的理由
+│   - 主键 BigInteger autoincrement 的理由
+│   - xxxRead 命名的业界依据
+├── 附录 B. AI 协作指南
+│   - 每次任务开始前 AI 必读列表
+│   - 常见反模式清单（VO / lazy load / 跨域 service import / async session）
+│   - 如何提交 PR（commit / push / dev 部署 / worklog）
+└── 附录 C. 模板差异说明
+    - 与 docs/fastapi-project-template-v3.md 的差异表（PostgreSQL / 不引 funboost / id BigInt / 不强制单 worker 等）
+```
+
+### 10.3 产出节奏（与五阶段绑定）
+
+文档**不在重构开始前一次性写完**，而是**每阶段交付时填充对应章节**，让规范来自代码而不是反过来：
+
+| 阶段 | 该阶段产出的 `docs/project.md` 章节 |
+|------|-----------------------------------|
+| 阶段 1（基础设施） | §0 阅读须知 / §1 项目结构骨架 / §2 Python 环境 / §3 配置体系 / 附录 A 决策日志 v1 |
+| 阶段 2（DB 层） | §4 数据库规范完整版 / §5 命名规范的 Model & CRUD 部分 |
+| 阶段 3（业务层） | §5 命名规范的 Service & Core 部分 / §9 业务专属规范完整版 |
+| 阶段 4（响应/异常） | §6 API 契约 / §7 异常处理 / §5 命名规范的 Schema 部分 |
+| 阶段 5（进程拆分） | §8 异步任务 / §10 日志 / §11 测试 / §12 Git 流程 / 附录 B / 附录 C 完整版 |
+| **合并主分支前** | `CLAUDE.md` 顶部加引用、`.claude/memory/MEMORY.md` 加链接，`docs/project.md` 定稿审 |
+
+### 10.4 落地规则
+
+- **每一条规范必须有代码示例**（正例 + 反例）
+- **每一条规范必须有强制载体**（Linter 规则 / mypy 配置 / 测试 / code review checklist）
+- **变更流程**：修改 `docs/project.md` 必须走 PR，且 PR 描述里说明"为何变更"+"对存量代码的影响"
+- **AI 协作集成**：`CLAUDE.md` 顶部加：
+  ```markdown
+  ## 强制阅读
+  开始任何编码工作前，必须读取以下文档：
+  1. `docs/project.md` — 项目工程规范（宪法）
+  2. `.claude/memory/MEMORY.md` — 会话记忆索引
+  3. `CLAUDE.md` 本文 — 项目快速恢复指南
+  ```
+
+### 10.5 阶段完成验收增项
+
+`§9 验收清单（合并主分支前总验收）` 增加：
+
+- [ ] `docs/project.md` 全部章节填充完毕
+- [ ] `CLAUDE.md` 顶部添加强制阅读引用
+- [ ] `.claude/memory/MEMORY.md` 加 `docs/project.md` 链接
+- [ ] 抽样验证：随机挑 3 条规范，对应代码确实落地（不是墙上规范）
+
+---
+
+## 11. 后续工作（不在本次重构内）
 
 - 性能与可观测性章节落地（连接池监控、慢查询日志、应用层中间件计时）
 - APScheduler `RedisJobStore` 实验（如 PG JobStore 出现锁竞争问题）
