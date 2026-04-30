@@ -234,7 +234,8 @@ backend/
     ├── schedulers/
     │   ├── __init__.py
     │   ├── strategy_pipeline_scanner.py    # 调用 services/strategy/pipeline.py
-    │   └── position_monitor_scanner.py     # 调用 services/execution/monitoring.py
+    │   ├── position_monitor_scanner.py     # 调用 services/execution/monitoring.py
+    │   └── event_shuttle.py                # outbox → Redis Pub/Sub 推送 daemon（详见 §4.8.2）
     │
     └── utils/
         ├── log.py                          # init_logger / get_logger
@@ -1100,14 +1101,31 @@ def _install_signal_handlers() -> None:
     signal.signal(signal.SIGINT, _on_signal)
 
 
+def _start_event_shuttle() -> threading.Thread:
+    """启动事件总线 outbox → Redis Pub/Sub 推送 daemon thread（详见 §4.8.3）"""
+    from src.schedulers.event_shuttle import event_shuttle_loop
+    t = threading.Thread(target=event_shuttle_loop, args=(_stop_flag,),
+                         name="event-shuttle", daemon=True)
+    t.start()
+    logger.info("EventShuttle daemon thread started")
+    return t
+
+
 def main() -> None:
     _install_signal_handlers()
     _recover_orphan_tasks()
     scheduler = _setup_scheduler()
+    shuttle = _start_event_shuttle()
     try:
-        _consume_task_queue()       # 主线程阻塞
+        _consume_task_queue()       # 主线程阻塞 BRPOP
     finally:
+        # 收到 SIGTERM → stop_flag 已 set →
+        # 1. 主循环退出（不再 BRPOP 取新任务）
+        # 2. 当前正在执行的任务（如有）继续跑，直到 task_dispatcher.execute() 返回
+        # 3. EventShuttle daemon thread 自然在下一轮 sleep 后检查 stop_flag 退出
+        # 4. APScheduler shutdown（不等 in-flight job 完成，已结束的 misfire 由下次启动恢复）
         scheduler.shutdown(wait=False)
+        shuttle.join(timeout=5)
         logger.info("Scheduler container exiting")
 
 
@@ -1117,10 +1135,15 @@ if __name__ == "__main__":
 
 **关键点**：
 - **`BackgroundScheduler`（不是 `BlockingScheduler`）**：APScheduler 在后台线程跑，主线程才能跑 `_consume_task_queue` 阻塞 BRPOP
-- **同一 Python 进程承担两个职责**：定时任务（后台线程）+ 异步任务消费（主线程），共享同一个 SQLAlchemy engine 与 Redis 连接池
-- **graceful shutdown**：BRPOP 用 `timeout=1` 短轮询让循环能感知 `_stop_flag`；SIGTERM 触发 `_stop_flag.set()`，主循环退出 → `scheduler.shutdown()`
-- `replace_existing=True`：每次启动覆盖 PG `apscheduler_jobs` 表里的 job 定义，避免代码改了 interval 但 DB 里仍是旧值
-- `apscheduler_jobs` 表由 SQLAlchemyJobStore 自动建表（首次启动时）；alembic 通过 `env.py::include_object` 排除该表
+- **同一 Python 进程三个角色**：APScheduler 定时任务（后台线程）+ EventShuttle outbox 推送（daemon thread）+ Redis BRPOP 任务消费（主线程），共享同一个 SQLAlchemy engine 与 Redis 连接池
+- **graceful shutdown 策略**（Docker `stop_grace_period: 60s`）：
+  1. SIGTERM 触发 `_stop_flag.set()`
+  2. BRPOP `timeout=1` 让主循环循环感知 `stop_flag`，**不再取新任务**
+  3. 当前正在跑的任务（如有）继续跑完，**不主动中断**（保任务原子性）
+  4. 60 秒内能跑完 → 干净退出
+  5. 60 秒不完成 → Docker 发 SIGKILL → 任务在 DB 里残留 `running` 状态 → 下次启动 `_recover_orphan_tasks` 标 `failed`，**人工 review 决定是否重试**（符合"交易系统不自动重试"哲学）
+- `replace_existing=True`：每次启动覆盖 PG `apscheduler_jobs` 表里的 job 定义
+- `apscheduler_jobs` 表由 SQLAlchemyJobStore 自动建表；alembic 通过 `env.py::include_object` 排除该表
 
 ```python
 # src/db/migrations/env.py — 排除 apscheduler_jobs
@@ -1132,7 +1155,99 @@ def include_object(object, name, type_, reflected, compare_to):
 context.configure(target_metadata=Base.metadata, include_object=include_object, ...)
 ```
 
-#### 4.8.2 Scheduler 与业务的解耦
+#### 4.8.2 EventShuttle（outbox → Redis Pub/Sub 推送）
+
+业务 service 调 `event_bus_service.publish(session, event)` **只写 outbox 表**（与业务数据同事务 commit）。事件真正"广播"出去的动作由 **EventShuttle daemon thread** 完成 —— 单独跑在 scheduler 容器内（不是 api 容器，避免 N 个 worker 重复扫表）。
+
+```python
+# src/schedulers/event_shuttle.py
+import json
+import logging
+import threading
+import time
+
+from src.configs import configs
+from src.cruds import outbox_crud
+from src.db.session import get_db_session
+from src.utils.redis import get_redis_client
+
+logger = logging.getLogger("scheduler.event_shuttle")
+SHUTTLE_BATCH_SIZE = 50
+SHUTTLE_IDLE_SLEEP = 0.5            # 无待发事件时休眠 500ms（低延迟 + 低 CPU）
+
+
+def event_shuttle_loop(stop_flag: threading.Event) -> None:
+    """outbox 表 → Redis Pub/Sub 推送循环。
+    在 scheduler 容器主进程的 daemon thread 内运行；进程退出时自动结束。
+    """
+    redis = get_redis_client()
+    channel = configs.EVENT_BUS_CHANNEL          # 默认 "alphapilot:events"
+
+    while not stop_flag.is_set():
+        try:
+            published = _shuttle_one_batch(redis, channel)
+            if published == 0:
+                # 无待发事件，短休眠让 CPU 空闲
+                stop_flag.wait(SHUTTLE_IDLE_SLEEP)
+        except Exception:
+            logger.exception("event_shuttle loop unhandled error")
+            stop_flag.wait(1)  # 出错短退避，避免疯狂打日志
+
+
+def _shuttle_one_batch(redis, channel: str) -> int:
+    """取一批 pending 事件 publish 到 Redis 后标 published。
+    返回成功 publish 的事件数。
+    """
+    with get_db_session() as session:
+        events = outbox_crud.find_pending(session, limit=SHUTTLE_BATCH_SIZE)
+        if not events:
+            return 0
+        for event_row in events:
+            try:
+                redis.publish(channel, json.dumps({
+                    "type": event_row.event_type,
+                    "payload": event_row.payload,
+                    "user_id": event_row.user_id,
+                    "occurred_at": event_row.created_at.isoformat(),
+                }, ensure_ascii=False))
+                outbox_crud.mark_published(session, event_row.id)
+            except Exception as e:
+                outbox_crud.bump_failed_attempts(session, event_row.id, error=str(e))
+                if event_row.failed_attempts + 1 >= configs.EVENT_SHUTTLE_MAX_FAILED_ATTEMPTS:
+                    outbox_crud.mark_dead_letter(session, event_row.id)
+        session.commit()
+        return len(events)
+```
+
+**outbox 表 schema 关键字段**（沿用现有，确认 schema）：
+
+```python
+class Outbox(Base, TradingModeMixin):
+    id: Mapped[int]                              # BigInt autoincrement
+    event_type: Mapped[str]                       # 事件类名（StrategyDecisionEvent 等）
+    payload: Mapped[dict]                         # JSONB 事件载荷
+    user_id: Mapped[int | None]                   # 用于 ws 路由
+    status: Mapped[str]                           # pending/published/dead_letter
+    failed_attempts: Mapped[int]                  # 失败次数（达 MAX 进死信）
+    error: Mapped[str | None]                    # 最后一次失败原因
+    created_at: Mapped[datetime]
+    published_at: Mapped[datetime | None]
+```
+
+**EventShuttle 的设计权衡**：
+
+| 维度 | 设计选择 | 理由 |
+|------|---------|------|
+| 进程归属 | scheduler 容器内 daemon thread | 单实例消费，避免 api 多 worker 重复扫表；不引入 funboost / Celery 这类重型框架 |
+| 触发机制 | while loop + idle sleep 500ms | 实时性接近毫秒级；空闲时 CPU < 1% |
+| 失败重试 | `bump_failed_attempts` + max 后进 dead_letter | 不无限重试（Redis 长期不可用时不打爆日志）；dead_letter 由人工 / 后续 job 处理 |
+| 与业务事务的关系 | service `publish()` 只写 outbox，与业务同事务 commit | 业务回滚时事件自动回滚；EventShuttle 异步推 → 至少一次语义 |
+| 顺序性 | 不保证全局顺序 | 同一 user_id 的事件按 outbox.id 顺序扫，但 Redis publish 后 ws 端无强顺序保证 |
+| 死信处理 | `outbox.status=dead_letter`，定期人工 / job review | 不是高吞吐场景，dead_letter 量很少 |
+
+**与原项目 `src/workers/event_shuttle.py` 的关系**：保留逻辑、迁移到 `src/schedulers/event_shuttle.py`，去除 lifespan 启动，改由 scheduler 容器主进程拉起。
+
+#### 4.8.3 Scheduler 与业务的解耦
 
 ```python
 # src/schedulers/strategy_pipeline_scanner.py
