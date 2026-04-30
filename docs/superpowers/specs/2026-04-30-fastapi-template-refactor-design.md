@@ -298,9 +298,15 @@ class PostgreSQLConfig(BaseSettings):    # PG_USER / PG_PASSWORD / PG_HOST / PG_
                                          # 提供 db_uri property: postgresql+psycopg2://...
 class RedisConfig(BaseSettings):         # REDIS_HOST / REDIS_PORT / REDIS_DB / REDIS_PASSWORD / REDIS_KEY_PREFIX
                                          # 提供 redis_url property
-class SchedulerConfig(BaseSettings):     # STRATEGY_LOOP_INTERVAL_MINUTES / POSITION_MONITOR_INTERVAL_SECONDS
-                                         # SCHEDULER_LEADER_LOCK_KEY / SCHEDULER_LEADER_LOCK_TTL
-                                         # APSCHEDULER_JOBS_TABLE
+class SchedulerConfig(BaseSettings):     # STRATEGY_LOOP_INTERVAL_MINUTES (default 15)
+                                         # POSITION_MONITOR_INTERVAL_SECONDS (default 10)
+                                         # APSCHEDULER_JOBS_TABLE (default "apscheduler_jobs")
+                                         # TASK_QUEUE_KEY (default "alphapilot:tasks")        — Redis List 异步任务队列
+                                         # EVENT_BUS_CHANNEL (default "alphapilot:events")    — Redis Pub/Sub 频道
+                                         # EVENT_SHUTTLE_MAX_FAILED_ATTEMPTS (default 3)      — outbox 推送失败 max 后进死信
+                                         # EVENT_SHUTTLE_BATCH_SIZE (default 50)              — 每轮取多少条 outbox
+                                         # EVENT_SHUTTLE_IDLE_SLEEP_SECONDS (default 0.5)     — 无待发事件时休眠秒数
+                                         # SCHEDULER_GRACEFUL_SHUTDOWN_SECONDS (default 60)   — 与 docker-compose stop_grace_period 一致
 class ExchangeConfig(BaseSettings):      # TRADING_MODE / BINANCE_API_KEY / BINANCE_API_SECRET
 class LLMConfig(BaseSettings):           # LLM_BASE_URL / LLM_API_KEY / LLM_MODEL / LLM_TIMEOUT_SECONDS
 class RiskConfig(BaseSettings):          # MAX_POSITION_SIZE_PCT / MAX_DAILY_LOSS_PCT / MAX_CONSECUTIVE_LOSSES / MAX_SINGLE_RISK_PCT
@@ -453,7 +459,15 @@ position_crud = PositionCrud()  # 单例
 **强制规范**：
 - service 层只调 `xxx_crud.method()`，不写裸 SQL / `session.query(Model)`
 - crud 方法**不 commit**；commit 由 service 显式调用
-- 命名规范：`get_xxx`（不存在抛错）/ `get_xxx_or_none`（不存在返 None）
+- 命名规范：
+  - `get_xxx`（不存在抛 `DBException(NOT_FOUND)`）
+  - `get_xxx_or_none`（不存在返 None）
+  - `find_xxx` / `find_by_xxx`（按条件查询，返列表，不存在返空列表）
+  - `add` / `bulk_add` / `update` / `delete`（CRUD 基本操作）
+  - **状态变更动词**：`mark_<status>`（如 `mark_running` / `mark_done` / `mark_failed` / `mark_published` / `mark_dead_letter`），用于明确语义的状态机迁移
+  - **批量状态变更**：`bulk_mark_<status>` 接 `status_in=[...]` 参数
+  - **重试 / 失败次数累加**：`bump_failed_attempts(id, error: str)`
+  - **进度更新**：`update_progress(id, progress: int)`
 
 ### 4.4 Service 层（`src/services/{domain}/`）
 
@@ -854,6 +868,11 @@ ERROR [IdempotencyConflictException] code=600003 ... at order.py:120 ...
 - Service 层业务规则违反 → 抛 `ServiceException(...)` 或具体子类
 - 参数非法 → 抛 `ParamsException("xxx 不能为空")`
 - 业务代码**禁止就地** `class XxxError(Exception)`，需要新语义在 `errors.py` 增子类
+
+**关于 `ErrorCode.NOT_FOUND` 段位与 `DBException` 的语义解释**：`NOT_FOUND` 错误码是 `"400005"`（4xx 客户端错误段位），由 `DBException` 子类抛出 —— **段位 4xx vs 异常类 DBException** 不冲突：
+- 段位 4xx 表达的是"**客户端可见的错误语义**"（资源不存在 = 客户端请求的资源没有）
+- `DBException` 表达的是"**抛出位置的技术分层**"（CRUD 层抛）
+- 两者从不同角度描述同一异常，segment 决定了前端如何展示（404 风格），分层决定了代码组织
 - **重抛时禁止双记**：`except DBException: raise` 不要再 `logger.exception()`；需要补上下文用 `logger.error(..., extra={...})` 不要 raise 新异常
 
 **唯一日志记录点（核心约束）**：
@@ -1121,11 +1140,14 @@ def main() -> None:
     finally:
         # 收到 SIGTERM → stop_flag 已 set →
         # 1. 主循环退出（不再 BRPOP 取新任务）
-        # 2. 当前正在执行的任务（如有）继续跑，直到 task_dispatcher.execute() 返回
-        # 3. EventShuttle daemon thread 自然在下一轮 sleep 后检查 stop_flag 退出
-        # 4. APScheduler shutdown（不等 in-flight job 完成，已结束的 misfire 由下次启动恢复）
-        scheduler.shutdown(wait=False)
-        shuttle.join(timeout=5)
+        # 2. 当前正在执行的 BRPOP 任务（如有）继续跑，直到 task_dispatcher.execute() 返回
+        # 3. APScheduler shutdown(wait=True)：等待运行中的 job（如策略循环）执行完
+        #    避免策略循环跑到一半被强制中断（半完成状态可能留下不一致数据）
+        # 4. EventShuttle daemon thread：daemon=True 在主进程退出时被 kill，
+        #    join(timeout=5) 给它 5 秒优雅窗口（让最后一批 outbox 推送完成）
+        # 5. 整个进程在 docker stop_grace_period (60s) 内完成上述步骤；超时被 SIGKILL
+        scheduler.shutdown(wait=True)              # 等 APScheduler in-flight job 完成
+        shuttle.join(timeout=5)                    # 给 EventShuttle 5s 优雅退出
         logger.info("Scheduler container exiting")
 
 
@@ -1277,83 +1299,176 @@ scheduler 进程独占"持久化的定时任务执行权"，但 api 进程偶尔
 | **api 进程级定时任务**（WebSocket 心跳、连接清理、本地缓存刷新；与 HTTP 生命周期绑定） | `lifespan` 启动 `asyncio.create_task` | 与现有 Redis Pub/Sub 订阅同样模式；进程退出时自动取消 |
 | **必须准时触发的定时任务**（策略循环、持仓监控、日报生成） | **全部归 scheduler 进程** | 注册到 `src/schedulers/*_scanner.py`，PG JobStore 持久化 |
 
-#### 4.9.1 任务请求表方案（场景 2 详细）
+#### 4.9.1 任务请求表方案（场景 2 详细）— Redis List 队列消费
 
-适用于"用户点一个按钮触发耗时任务"，如**手动一键全平仓**、**手动重新跑日报**：
+适用于"用户点一个按钮触发耗时任务"，如**手动一键全平仓**、**手动重新跑日报**。
+
+**架构**：api 提交时**双写**（PG `task_requests` 表持久化 + Redis List 实时通知）→ scheduler 容器主线程 BRPOP 阻塞消费（毫秒级实时性）→ 执行结果写回 `task_requests` 表 + 通过 `event_bus_service` 推 WebSocket 事件。
 
 ```python
 # src/models/task_request.py
-class TaskRequest(Base):
+class TaskRequest(Base, TradingModeMixin):           # ← 任务有交易环境上下文，必须按 testnet/mainnet 隔离
     __tablename__ = "task_requests"
+
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    task_type: Mapped[str] = mapped_column(String(64), index=True)  # "close_all" / "regenerate_report" / ...
-    payload: Mapped[dict] = mapped_column(JSON)
-    status: Mapped[str] = mapped_column(String(16), index=True, default="pending")  # pending/running/done/failed
-    requested_by: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    result: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    task_type: Mapped[str] = mapped_column(String(64), index=True)
+    # 例："close_all" / "regenerate_report" / "export_trades" / "backfill_klines"
+    payload: Mapped[dict] = mapped_column(JSONB)
+    status: Mapped[str] = mapped_column(String(16), index=True, default="pending")
+    # 状态机：pending → running → done / failed
+    progress: Mapped[int] = mapped_column(Integer, default=0)              # 0-100
+    result: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    requested_by: Mapped[int | None] = mapped_column(BigInteger, nullable=True, index=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # created_at / updated_at 由 Base 提供
 ```
 
 ```python
 # src/services/task_dispatcher.py（编排服务）
 class TaskDispatcherService:
-    HANDLERS: dict[str, Callable[[Session, dict], dict]] = {
+    HANDLERS: dict[str, Callable[[Session, int, dict], dict]] = {
         "close_all": _handle_close_all,
         "regenerate_report": _handle_regenerate_report,
+        "export_trades": _handle_export_trades,
         # ...
     }
 
-    def submit(self, session, task_type, payload, user_id) -> int:
-        req = task_request_crud.add(session, task_type=task_type, payload=payload, requested_by=user_id)
+    def submit(self, session: Session, task_type: str, payload: dict, user_id: int,
+               trading_mode: str) -> int:
+        """api 调用：双写 PG 表 + Redis 队列。"""
+        req = task_request_crud.add(
+            session,
+            task_type=task_type, payload=payload, status="pending",
+            requested_by=user_id, trading_mode=trading_mode,
+        )
         session.commit()
+        get_redis_client().lpush(
+            configs.TASK_QUEUE_KEY,
+            json.dumps({"task_id": req.id, "task_type": task_type, "payload": payload}),
+        )
         return req.id
 
-    def execute_pending(self, session) -> None:
-        """scheduler 周期触发；扫描 pending 任务串行执行"""
-        for req in task_request_crud.find_pending(session, limit=10):
-            handler = self.HANDLERS.get(req.task_type)
-            if not handler:
-                task_request_crud.mark_failed(session, req.id, error="unknown task_type")
-                session.commit()
-                continue
-            try:
-                task_request_crud.mark_running(session, req.id)
-                session.commit()
-                result = handler(session, req.payload)
-                task_request_crud.mark_done(session, req.id, result=result)
-                event_bus_service.publish(session, TaskCompletedEvent(task_id=req.id, ...))
-            except Exception as exc:
-                logger.exception("task %s failed", req.id)
-                task_request_crud.mark_failed(session, req.id, error=str(exc))
+    def execute(self, session: Session, task: dict) -> None:
+        """scheduler 容器主线程从 BRPOP 拿到一条任务后调用，串行执行。"""
+        task_id = task["task_id"]
+        handler = self.HANDLERS.get(task["task_type"])
+        if handler is None:
+            task_request_crud.mark_failed(session, task_id, error=f"unknown task_type: {task['task_type']}")
             session.commit()
+            return
+
+        # 标记 running + 发"开始"事件
+        task_request_crud.mark_running(session, task_id, started_at=TimeUtils.now())
+        event_bus_service.publish(session, TaskStateChangedEvent(
+            task_id=task_id, status="running",
+            user_id=task["payload"].get("user_id"),
+        ))
+        session.commit()
+
+        try:
+            result = handler(session, task_id, task["payload"])
+            task_request_crud.mark_done(session, task_id, result=result, finished_at=TimeUtils.now())
+            event_bus_service.publish(session, TaskStateChangedEvent(
+                task_id=task_id, status="done", result=result,
+                user_id=task["payload"].get("user_id"),
+            ))
+        except ServiceException as exc:
+            task_request_crud.mark_failed(session, task_id, error=exc.message, finished_at=TimeUtils.now())
+            event_bus_service.publish(session, TaskStateChangedEvent(
+                task_id=task_id, status="failed", error=exc.message,
+                user_id=task["payload"].get("user_id"),
+            ))
+        except Exception as exc:
+            # 未识别异常：log 已由全局未识别异常 handler / scheduler 主循环兜底
+            task_request_crud.mark_failed(session, task_id, error="系统错误", finished_at=TimeUtils.now())
+            event_bus_service.publish(session, TaskStateChangedEvent(
+                task_id=task_id, status="failed", error="系统错误",
+                user_id=task["payload"].get("user_id"),
+            ))
+        session.commit()
+
+    def recover_orphans(self, session: Session) -> None:
+        """scheduler 启动时清理孤儿任务。
+        - status=pending：上次写表后崩在 LPUSH 之前 / Redis 队列丢消息 → 重新推回队列
+        - status=running：上次崩在执行中 → 标 failed（交易系统不自动重试，人工 review）
+        """
+        redis_client = get_redis_client()
+        pending = task_request_crud.find_by_status(session, ["pending"])
+        for req in pending:
+            redis_client.lpush(
+                configs.TASK_QUEUE_KEY,
+                json.dumps({"task_id": req.id, "task_type": req.task_type, "payload": req.payload}),
+            )
+            logger.info("Recovered orphan pending task %d into queue", req.id)
+
+        affected = task_request_crud.bulk_mark_failed(
+            session, status_in=["running"],
+            error="scheduler restart, manual retry needed",
+        )
+        if affected:
+            logger.warning("Marked %d orphan running tasks as failed", affected)
+        session.commit()
+
 
 task_dispatcher_service = TaskDispatcherService()
+
+
+# Handler 示例（含进度回调）
+def _handle_close_all(session: Session, task_id: int, payload: dict) -> dict:
+    user_id = payload["user_id"]
+    positions = position_crud.get_open_positions(session, user_id=user_id)
+    total = len(positions)
+    results: list[dict] = []
+    for i, pos in enumerate(positions, 1):
+        try:
+            order = order_execution_service.close_manual(session, pos.id, user_id=user_id)
+            results.append({"position_id": pos.id, "status": "closed", "order_id": order.id})
+        except ServiceException as exc:
+            results.append({"position_id": pos.id, "status": "failed", "error": exc.message})
+        progress = int(i / total * 100)
+        task_request_crud.update_progress(session, task_id, progress=progress)
+        event_bus_service.publish(session, TaskProgressEvent(
+            task_id=task_id, progress=progress, current_item=results[-1], user_id=user_id,
+        ))
+        session.commit()
+    return {"total": total, "closed": sum(1 for r in results if r["status"] == "closed"), "results": results}
 ```
 
 ```python
-# src/schedulers/task_scanner.py — 注册到 scheduler 进程
-def task_dispatcher_job() -> None:
-    with get_db_session() as session:
-        task_dispatcher_service.execute_pending(session)
-# scheduler 注册：interval seconds=5
-```
-
-```python
-# src/controllers/api/v1/risk/kill_switch.py
-@router.post("/close-all")
+# src/controllers/api/v1/execution/positions.py — api 提交任务
+@router.post("/close-all", response_model=Response[CloseAllSubmitOut])
 @api_response()
-def submit_close_all(session: CurrentSession, current_user: CurrentUser) -> dict:
-    task_id = task_dispatcher_service.submit(session, "close_all", payload={}, user_id=current_user.id)
-    return {"task_id": task_id, "status": "pending"}
+def submit_close_all(session: CurrentSession, current_user: CurrentUser) -> CloseAllSubmitOut:
+    task_id = task_dispatcher_service.submit(
+        session, task_type="close_all",
+        payload={"user_id": current_user.id},
+        user_id=current_user.id,
+        trading_mode=current_user.current_trading_mode,
+    )
+    return CloseAllSubmitOut(task_id=task_id, status="queued")
+
+
+# src/controllers/api/v1/system/tasks.py — 兜底状态查询
+@router.get("/tasks/{task_id}", response_model=Response[TaskStatusRead])
+@api_response()
+def get_task_status(task_id: int, session: CurrentSession) -> TaskStatusRead:
+    req = task_request_crud.get(session, task_id)         # 不存在抛 DBException(NOT_FOUND)
+    return TaskStatusRead.model_validate(req)
 ```
 
 **收益**：
-- api 进程不阻塞、不持有长事务
-- 任务持久化（api 重启 / scheduler 重启都不丢）
-- 通过 WebSocket 推完成事件，前端体感是异步的
-- 单一执行通道（scheduler）= 没有并发冲突
+- 实时性：BRPOP 毫秒级响应（vs 扫表 5 秒延迟）
+- 持久化：PG `task_requests` 表是唯一权威（任务结果可查、可历史回看）
+- 容错：api 推 Redis 失败时表里仍是 `pending`，scheduler 启动时 `recover_orphans` 自动重推
+- 不自动重试：`running` 孤儿一律标 `failed`（符合"交易系统失败必须人工 review"哲学）
+- 单一执行通道（scheduler 单容器）= 无并发冲突 = 不需要分布式锁
 
-**当前已有等价物**：alpha-pilot 现有 `src/events/{outbox,inbox}/` 事件总线某种程度是同源思路（持久化 → 异步消费）；本节的"task_requests"是它的"业务任务"专用变体。如果决定全部走 outbox/inbox 也是可行的（spec 留作未来优化）。
+**与现有 `src/events/{outbox,inbox}/`（业务事件总线）的区分**：
+- **业务事件**（订单成交 / 风控触发 / 决策完成）→ outbox 表 + EventShuttle 推 Redis Pub/Sub → ws 广播
+- **业务任务**（一键全平仓 / 生成日报 / 导出 CSV）→ task_requests 表 + Redis List 队列 → scheduler 消费执行
+- 两者数据流与目的不同，不强行合并。但都遵循「PG 表 = SSOT，Redis = 实时传输通道」的统一原则。
 
 #### 4.9.2 BackgroundTasks 方案（场景 1 详细）
 
@@ -1604,10 +1719,15 @@ strategy_pipeline_service = StrategyPipelineService()
 - 抽 `src/core/{exchange,llm,indicators,trace}/` 容纳无状态计算 / 外部客户端
 - 现有 `src/workers/{strategy_loop,position_monitor,...}.py` 暂留，作为"调用 services/* 的薄壳"，不动 lifespan
 - service 层全面切到 cruds 调用（不再裸 SQL）
+- **业务事件类迁移**：现有 `src/events/contracts.py` 中的 `BaseEvent` 子类（`StrategyDecisionEvent` / `OrderCreatedEvent` / `RiskTriggeredEvent` 等）迁移到 `src/common/events.py`，命名按规范保持 `xxxEvent` 后缀，字段补齐 `user_id` / `request_id` / `occurred_at`；现有 `src/events/{bus,outbox,inbox,ids}.py` 重组为：
+  - `src/services/event_bus.py`（编排）
+  - `src/cruds/{outbox,inbox}_crud.py`（数据访问）
+  - `src/schedulers/event_shuttle.py`（推送 daemon，阶段 5 启用，本阶段先迁代码不动调度）
 
 **验收**：
 - 所有测试全绿
 - HTTP / WebSocket / scheduler 行为零变化
+- `from src.events.*` 旧 import 路径全部清除（grep 验证）
 
 **回滚**：单 PR，revert 即可（仅文件搬移 + import 路径变更）
 
@@ -1636,8 +1756,8 @@ strategy_pipeline_service = StrategyPipelineService()
 - APScheduler 切 `SQLAlchemyJobStore`（PostgreSQL `apscheduler_jobs` 表，由 SQLAlchemyJobStore 首次启动时自动建表；alembic `env.py` 用 `include_object` 排除该表）
 - `src/app.py`（已在阶段 1 提级到位） lifespan 移除 scheduler 启动逻辑（仅保留 WebSocket 订阅 + admin bootstrap）
 - `docker-compose.{local,dev-server,test,prod}.yml` 改造：
-  - 原 `backend` service → `api` service（多 worker）
-  - 新增 `scheduler` service（单容器，`replicas: 1`、`restart: always`）
+  - 原 `backend` service → `api` service（多 worker，`UVICORN_WORKER_NUM` 环境变量按部署环境配，dev=2 / prod=按 CPU）
+  - 新增 `scheduler` service（单容器，`replicas: 1`、`restart: always`、**`stop_grace_period: 60s`**（与 `SCHEDULER_GRACEFUL_SHUTDOWN_SECONDS` 一致，给 SIGTERM 后的任务收尾窗口））
 - `Makefile` 增加 `make dev-api` / `make dev-scheduler` 目标
 - `scripts/deploy-dev.sh` 同步更新（拉镜像 + 启 api + 启 scheduler）
 - 旧 `src/workers/*` 删除
