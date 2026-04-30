@@ -614,24 +614,31 @@ class AppBaseException(Exception):
             self._auto_log()
 
     def _auto_log(self) -> None:
-        """统一 ERROR 级；显式提取真实 raise 行的文件名 + 行号，不依赖 formatter 配置。
+        """统一 ERROR 级；显式提取真实 raise 行的文件名 + 行号 + trace_id。
 
         sys._getframe(2) 取栈帧：0=_auto_log, 1=__init__, 2=raise 该异常的业务代码行。
-        stacklevel=3 同时让 logger 的 %(filename)s/%(lineno)d 也指向真实 raise 行（如果 formatter 配置了的话）。
+        trace_id 从 starlette-context（HTTP）/ contextvars（scheduler）读取，无则 "-"。
+        本方法是该异常的**唯一日志记录点** —— 全局 handler 不再重复记录，避免同一异常打多条日志。
         """
         frame = sys._getframe(2)
         filename = frame.f_code.co_filename
         lineno = frame.f_lineno
         funcname = frame.f_code.co_name
 
+        # trace_id 从当前请求上下文读取（HTTP 链路由 CorrelationId 中间件注入；
+        # scheduler 链路在任务消费循环入口手动 set，无则 None）
+        from src.utils.trace_id import get_trace_id   # 延迟 import 避免循环依赖
+        trace_id = get_trace_id() or "-"
+
         logger.error(
-            "[%s] code=%s msg=%s at %s:%d in %s()",
+            "[%s] code=%s msg=%s at %s:%d in %s() trace_id=%s",
             type(self).__name__,
             self.code,
             self.message,
             filename,
             lineno,
             funcname,
+            trace_id,
             stacklevel=3,
             extra={
                 "exc_class": type(self).__name__,
@@ -639,6 +646,7 @@ class AppBaseException(Exception):
                 "exc_file": filename,
                 "exc_lineno": lineno,
                 "exc_func": funcname,
+                "trace_id": trace_id,
             },
         )
 
@@ -717,7 +725,11 @@ raise RiskRejectedException("日内亏损达 3.2% > 3%")
 - 业务代码**禁止就地** `class XxxError(Exception)`，需要新语义在 `errors.py` 增子类
 - **重抛时禁止双记**：`except DBException: raise` 不要再 `logger.exception()`；需要补上下文用 `logger.error(..., extra={...})` 不要 raise 新异常
 
-**完整 traceback 兜底**：`__init__` 里 `sys.exc_info()` 为空，无法记 traceback。完整 traceback 由全局 exception handler / scheduler 任务包装器在 except 块中通过 `exc_info=exc` 记录（详见 §4.6.5）。两层日志通过 `exc_class + trace_id` 关联：抛出点定位 raise 行，handler 端补 request 上下文 + 完整调用栈。
+**唯一日志记录点（核心约束）**：
+- **每个异常恰好 1 条 ERROR 日志，永不重复**
+- `AppBaseException` 子类：`_auto_log` 在抛出点记一行，含定位 + trace_id；全局 handler **不再 logger.error()**，仅做 JSON 响应转换
+- 未识别的 `Exception`（非 `AppBaseException` 子类）：由全局 handler 兜底记一行 + 完整 traceback（详见 §4.6.5）
+- traceback 不在 `auto_log` 里记（`__init__` 时 `sys.exc_info()` 为空），也不通过 handler 重复记 `AppBaseException`；如果排查需要完整调用栈，靠 `exc_file:exc_lineno` + 业务代码定位即可（pytest / debugger 可重现）
 
 **测试静音**：`tests/conftest.py` 加 `monkeypatch.setattr(AppBaseException, "auto_log", False)`，避免 `pytest.raises` 触发的日志污染输出。
 
@@ -747,17 +759,58 @@ def api_response(schema: Any = None) -> Callable:
 
 #### 4.6.5 全局 Exception Handler（`src/common/exception/exception_handler.py`）
 
-| Handler | 处理对象 | 行为 |
-|---------|----------|------|
-| `AppBaseException` | 所有自定义业务异常 | **HTTP 200** + body `{success: false, code: exc.code, message: exc.message, ...}` |
-| `RequestValidationError` | FastAPI 请求体校验 | HTTP 200 + `VALIDATION_ERROR`，dev 环境携带完整 errors 列表 |
-| `ValidationError` | Pydantic 模型校验 | 同上 |
-| `ValueError` | 业务参数非法 | HTTP 200 + `PARAM_ERROR` |
-| `AssertionError` | 断言失败 | dev 回显，prod 返回 `SYS_ERROR` |
-| `HTTPException` | Starlette HTTP 异常 | 保留 HTTP 状态码（404/401/...），body 套 Response 形态 |
-| `Exception` | 兜底 | dev 回显异常字符串，prod 返回 `SYS_ERROR` |
+**唯一日志原则**：handler 仅在异常**没有 auto_log**（即非 `AppBaseException` 子类）时记日志，避免重复。
 
-**关键设计**：业务异常都 HTTP 200 + body 区分，前端按 `success` / `code` 判断，不再依赖 HTTP 状态码区分业务错误。
+| Handler | 处理对象 | 是否记日志 | 行为 |
+|---------|----------|----------|------|
+| `AppBaseException` | 所有自定义业务异常 | ❌ **不记**（auto_log 已记） | HTTP 200 + body `{success: false, code, message, trace_id}` |
+| `RequestValidationError` | FastAPI 请求体校验 | ⚠️ INFO（非 error，客户端问题） | HTTP 200 + `VALIDATION_ERROR`，dev 环境携带完整 errors 列表 |
+| `ValidationError` | Pydantic 模型校验 | ⚠️ INFO | 同上 |
+| `ValueError` | 业务参数非法 | ⚠️ INFO | HTTP 200 + `PARAM_ERROR` |
+| `AssertionError` | 断言失败 | ✅ ERROR + traceback | dev 回显 + 记 traceback；prod 返回 `SYS_ERROR` + 记 traceback |
+| `HTTPException` | Starlette HTTP 异常（如 401/404 路径） | ❌ 不记（HTTP 标准语义） | 保留 HTTP 状态码，body 套 Response 形态 |
+| `Exception` | 未识别异常兜底 | ✅ ERROR + traceback | 记完整 traceback；prod 返回 `SYS_ERROR` |
+
+```python
+# AppBaseException：仅 JSON 转换，不记日志
+@app.exception_handler(AppBaseException)
+async def app_exc_handler(request: Request, exc: AppBaseException) -> JSONResponse:
+    return JSONResponse(
+        status_code=200,
+        content={
+            "success": False,
+            "code": exc.code,
+            "message": exc.message,
+            "data": None,
+            "trace_id": current_trace_id(),
+        },
+    )
+
+# 未识别异常：记 ERROR + traceback（这类没有 auto_log）
+@app.exception_handler(Exception)
+async def unhandled_exc_handler(request: Request, exc: Exception) -> JSONResponse:
+    logger.error(
+        "[Unhandled] %s %s — %s",
+        request.method, request.url.path, str(exc),
+        exc_info=exc,                    # 完整 traceback
+        extra={"trace_id": current_trace_id(), "method": request.method, "path": request.url.path},
+    )
+    return JSONResponse(
+        status_code=200,
+        content={
+            "success": False,
+            "code": ErrorCode.SYS_ERROR.code,
+            "message": ErrorCode.SYS_ERROR.msg,
+            "data": None,
+            "trace_id": current_trace_id(),
+        },
+    )
+```
+
+**关键设计**：
+- 业务异常都 HTTP 200 + body 区分，前端按 `success` / `code` 判断
+- 一个异常 = 一条日志：`AppBaseException` 由 auto_log 在 raise 行记；未识别 `Exception` 由 handler 在捕获点记（含 traceback）
+- scheduler 进程的任务消费循环遵循同样规则（在 except 块内仅对未识别 `Exception` 用 `logger.error(..., exc_info=exc)`，对 `AppBaseException` 子类直接吞掉异常 / 落库失败状态，不再记日志）
 
 #### 4.6.6 前端配套升级
 
