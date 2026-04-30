@@ -12,6 +12,17 @@
 
 ---
 
+## Python 环境规则（强制）
+
+- **Python 版本：3.12**（固定在 `backend/.python-version`，`pyproject.toml` 中 `requires-python = ">=3.12"`）
+- **venv 位置：`backend/.venv/`**，唯一虚拟环境，根目录不建 venv
+- **包管理器：uv**，路径 `D:\programs\uv\bin\uv.exe`
+- 重建 venv：`cd backend && uv venv --seed --python 3.12 && uv sync`
+- 新增依赖：`cd backend && uv add <包名>`，不要直接用 pip install
+- PyCharm 解释器路径：`E:/ai/alpha-pilot/backend/.venv/Scripts/python.exe`
+
+---
+
 ## 后端 Python 包导入规则（强制）
 
 - PYTHONPATH 根目录为 `backend/`（pytest `pythonpath = ["."]`，alembic `prepend_sys_path = .`）
