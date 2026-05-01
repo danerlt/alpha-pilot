@@ -3,8 +3,7 @@
 把 Plan 2 的 run_strategy_pipeline_once / run_position_monitor_once 封装成
 APScheduler 可调用的零参函数, 自带依赖注入 + KillSwitch 检查 + 错误兜底。
 
-USE_NEW_PIPELINE_WORKER=true 时 app.py lifespan 用这里的 jobs 替代旧的
-services/strategy_loop.py + services/monitoring/monitor.py。
+app.py lifespan + scheduler 进程统一用这里的 V1 jobs 触发完整决策链。
 """
 from __future__ import annotations
 

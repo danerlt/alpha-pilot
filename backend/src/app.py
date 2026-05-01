@@ -29,7 +29,6 @@ from src.controllers.api.v1.system.events_catchup import router as _events_catch
 from src.controllers.websocket import redis_subscriber, websocket_endpoint
 from src.common.exception.exception_handler import register_exception_handlers
 from src.configs import get_app_config
-from src.services.risk.kill_switch import KillSwitchService
 from src.db.session import get_db_session
 from src.middleware.error_logging_middleware import ErrorLoggingMiddleware
 from src.middleware.request_logging_middleware import RequestLoggingMiddleware
@@ -43,31 +42,6 @@ init_logger("api")
 logger = logging.getLogger("app")
 
 _scheduler: BackgroundScheduler | None = None
-
-
-def _strategy_job() -> None:
-    from src.workers.strategy_loop import run_strategy_loop
-
-    with get_db_session() as db:
-        try:
-            if KillSwitchService(db).is_paused():
-                logger.info("kill_switch=paused; strategy_loop skipped")
-                return
-            run_strategy_loop(db)
-        except Exception as e:
-            logger.error("Strategy loop error: %s", e)
-
-
-def _monitor_job() -> None:
-    from src.workers.position_monitor import run_position_monitor
-
-    with get_db_session() as db:
-        try:
-            if KillSwitchService(db).is_paused():
-                logger.debug("kill_switch=paused; position_monitor running (monitor-only)")
-            run_position_monitor(db)
-        except Exception as e:
-            logger.error("Position monitor error: %s", e)
 
 
 @asynccontextmanager
@@ -89,30 +63,19 @@ async def lifespan(app: FastAPI):
     embed_scheduler = os.getenv("ALPHAPILOT_API_EMBED_SCHEDULER", "0") == "1"
     if embed_scheduler:
         _scheduler = BackgroundScheduler()
-        if getattr(settings, "USE_NEW_PIPELINE_WORKER", False):
-            from src.workers.scheduler_jobs import (
-                new_position_monitor_job,
-                new_strategy_pipeline_job,
-            )
-            _scheduler.add_job(
-                new_strategy_pipeline_job, "interval",
-                minutes=settings.STRATEGY_LOOP_INTERVAL_MINUTES, id="strategy_loop",
-            )
-            _scheduler.add_job(
-                new_position_monitor_job, "interval",
-                seconds=settings.POSITION_MONITOR_INTERVAL_SECONDS, id="position_monitor",
-            )
-            logger.info("API embedded scheduler using NEW pipeline worker")
-        else:
-            _scheduler.add_job(
-                _strategy_job, "interval",
-                minutes=settings.STRATEGY_LOOP_INTERVAL_MINUTES, id="strategy_loop",
-            )
-            _scheduler.add_job(
-                _monitor_job, "interval",
-                seconds=settings.POSITION_MONITOR_INTERVAL_SECONDS, id="position_monitor",
-            )
-            logger.info("API embedded scheduler using LEGACY services/* worker")
+        from src.workers.scheduler_jobs import (
+            new_position_monitor_job,
+            new_strategy_pipeline_job,
+        )
+        _scheduler.add_job(
+            new_strategy_pipeline_job, "interval",
+            minutes=settings.STRATEGY_LOOP_INTERVAL_MINUTES, id="strategy_loop",
+        )
+        _scheduler.add_job(
+            new_position_monitor_job, "interval",
+            seconds=settings.POSITION_MONITOR_INTERVAL_SECONDS, id="position_monitor",
+        )
+        logger.info("API embedded scheduler using V1 pipeline worker")
         _scheduler.start()
         logger.info(
             "interval: strategy_loop=%dm, position_monitor=%ds",
