@@ -44,12 +44,36 @@ def test_business_specific_exceptions():
     assert e2.message == "日内亏损超阈"
 
 
-def test_auto_log_records_error_with_class_name(caplog, monkeypatch):
-    """raise 时自动记一条 ERROR，含真实子类名"""
+def test_auto_log_records_error_with_class_name(monkeypatch):
+    """raise 时自动记一条 ERROR，含真实子类名。
+
+    attach 到 root logger + force propagate，绕开 smoke test 副作用。
+    """
     monkeypatch.setattr(AppBaseException, "auto_log", True)
-    caplog.set_level(logging.ERROR, logger="app.exception")
-    with pytest.raises(RiskRejectedException):
-        raise RiskRejectedException("test")
-    matching = [r for r in caplog.records if "[RiskRejectedException]" in r.getMessage()]
+
+    captured: list[logging.LogRecord] = []
+
+    class _Capture(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            captured.append(record)
+
+    exc_logger = logging.getLogger("app.exception")
+    exc_logger.propagate = True
+    exc_logger.setLevel(logging.DEBUG)
+
+    root = logging.getLogger()
+    handler = _Capture(level=logging.DEBUG)
+    root.addHandler(handler)
+    old_root_level = root.level
+    root.setLevel(logging.DEBUG)
+
+    try:
+        with pytest.raises(RiskRejectedException):
+            raise RiskRejectedException("test")
+    finally:
+        root.removeHandler(handler)
+        root.setLevel(old_root_level)
+
+    matching = [r for r in captured if "[RiskRejectedException]" in r.getMessage()]
     assert len(matching) >= 1
     assert matching[0].levelname == "ERROR"

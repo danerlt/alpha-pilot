@@ -41,8 +41,18 @@ LOG_FORMAT = (
 def init_logger(name: str = "app", file_name: Optional[str] = None) -> None:
     """初始化全局 logging。api 进程入口、scheduler 进程入口都应调用一次。
 
-    幂等：重复调用以最后一次为准（``force=True``）。
+    幂等：仅在 root logger 还没 handler 时才 basicConfig，避免覆盖 pytest caplog
+    等已附着的 handler；如需强制重设，调用方先 ``logging.getLogger().handlers.clear()``。
     """
+    root = logging.getLogger()
+    # 已经有非 caplog 的非 NullHandler handler，则视为已初始化
+    has_real_handler = any(
+        not isinstance(h, logging.NullHandler) and h.__class__.__module__ != "_pytest.logging"
+        for h in root.handlers
+    )
+    if has_real_handler:
+        return
+
     fmt = logging.Formatter(LOG_FORMAT)
     handlers: list[logging.Handler] = [logging.StreamHandler()]
     if file_name:
@@ -53,7 +63,7 @@ def init_logger(name: str = "app", file_name: Optional[str] = None) -> None:
         h.setFormatter(fmt)
         h.addFilter(ContextFilter())
 
-    logging.basicConfig(level=logging.INFO, handlers=handlers, force=True)
+    logging.basicConfig(level=logging.INFO, handlers=handlers)
 
 
 def get_logger(name: str) -> logging.Logger:

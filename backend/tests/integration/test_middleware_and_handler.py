@@ -31,13 +31,34 @@ def _build_app() -> FastAPI:
     return app
 
 
-def test_request_logging_middleware_logs_path(caplog):
-    caplog.set_level(logging.INFO, logger="middleware.request")
-    client = TestClient(_build_app())
-    resp = client.get("/ping")
-    assert resp.status_code == 200
-    matching = [r for r in caplog.records if "/ping" in r.getMessage()]
-    assert len(matching) >= 1
+def test_request_logging_middleware_logs_path():
+    """attach handler 到 root logger + force propagate，绕开 smoke test 留下的副作用。"""
+    captured: list[logging.LogRecord] = []
+
+    class _Capture(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            captured.append(record)
+
+    middleware_logger = logging.getLogger("middleware.request")
+    middleware_logger.propagate = True
+    middleware_logger.setLevel(logging.DEBUG)
+
+    root = logging.getLogger()
+    handler = _Capture(level=logging.DEBUG)
+    root.addHandler(handler)
+    old_root_level = root.level
+    root.setLevel(logging.DEBUG)
+
+    try:
+        client = TestClient(_build_app())
+        resp = client.get("/ping")
+        assert resp.status_code == 200
+    finally:
+        root.removeHandler(handler)
+        root.setLevel(old_root_level)
+
+    matching = [r for r in captured if "/ping" in r.getMessage() and r.name == "middleware.request"]
+    assert len(matching) >= 1, f"Expected middleware.request log; got: {[r.name + ':' + r.getMessage()[:50] for r in captured]}"
 
 
 def test_app_base_exception_returns_200_with_success_false():
