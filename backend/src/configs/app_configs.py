@@ -113,8 +113,6 @@ class SchedulerConfig(BaseSettings):
     EVENT_SHUTTLE_MAX_FAILED_ATTEMPTS: int = Field(default=3)
     SCHEDULER_GRACEFUL_SHUTDOWN_SECONDS: int = Field(default=60)
 
-    # 阶段 5 之前 lifespan 还会用现有的 strategy/position-monitor worker
-    USE_NEW_PIPELINE_WORKER: bool = Field(default=False)
     PIPELINE_SYMBOLS: str = Field(default="BTCUSDT,ETHUSDT")
     PIPELINE_TIMEFRAMES: str = Field(default="1h")
 
