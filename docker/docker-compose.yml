@@ -27,15 +27,18 @@ services:
       timeout: 5s
       retries: 5
 
-  backend:
+  # Stage 5: api 服务（多 worker），lifespan 不内嵌 scheduler
+  api:
     build:
       context: ../backend
       dockerfile: ../docker/Dockerfile.backend
+    command: ["python", "-m", "scripts.start_api"]
     env_file:
       - ../.env
     environment:
       DATABASE_URL: postgresql://alphapilot:alphapilot@postgres:5432/alphapilot
       REDIS_URL: redis://redis:6379/0
+      UVICORN_WORKER_NUM: "2"
     ports:
       - "8000:8000"
     depends_on:
@@ -43,6 +46,49 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+
+  # Stage 5: scheduler 服务（单容器，APScheduler + EventShuttle + 任务队列消费）
+  scheduler:
+    build:
+      context: ../backend
+      dockerfile: ../docker/Dockerfile.backend
+    command: ["python", "-m", "scripts.start_scheduler"]
+    env_file:
+      - ../.env
+    environment:
+      DATABASE_URL: postgresql://alphapilot:alphapilot@postgres:5432/alphapilot
+      REDIS_URL: redis://redis:6379/0
+    deploy:
+      replicas: 1
+    stop_grace_period: 60s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+
+  # 向后兼容别名：旧的 deploy 脚本 / Makefile 仍然引用 'backend' service
+  # 行为等同 api（同 image / command），便于灰度切换
+  backend:
+    build:
+      context: ../backend
+      dockerfile: ../docker/Dockerfile.backend
+    command: ["python", "-m", "scripts.start_api"]
+    env_file:
+      - ../.env
+    environment:
+      DATABASE_URL: postgresql://alphapilot:alphapilot@postgres:5432/alphapilot
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8001:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    profiles: ["legacy"]   # 默认不启动；docker compose --profile legacy up 才起
 
 volumes:
   postgres_data:

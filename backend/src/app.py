@@ -72,43 +72,55 @@ def _monitor_job() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """API 进程 lifespan。
+
+    Stage 5 后：scheduler 由独立 ``scripts/start_scheduler.py`` 进程跑（单容器）；
+    本 lifespan **不再启动 APScheduler**，仅做 admin bootstrap + Redis Pub/Sub 订阅。
+
+    向后兼容：如果环境变量 ``ALPHAPILOT_API_EMBED_SCHEDULER=1``（默认 0），
+    api 进程仍内嵌 scheduler（开发 / 单进程调试用）。
+    """
     global _scheduler
     settings = get_app_config()
 
     with get_db_session() as db:
         ensure_default_admin(db, settings)
 
-    _scheduler = BackgroundScheduler()
-    if getattr(settings, "USE_NEW_PIPELINE_WORKER", False):
-        from src.workers.scheduler_jobs import (
-            new_position_monitor_job,
-            new_strategy_pipeline_job,
+    embed_scheduler = os.getenv("ALPHAPILOT_API_EMBED_SCHEDULER", "0") == "1"
+    if embed_scheduler:
+        _scheduler = BackgroundScheduler()
+        if getattr(settings, "USE_NEW_PIPELINE_WORKER", False):
+            from src.workers.scheduler_jobs import (
+                new_position_monitor_job,
+                new_strategy_pipeline_job,
+            )
+            _scheduler.add_job(
+                new_strategy_pipeline_job, "interval",
+                minutes=settings.STRATEGY_LOOP_INTERVAL_MINUTES, id="strategy_loop",
+            )
+            _scheduler.add_job(
+                new_position_monitor_job, "interval",
+                seconds=settings.POSITION_MONITOR_INTERVAL_SECONDS, id="position_monitor",
+            )
+            logger.info("API embedded scheduler using NEW pipeline worker")
+        else:
+            _scheduler.add_job(
+                _strategy_job, "interval",
+                minutes=settings.STRATEGY_LOOP_INTERVAL_MINUTES, id="strategy_loop",
+            )
+            _scheduler.add_job(
+                _monitor_job, "interval",
+                seconds=settings.POSITION_MONITOR_INTERVAL_SECONDS, id="position_monitor",
+            )
+            logger.info("API embedded scheduler using LEGACY services/* worker")
+        _scheduler.start()
+        logger.info(
+            "interval: strategy_loop=%dm, position_monitor=%ds",
+            settings.STRATEGY_LOOP_INTERVAL_MINUTES,
+            settings.POSITION_MONITOR_INTERVAL_SECONDS,
         )
-        _scheduler.add_job(
-            new_strategy_pipeline_job, "interval",
-            minutes=settings.STRATEGY_LOOP_INTERVAL_MINUTES, id="strategy_loop",
-        )
-        _scheduler.add_job(
-            new_position_monitor_job, "interval",
-            seconds=settings.POSITION_MONITOR_INTERVAL_SECONDS, id="position_monitor",
-        )
-        logger.info("Scheduler using NEW pipeline worker")
     else:
-        _scheduler.add_job(
-            _strategy_job, "interval",
-            minutes=settings.STRATEGY_LOOP_INTERVAL_MINUTES, id="strategy_loop",
-        )
-        _scheduler.add_job(
-            _monitor_job, "interval",
-            seconds=settings.POSITION_MONITOR_INTERVAL_SECONDS, id="position_monitor",
-        )
-        logger.info("Scheduler using LEGACY services/* worker")
-    _scheduler.start()
-    logger.info(
-        "interval: strategy_loop=%dm, position_monitor=%ds",
-        settings.STRATEGY_LOOP_INTERVAL_MINUTES,
-        settings.POSITION_MONITOR_INTERVAL_SECONDS,
-    )
+        logger.info("API process: scheduler not embedded (run scripts/start_scheduler.py separately)")
 
     ws_task = asyncio.create_task(redis_subscriber(settings.REDIS_URL))
     logger.info("Redis subscriber task started")
