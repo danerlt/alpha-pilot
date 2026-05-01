@@ -1,5 +1,5 @@
 """测试 time 工具。"""
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from src.utils.time import TimeUtils
 
@@ -12,6 +12,6 @@ def test_now_returns_naive_beijing_time():
 
 
 def test_now_close_to_real_time():
-    expected = datetime.utcnow() + timedelta(hours=8)
+    expected = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=8)
     diff = abs((TimeUtils.now() - expected).total_seconds())
     assert diff < 2  # 2 秒内

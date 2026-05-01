@@ -7,7 +7,7 @@
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 class TimeUtils:
@@ -16,9 +16,9 @@ class TimeUtils:
     @staticmethod
     def now() -> datetime:
         """返回当前北京时间（UTC+8，naive datetime）。"""
-        return datetime.utcnow() + timedelta(hours=8)
+        return datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=8)
 
     @staticmethod
     def utcnow() -> datetime:
         """返回当前 UTC 时间（naive）。"""
-        return datetime.utcnow()
+        return datetime.now(timezone.utc).replace(tzinfo=None)
