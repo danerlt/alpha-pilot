@@ -1,4 +1,4 @@
-"""EventShuttle — moves unpublished event_outbox rows to Redis Streams.
+﻿"""EventShuttle — moves unpublished event_outbox rows to Redis Streams.
 
 stream_for_event(event_type) maps "candle.closed" -> "candle.closed" by default;
 override to route all trade.* to the same stream, etc.
@@ -33,7 +33,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
 from src.services.events.contracts import EventEnvelope
-from src.shared.constants import DEFAULT_EVENT_SHUTTLE_MAX_FAILED_ATTEMPTS
+from src.common.constants import DEFAULT_EVENT_SHUTTLE_MAX_FAILED_ATTEMPTS
 from src.models.event_store import EventOutbox
 
 logger = logging.getLogger(__name__)
@@ -74,7 +74,7 @@ class EventShuttle:
         self._pubsub = pubsub
         if max_failed_attempts is None:
             try:
-                from src.shared.config import get_settings  # 延迟避免循环
+                from src.configs.app_configs import get_settings  # 延迟避免循环
                 max_failed_attempts = int(get_settings().EVENT_SHUTTLE_MAX_FAILED_ATTEMPTS)
             except Exception:
                 max_failed_attempts = DEFAULT_MAX_FAILED_ATTEMPTS

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import os
 
-# 必须在 import src.shared.config 之前设
+# 必须在 import src.configs.app_configs 之前设
 os.environ.setdefault("ALPHAPILOT_SKIP_SECRET_VALIDATION", "1")
 
 import logging

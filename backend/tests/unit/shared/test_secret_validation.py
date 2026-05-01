@@ -1,4 +1,4 @@
-"""shared/config 启动密钥校验单测.
+﻿"""shared/config 启动密钥校验单测.
 
 post-Plan5 安全审计 C1+C2: 防止默认/弱密钥被部到生产.
 """
@@ -8,9 +8,9 @@ import os
 
 import pytest
 
-from src.shared.config import (
+from src.configs.app_configs import (
     InsecureSecretError,
-    Settings,
+    AppConfig as Settings,
     _looks_insecure,
     _validate_secrets,
 )

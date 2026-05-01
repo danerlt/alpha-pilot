@@ -1,11 +1,11 @@
-from types import SimpleNamespace
+﻿from types import SimpleNamespace
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
 from src.app import app
-from src.shared.db import get_db
-from src.shared.enums import TradingMode
+from src.db.session import get_db
+from src.common.enums import TradingMode
 
 
 class DummyDB:

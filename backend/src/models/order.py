@@ -1,8 +1,8 @@
-from datetime import datetime
+﻿from datetime import datetime
 from sqlalchemy import BigInteger, String, Numeric, DateTime
 from sqlalchemy.orm import Mapped, mapped_column
 from src.models.base import Base
-from src.shared.enums import TradingMode, OrderStatus
+from src.common.enums import TradingMode, OrderStatus
 
 
 class Order(Base):

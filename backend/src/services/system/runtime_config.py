@@ -9,7 +9,7 @@ from typing import Any
 from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy.orm import Session
 
-from src.shared.enums import TradingMode
+from src.common.enums import TradingMode
 from src.models.system_setting import SystemSetting
 
 logger = logging.getLogger(__name__)

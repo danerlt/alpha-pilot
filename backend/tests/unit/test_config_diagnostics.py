@@ -1,5 +1,5 @@
-from src.shared.config import Settings
-from src.shared.config_diagnostics import can_call_binance, can_call_llm, get_runtime_credential_status
+﻿from src.configs.app_configs import AppConfig as Settings
+from src.configs.app_configs import can_call_binance, can_call_llm, get_runtime_credential_status
 
 
 def test_runtime_credential_status_detects_placeholders():

@@ -1,4 +1,4 @@
-"""WebSocket 鉴权 + catchup 测试 (Critical fix C4)。"""
+﻿"""WebSocket 鉴权 + catchup 测试 (Critical fix C4)。"""
 from __future__ import annotations
 
 import os
@@ -11,8 +11,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from src.app import app
-from src.shared.config import get_base_settings
-from src.shared.db import get_db, get_session_factory
+from src.configs.app_configs import get_app_config as get_base_settings
+from src.db.engines import get_session_factory
+from src.db.session import get_db
 from src.models import Base, EventOutbox
 
 

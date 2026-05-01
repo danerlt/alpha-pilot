@@ -1,4 +1,4 @@
-"""Auth endpoints — /api/auth/register /login /me."""
+﻿"""Auth endpoints — /api/auth/register /login /me."""
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -18,9 +18,9 @@ from src.services.auth import (
     hash_password,
     verify_password,
 )
-from src.shared.config import get_base_settings
-from src.shared.db import get_db
-from src.shared.enums import UserRole, UserStatus
+from src.configs.app_configs import get_app_config as get_base_settings
+from src.db.session import get_db
+from src.common.enums import UserRole, UserStatus
 from src.models.user import User
 
 # 用于 timing-equal: user 不存在时也跑一次 verify_password 让响应时延一致,

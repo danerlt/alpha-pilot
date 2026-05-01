@@ -1,11 +1,11 @@
-"""直接用 SQLAlchemy metadata.create_all() 建表（用于首次部署）。
+﻿"""直接用 SQLAlchemy metadata.create_all() 建表（用于首次部署）。
 后续 schema 变更再走 Alembic 迁移。"""
 import sys
 import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.shared.db import get_engine
+from src.db.engines import get_engine
 from src.models.base import Base
 
 # 导入所有 model，确保 Base.metadata 里有完整表定义

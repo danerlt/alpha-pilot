@@ -1,4 +1,4 @@
-"""strategy_pipeline worker — 一次完整决策循环 (spec §3.4)。
+﻿"""strategy_pipeline worker — 一次完整决策循环 (spec §3.4)。
 
 按 account_id × symbol × timeframe 串起 Part A/B/C：
   1. MarketDataService.fetch_and_store
@@ -47,7 +47,7 @@ from src.services.insight.experience.retriever import ExperienceRetriever
 from src.services.insight.factors.computer import FactorComputer
 from src.services.insight.indicators.computer import IndicatorComputer
 from src.services.insight.regime.classifier import RegimeClassifier
-from src.shared.enums import PositionStatus
+from src.common.enums import PositionStatus
 from src.models.account_entity import RiskProfile
 from src.models.candle import Candle
 from src.models.position import Position

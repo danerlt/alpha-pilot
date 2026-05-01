@@ -1,8 +1,8 @@
-from datetime import date
+﻿from datetime import date
 from sqlalchemy import BigInteger, String, Numeric, Date, JSON, Integer
 from sqlalchemy.orm import Mapped, mapped_column
 from src.models.base import Base
-from src.shared.enums import TradingMode
+from src.common.enums import TradingMode
 
 
 class DailyReport(Base):

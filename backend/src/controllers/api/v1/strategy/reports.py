@@ -1,4 +1,4 @@
-"""Reports — /api/reports (GET) /api/reports/generate (POST).
+﻿"""Reports — /api/reports (GET) /api/reports/generate (POST).
 
 GET 要求登录, POST 要求 admin (生成行为修改 DB)。
 """
@@ -10,8 +10,8 @@ from sqlalchemy.orm import Session
 from src.common.api_response import api_response
 from src.controllers.dependencies import get_current_user, require_admin
 from src.services.reporting.reporter import generate_daily_report
-from src.shared.config import get_settings
-from src.shared.db import get_db
+from src.configs.app_configs import get_settings
+from src.db.session import get_db
 from src.models.report import DailyReport
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])

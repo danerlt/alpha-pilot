@@ -1,4 +1,4 @@
-"""OrderExecutor — open_long / close_long 幂等执行 (spec §6.4)。
+﻿"""OrderExecutor — open_long / close_long 幂等执行 (spec §6.4)。
 
 trace_id 用 SHA256(decision_id:symbol:action) 截断 32 位作为幂等键, 写入
 orders.trace_id (UNIQUE)。重复调用返回已存在的订单, 不重复下单。
@@ -26,13 +26,13 @@ from src.services.events.contracts import (
 )
 from src.services.events.outbox import OutboxWriter
 from src.core.exchange.adapter import ExchangeAdapter
-from src.shared.datetime_utils import ensure_aware
+from src.utils.datetime import ensure_aware
 from src.core.exchange.retry import (
     ExchangeTemporarilyUnavailable,
     PermanentExchangeError,
 )
 from src.core.exchange.types import OrderRequest
-from src.shared.enums import OrderStatus, PositionStatus
+from src.common.enums import OrderStatus, PositionStatus
 from src.models.order import Order
 from src.models.position import Position
 from src.models.trade import Trade

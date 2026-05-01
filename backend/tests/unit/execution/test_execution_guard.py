@@ -1,4 +1,4 @@
-"""ExecutionGuard 10 条规则链单测。"""
+﻿"""ExecutionGuard 10 条规则链单测。"""
 from __future__ import annotations
 
 import os
@@ -11,7 +11,7 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from src.services.execution.execution_guard import ExecutionGuard, GuardDecision
-from src.shared.enums import PositionStatus
+from src.common.enums import PositionStatus
 from src.models import Base, Position, RiskEvent, Trade
 from src.models.account_entity import RiskProfile
 from src.services.strategy.proposal import DecisionProposal

@@ -1,4 +1,4 @@
-"""Commands router — 手动操作 / KillSwitch 端点 (Plan 3 Part B)。
+﻿"""Commands router — 手动操作 / KillSwitch 端点 (Plan 3 Part B)。
 
   POST /api/commands/close-position/{position_id}
   POST /api/commands/close-all              (body: {confirmation: "CLOSE ALL", reason})
@@ -23,7 +23,7 @@ from src.controllers.dependencies import get_adapter, require_admin
 from src.services.risk.kill_switch import KillSwitchService
 from src.services.manual_ops import ManualOpsService
 from src.services.events.outbox import OutboxWriter
-from src.shared.db import get_db
+from src.db.session import get_db
 
 router = APIRouter(prefix="/api/commands", tags=["commands"])
 

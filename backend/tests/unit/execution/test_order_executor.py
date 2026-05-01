@@ -1,4 +1,4 @@
-"""OrderExecutor 单测。"""
+﻿"""OrderExecutor 单测。"""
 from __future__ import annotations
 
 import os
@@ -15,7 +15,7 @@ from src.core.exchange.adapter import ExchangeAdapter
 from src.core.exchange.retry import ExchangeTemporarilyUnavailable
 from src.core.exchange.types import Kline, OrderRequest, OrderResult, Ticker
 from src.services.execution.order_executor import OrderExecutor, make_trace_id
-from src.shared.enums import OrderStatus, PositionStatus
+from src.common.enums import OrderStatus, PositionStatus
 from src.models import Base, EventOutbox, Order, Position, Trade
 from src.services.strategy.proposal import DecisionProposal
 

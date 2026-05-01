@@ -1,4 +1,4 @@
-"""position_monitor_worker 包装层的薄测试。
+﻿"""position_monitor_worker 包装层的薄测试。
 
 PositionMonitor 自身的逻辑覆盖在 unit/execution/test_position_monitor.py;
 这里只验证 wrapper commit 行为和入口可调用。
@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from src.core.exchange.adapter import ExchangeAdapter
 from src.core.exchange.types import Kline, OrderRequest, OrderResult, Ticker
-from src.shared.enums import PositionStatus
+from src.common.enums import PositionStatus
 from src.models import Base, Position, Trade
 from src.workers.position_monitor_worker import run_position_monitor_once
 

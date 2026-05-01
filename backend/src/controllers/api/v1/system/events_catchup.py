@@ -1,4 +1,4 @@
-"""GET /api/events/catchup?since=<event_id> — 从 event_outbox 表读取断线期间的事件回放。
+﻿"""GET /api/events/catchup?since=<event_id> — 从 event_outbox 表读取断线期间的事件回放。
 
 设计:
   - 客户端 WebSocket 断开后保留 lastEventId
@@ -16,8 +16,8 @@ from sqlalchemy.orm import Session
 
 from src.common.api_response import api_response
 from src.controllers.dependencies import get_current_user
-from src.shared.constants import CATCHUP_LIMIT_HARD_CAP
-from src.shared.db import get_db
+from src.common.constants import CATCHUP_LIMIT_HARD_CAP
+from src.db.session import get_db
 from src.models.event_store import EventOutbox
 
 router = APIRouter(prefix="/api/events", tags=["events"])

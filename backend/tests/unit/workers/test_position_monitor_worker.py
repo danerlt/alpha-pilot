@@ -1,4 +1,4 @@
-"""position_monitor_worker.run_position_monitor_once 单元测试.
+﻿"""position_monitor_worker.run_position_monitor_once 单元测试.
 
 只测包装层装配 + commit, PositionMonitor.run_once 的核心逻辑由
 backend/tests/unit/execution/test_position_monitor.py 覆盖.
@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from src.core.exchange.adapter import ExchangeAdapter
 from src.core.exchange.types import OrderRequest, OrderResult, Ticker
-from src.shared.enums import PositionStatus
+from src.common.enums import PositionStatus
 from src.models import Base, Position
 from src.workers.position_monitor_worker import run_position_monitor_once
 

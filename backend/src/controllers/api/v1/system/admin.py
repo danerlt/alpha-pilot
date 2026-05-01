@@ -1,4 +1,4 @@
-"""Admin endpoints — /api/admin/symbols /users /audit-logs."""
+﻿"""Admin endpoints — /api/admin/symbols /users /audit-logs."""
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
@@ -9,8 +9,8 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from src.controllers.dependencies import require_admin
-from src.shared.db import get_db
-from src.shared.enums import UserRole, UserStatus
+from src.db.session import get_db
+from src.common.enums import UserRole, UserStatus
 from src.models.audit_log import AuditLog
 from src.models.symbol_config import SymbolConfig
 from src.models.user import User

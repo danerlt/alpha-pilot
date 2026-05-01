@@ -1,12 +1,12 @@
-"""Health endpoints — / / /health / /api/health."""
+﻿"""Health endpoints — / / /health / /api/health."""
 from __future__ import annotations
 
 from fastapi import APIRouter
 from fastapi.responses import RedirectResponse
 
 from src.common.api_response import api_response
-from src.shared.config import get_settings
-from src.shared.config_diagnostics import get_runtime_credential_status
+from src.configs.app_configs import get_settings
+from src.configs.app_configs import get_runtime_credential_status
 
 router = APIRouter()
 

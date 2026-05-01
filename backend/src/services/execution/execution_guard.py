@@ -1,4 +1,4 @@
-"""ExecutionGuard — spec §6.3 的 10 条规则链, 一票否决。
+﻿"""ExecutionGuard — spec §6.3 的 10 条规则链, 一票否决。
 
 按顺序短路:
   1. 日亏损 ≤ -max_daily_loss_pct → REJECT (circuit_breaker)
@@ -31,7 +31,7 @@ from sqlalchemy.orm import Session
 
 from src.services.events.contracts import DecisionDegraded, DecisionRejected
 from src.services.events.outbox import OutboxWriter
-from src.shared.enums import PositionStatus
+from src.common.enums import PositionStatus
 from src.models.account_entity import RiskProfile
 from src.models.position import Position
 from src.models.risk_event import RiskEvent

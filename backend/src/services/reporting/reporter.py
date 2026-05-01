@@ -1,4 +1,4 @@
-"""日报生成服务 — 汇总当日交易数据，写入 daily_reports。"""
+﻿"""日报生成服务 — 汇总当日交易数据，写入 daily_reports。"""
 from __future__ import annotations
 
 import logging
@@ -7,7 +7,7 @@ from datetime import date, datetime, timezone
 from sqlalchemy import cast, Date, func
 from sqlalchemy.orm import Session
 
-from src.shared.config import get_settings
+from src.configs.app_configs import get_settings
 from src.models.report import DailyReport
 from src.models.risk_event import RiskEvent
 from src.models.trade import Trade

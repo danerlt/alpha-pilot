@@ -1,4 +1,4 @@
-"""Positions endpoints — /api/positions (GET only).
+﻿"""Positions endpoints — /api/positions (GET only).
 
 旧的 POST /api/positions/{id}/close 和 /api/positions/close-all 已迁移到
 /api/commands/close-position/{id} 和 /api/commands/close-all (Critical fix C3)。
@@ -12,9 +12,9 @@ from sqlalchemy.orm import Session
 
 from src.common.api_response import api_response
 from src.controllers.dependencies import get_current_user
-from src.shared.config import get_settings
-from src.shared.db import get_db
-from src.shared.enums import PositionStatus
+from src.configs.app_configs import get_settings
+from src.db.session import get_db
+from src.common.enums import PositionStatus
 from src.models.position import Position
 
 router = APIRouter(prefix="/api/positions", tags=["positions"])
