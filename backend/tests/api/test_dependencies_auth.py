@@ -13,7 +13,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
-from src.app.dependencies import get_current_user
+from src.api.dependencies import get_current_user
 from src.shared.db import get_db
 from src.shared.models import Base
 

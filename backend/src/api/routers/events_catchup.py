@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.app.dependencies import get_current_user
+from src.api.dependencies import get_current_user
 from src.shared.constants import CATCHUP_LIMIT_HARD_CAP
 from src.shared.db import get_db
 from src.shared.models.event_store import EventOutbox

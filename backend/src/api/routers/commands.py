@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from src.app.dependencies import get_adapter, require_admin
+from src.api.dependencies import get_adapter, require_admin
 from src.control.kill_switch.service import KillSwitchService
 from src.control.manual_ops.service import ManualOpsService
 from src.events.outbox import OutboxWriter
@@ -25,7 +25,7 @@ from src.shared.db import get_db
 router = APIRouter(prefix="/api/commands", tags=["commands"])
 
 
-# 旧名 _adapter 保留为别名 — 测试通过 monkeypatch src.app.routers.commands._adapter
+# 旧名 _adapter 保留为别名 — 测试通过 monkeypatch src.api.routers.commands._adapter
 # 的方式注入 mock; 见 backend/tests/api/test_commands.py
 _adapter = get_adapter
 

@@ -1,11 +1,12 @@
-"""FastAPI 应用入口（提级到 src/app 包根级，模板规范的"src 内唯一启动文件"）。
+"""FastAPI 应用入口 — ``src/app.py``（模板规范的"src 内唯一启动文件"）。
 
-旧 ``src/app/app.py`` 的工厂代码迁移到这里。``from src.app import app`` 即可获取实例。
+``from src.app import app`` 即可获取 FastAPI 实例。
+原 ``src/app/`` 包改名为 ``src/api/``，避免与本文件命名冲突。
 
 阶段 1 内容：
 - 中间件栈注入（CorrelationId / RequestLogging / ErrorLogging）
 - 注册全局 exception handler（兼容现有 HTTPException 行为）
-- 复用现有 routers (src/app/routers/*) 与 lifespan、admin_bootstrap
+- 复用现有 routers (``src/api/routers/*``) 与 lifespan、admin_bootstrap
 - 响应体格式 / 异常处理保持当前行为（不切 Response[T]）
 
 阶段 4 / 5 会再次重构（路由迁到 controllers/、移除 lifespan 内 scheduler）。
@@ -22,10 +23,10 @@ from asgi_correlation_id import CorrelationIdMiddleware
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.app.router import router as _root_router
-from src.app.routers.commands import router as _commands_router
-from src.app.routers.events_catchup import router as _events_catchup_router
-from src.app.websocket import redis_subscriber, websocket_endpoint
+from src.api.router import router as _root_router
+from src.api.routers.commands import router as _commands_router
+from src.api.routers.events_catchup import router as _events_catchup_router
+from src.api.websocket import redis_subscriber, websocket_endpoint
 from src.common.exception.exception_handler import register_exception_handlers
 from src.configs import get_app_config
 from src.control.kill_switch.service import KillSwitchService

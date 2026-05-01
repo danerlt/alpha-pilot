@@ -9,7 +9,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from src.app.app import app
+from src.app import app
 from src.services.auth import hash_password
 from src.shared.db import get_db
 from src.shared.enums import UserRole, UserStatus

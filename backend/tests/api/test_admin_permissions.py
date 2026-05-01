@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from src.app.app import app
+from src.app import app
 from src.shared.db import get_db
 from src.shared.enums import TradingMode
 
@@ -18,7 +18,7 @@ class DummyDB:
 
 @pytest.mark.asyncio
 async def test_runtime_config_update_requires_admin(monkeypatch):
-    from src.app import router as router_module
+    from src.api import router as router_module
 
     monkeypatch.setattr(
         router_module,
@@ -44,8 +44,8 @@ async def test_runtime_config_update_requires_admin(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_runtime_config_update_allows_admin(monkeypatch):
-    from src.app import router as router_module
-    from src.app.routers import runtime_config as runtime_module
+    from src.api import router as router_module
+    from src.api.routers import runtime_config as runtime_module
 
     db = DummyDB()
     updates = []

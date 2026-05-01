@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 import pytest
 from fastapi.testclient import TestClient
 
-from src.app.app import app
+from src.app import app
 from src.shared.db import get_db, get_session_factory
 from src.shared.enums import PositionStatus
 from src.shared.models import Base, Position, RiskEvent
@@ -35,13 +35,13 @@ def client():
 
     # 鉴权 mock: 测试中绕过 JWT 解码, 注入 admin user.
     from types import SimpleNamespace
-    from src.app.dependencies import require_admin
+    from src.api.dependencies import require_admin
     app.dependency_overrides[require_admin] = lambda: SimpleNamespace(
         id=1, username="admin_test", role="admin", status="active",
     )
 
     # 替换 _adapter() 用 stub
-    from src.app.routers import commands as commands_module
+    from src.api.routers import commands as commands_module
 
     class _StubAdapter:
         @property

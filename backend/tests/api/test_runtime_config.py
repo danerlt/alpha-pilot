@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from src.app.app import app
+from src.app import app
 from src.shared.db import get_db
 from src.shared.enums import TradingMode
 
@@ -18,7 +18,7 @@ class DummyDB:
 
 @pytest.mark.asyncio
 async def test_get_runtime_config_masks_secrets_and_reports_config_state(monkeypatch):
-    from src.app.routers import runtime_config as router_module
+    from src.api.routers import runtime_config as router_module
 
     monkeypatch.setattr(
         router_module,
@@ -94,7 +94,7 @@ async def test_get_runtime_config_requires_admin():
 
 @pytest.mark.asyncio
 async def test_update_runtime_config_persists_and_refreshes(monkeypatch):
-    from src.app.routers import runtime_config as router_module
+    from src.api.routers import runtime_config as router_module
 
     db = DummyDB()
     updates = []
@@ -178,7 +178,7 @@ async def test_update_runtime_config_persists_and_refreshes(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_update_runtime_config_rejects_empty_payload_for_admin():
-    from src.app.routers import runtime_config as router_module
+    from src.api.routers import runtime_config as router_module
 
     def override_db():
         yield DummyDB()

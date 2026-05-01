@@ -4,7 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from src.app.dependencies import get_current_user
+from src.api.dependencies import get_current_user
 from src.shared.config import get_settings
 from src.shared.db import get_db
 from src.shared.models.trade import Trade

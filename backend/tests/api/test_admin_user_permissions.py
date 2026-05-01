@@ -6,7 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from src.app.app import app
+from src.app import app
 from src.shared.db import get_db
 from src.shared.models.audit_log import AuditLog
 from src.shared.models.base import Base
@@ -32,7 +32,7 @@ def admin_user_perm_db():
 
 @pytest.mark.asyncio
 async def test_admin_user_list_requires_admin(admin_user_perm_db, monkeypatch):
-    from src.app import router as router_module
+    from src.api import router as router_module
 
     monkeypatch.setattr(
         router_module,
@@ -55,7 +55,7 @@ async def test_admin_user_list_requires_admin(admin_user_perm_db, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_admin_user_update_requires_admin(admin_user_perm_db, monkeypatch):
-    from src.app import router as router_module
+    from src.api import router as router_module
 
     monkeypatch.setattr(
         router_module,
@@ -78,7 +78,7 @@ async def test_admin_user_update_requires_admin(admin_user_perm_db, monkeypatch)
 
 @pytest.mark.asyncio
 async def test_admin_update_user_returns_404_for_missing_user(admin_user_perm_db):
-    from src.app import router as router_module
+    from src.api import router as router_module
 
     def override_db():
         yield admin_user_perm_db

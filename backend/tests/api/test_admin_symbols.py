@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from src.app.app import app
+from src.app import app
 from src.shared.db import get_db
 from src.shared.models.audit_log import AuditLog
 from src.shared.models.base import Base
@@ -30,7 +30,7 @@ def admin_db():
 
 @pytest.mark.asyncio
 async def test_admin_can_create_and_list_symbols(admin_db):
-    from src.app import router as router_module
+    from src.api import router as router_module
 
     def override_db():
         yield admin_db
@@ -56,7 +56,7 @@ async def test_admin_can_create_and_list_symbols(admin_db):
 
 @pytest.mark.asyncio
 async def test_admin_can_update_symbol(admin_db):
-    from src.app import router as router_module
+    from src.api import router as router_module
 
     symbol = SymbolConfig(symbol="ETHUSDT", base_asset="ETH", quote_asset="USDT", timeframe="15m")
     admin_db.add(symbol)

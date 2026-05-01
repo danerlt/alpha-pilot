@@ -7,8 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
-from src.app.dependencies import get_current_user
-from src.app.rate_limit import login_email_limiter, login_ip_limiter
+from src.api.dependencies import get_current_user
+from src.api.rate_limit import login_email_limiter, login_ip_limiter
 from src.services.auth import (
     create_access_token,
     ensure_user_is_active,

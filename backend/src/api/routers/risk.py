@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from src.app.dependencies import get_adapter, get_current_user, require_admin
+from src.api.dependencies import get_adapter, get_current_user, require_admin
 from src.control.manual_ops.service import ManualOpsService
 from src.events.outbox import OutboxWriter
 from src.shared.config import get_settings

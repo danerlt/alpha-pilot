@@ -14,7 +14,7 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.app.dependencies import get_adapter
+from src.api.dependencies import get_adapter
 from src.control.kill_switch.service import KillSwitchService
 from src.events.outbox import OutboxWriter
 from src.execution.exchange.binance_adapter import BinanceAdapter
@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 def _build_adapter(settings=None) -> BinanceAdapter:
     """构造 BinanceAdapter — 兼容老调用 (有 settings 入参) 但实际转发到统一的
-    src.app.dependencies.get_adapter, 让 commands router / scheduler_jobs 共用一处.
+    src.api.dependencies.get_adapter, 让 commands router / scheduler_jobs 共用一处.
 
     settings 入参当前忽略 (从 get_settings 重新取), 主要保留是为了不破现有
     monkeypatch 测试. 后续 V0.1.1 完整切到 get_adapter 后可删.

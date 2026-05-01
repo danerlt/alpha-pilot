@@ -9,8 +9,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
-from src.app.app import app
-from src.app.dependencies import get_current_user
+from src.app import app
+from src.api.dependencies import get_current_user
 from src.shared.db import get_db
 from src.shared.models import Base, EventOutbox
 
