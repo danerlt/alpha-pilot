@@ -11,7 +11,6 @@ from __future__ import annotations
 import logging
 import signal
 import threading
-import time
 
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -84,20 +83,24 @@ def _start_event_shuttle() -> threading.Thread:
 def _consume_task_queue() -> None:
     """主线程阻塞消费 Redis 异步任务队列（task_requests 表 + alphapilot:tasks 队列）。
 
-    阶段 5 的 V0.1 实现：占位空循环（暂未引入 task_dispatcher_service）。
-    短 timeout 让 stop_flag 能被快速感知。
+    spec §4.9.1: scheduler 启动时先 recover_orphans, 然后 BRPOP 消费循环。
     """
     cfg = get_app_config()
-    logger.info(
-        "Task queue consumer placeholder loop (queue=%s, sleep=1s)",
-        cfg.TASK_QUEUE_KEY,
+    from src.db.session import get_db_session
+    from src.services.task_dispatcher import TaskDispatcher
+    from src.utils.redis import get_redis_client
+
+    dispatcher = TaskDispatcher(
+        db_factory=get_db_session,
+        redis_client=get_redis_client(),
+        queue_key=cfg.TASK_QUEUE_KEY,
     )
-    while not _stop_flag.is_set():
-        # V0.1 占位：未引入 task_dispatcher_service 时直接 sleep
-        # 后续接入 BRPOP + execute_task：
-        # item = redis_client.brpop(cfg.TASK_QUEUE_KEY, timeout=1)
-        # if item: with get_db_session() as s: task_dispatcher_service.execute(s, json.loads(item[1]))
-        time.sleep(1.0)
+    try:
+        recovered = dispatcher.recover_orphans()
+        logger.info("recover_orphans done: recovered=%d", recovered)
+    except Exception:
+        logger.exception("recover_orphans failed (continuing)")
+    dispatcher.dispatch_loop(_stop_flag)
 
 
 def _install_signal_handlers() -> None:

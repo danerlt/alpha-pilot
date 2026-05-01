@@ -23,6 +23,7 @@ from src.models.risk_event import RiskEvent
 from src.models.shadow import ShadowDecision, ShadowEvaluation
 from src.models.symbol_config import SymbolConfig
 from src.models.system_setting import SystemSetting
+from src.models.task_request import TaskRequest
 from src.models.trade import Trade
 from src.models.user import User
 
@@ -62,6 +63,7 @@ __all__ = [
     "StrategyScore",
     "SymbolConfig",
     "SystemSetting",
+    "TaskRequest",
     "Trade",
     "TradeAttribution",
     "User",
