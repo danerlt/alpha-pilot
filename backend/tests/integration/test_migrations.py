@@ -11,7 +11,7 @@ def migrated_db():
     with PostgresContainer("postgres:16-alpine") as pg:
         url = pg.get_connection_url()
         # 运行所有迁移
-        alembic_cfg = Config(os.path.join(os.path.dirname(__file__), "../../alembic.ini"))
+        alembic_cfg = Config(os.path.join(os.path.dirname(__file__), "../../src/db/alembic.ini"))
         alembic_cfg.set_main_option("sqlalchemy.url", url)
         command.upgrade(alembic_cfg, "head")
         engine = create_engine(url)
