@@ -1,4 +1,4 @@
-"""DecisionSolver — call LLM, parse JSON, validate, persist ai_decisions.
+﻿"""DecisionSolver — call LLM, parse JSON, validate, persist ai_decisions.
 
 All failure paths funnel to the canonical fallback HOLD:
   - LLMTimeout
@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
-from src.shared.constants import MAX_POSITION_SIZE_PCT_HARD_CAP
+from src.common.constants import MAX_POSITION_SIZE_PCT_HARD_CAP
 from src.models.decision import AIDecision
 from src.core.llm.client import LLMClient, LLMResult, LLMTimeout
 from src.services.strategy.prompt_composer import PromptBundle

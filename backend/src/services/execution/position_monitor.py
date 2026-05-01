@@ -1,4 +1,4 @@
-"""PositionMonitor — 10 秒循环刷新价格 + 止损/止盈触发 + 日亏损熔断 (spec §6.5)。
+﻿"""PositionMonitor — 10 秒循环刷新价格 + 止损/止盈触发 + 日亏损熔断 (spec §6.5)。
 
 V0.1 不依赖 Binance 委托单 (止盈虽然挂在交易所, 但触发判定完全用 ticker
 + 数据库): SL 穿透立即市价平仓, TP 抵达立即市价平仓; 这两个动作走
@@ -23,7 +23,7 @@ from src.services.events.outbox import OutboxWriter
 from src.services.execution.account_state import AccountStateService
 from src.core.exchange.adapter import ExchangeAdapter
 from src.services.execution.order_executor import OrderExecutor
-from src.shared.enums import PositionStatus
+from src.common.enums import PositionStatus
 from src.models.position import Position
 from src.models.risk_event import RiskEvent
 

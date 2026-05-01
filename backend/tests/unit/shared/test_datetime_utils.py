@@ -1,11 +1,11 @@
-"""shared/datetime_utils 单测."""
+﻿"""shared/datetime_utils 单测."""
 from __future__ import annotations
 
 from datetime import datetime, timezone
 
 import pytest
 
-from src.shared.datetime_utils import ensure_aware, utcnow
+from src.utils.datetime import ensure_aware, utcnow
 
 
 def test_ensure_aware_passes_through_aware_datetime():

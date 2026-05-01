@@ -1,4 +1,4 @@
-"""ManualOpsService — 人工兜底操作 (spec §6.5)。
+﻿"""ManualOpsService — 人工兜底操作 (spec §6.5)。
 
 V0.1 提供:
   - manual_close_position: 单仓平仓 (跳过 Guard)
@@ -22,7 +22,7 @@ from src.services.events.contracts import ManualOverride
 from src.services.events.outbox import OutboxWriter
 from src.core.exchange.adapter import ExchangeAdapter
 from src.services.execution.order_executor import OrderExecutor
-from src.shared.enums import PositionStatus
+from src.common.enums import PositionStatus
 from src.models.audit_log import AuditLog
 from src.models.position import Position
 from src.models.risk_event import RiskEvent

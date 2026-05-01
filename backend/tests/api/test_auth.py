@@ -1,4 +1,4 @@
-"""Auth router tests.
+﻿"""Auth router tests.
 post-Plan5 安全审计 C5: 公开 register 已禁用, 改为预先在 DB seed admin
 然后测 login + me. register 端点测试改为验证它返 403.
 """
@@ -10,8 +10,8 @@ from sqlalchemy.orm import sessionmaker
 
 from src.app import app
 from src.services.auth import hash_password
-from src.shared.db import get_db
-from src.shared.enums import UserRole, UserStatus
+from src.db.session import get_db
+from src.common.enums import UserRole, UserStatus
 from src.models.base import Base
 from src.models.user import User
 

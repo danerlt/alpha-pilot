@@ -1,8 +1,8 @@
-from datetime import datetime
+﻿from datetime import datetime
 from sqlalchemy import BigInteger, String, Numeric, DateTime, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 from src.models.base import Base
-from src.shared.enums import TradingMode
+from src.common.enums import TradingMode
 
 
 class ExperienceRecord(Base):

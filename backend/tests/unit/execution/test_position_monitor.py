@@ -1,4 +1,4 @@
-"""PositionMonitor 单测。"""
+﻿"""PositionMonitor 单测。"""
 from __future__ import annotations
 
 import os
@@ -15,7 +15,7 @@ from src.core.exchange.adapter import ExchangeAdapter
 from src.core.exchange.types import Kline, OrderRequest, OrderResult, Ticker
 from src.services.execution.position_monitor import PositionMonitor
 from src.services.execution.order_executor import OrderExecutor
-from src.shared.enums import PositionStatus
+from src.common.enums import PositionStatus
 from src.models import Base, Position, RiskEvent, Trade
 
 

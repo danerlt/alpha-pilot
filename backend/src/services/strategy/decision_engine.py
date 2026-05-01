@@ -1,4 +1,4 @@
-"""AI 决策引擎 — 调用 LLM 生成结构化交易决策并写入 DB。"""
+﻿"""AI 决策引擎 — 调用 LLM 生成结构化交易决策并写入 DB。"""
 from __future__ import annotations
 
 import logging
@@ -13,8 +13,8 @@ from src.services.strategy.decision_prompt import (
     build_prompt_input,
     format_user_message,
 )
-from src.shared.config import get_settings
-from src.shared.config_diagnostics import can_call_llm, get_runtime_credential_status
+from src.configs.app_configs import get_settings
+from src.configs.app_configs import can_call_llm, get_runtime_credential_status
 from src.models.decision import AIDecision
 
 logger = logging.getLogger(__name__)

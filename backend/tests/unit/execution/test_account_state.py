@@ -1,4 +1,4 @@
-"""AccountStateService 单测。"""
+﻿"""AccountStateService 单测。"""
 from __future__ import annotations
 
 import os
@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from src.services.execution.account_state import AccountStateService
 from src.core.exchange.adapter import ExchangeAdapter
 from src.core.exchange.types import Kline, OrderRequest, OrderResult, Ticker
-from src.shared.enums import PositionStatus
+from src.common.enums import PositionStatus
 from src.models import Base, Position, Trade
 
 

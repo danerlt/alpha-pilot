@@ -1,4 +1,4 @@
-"""AccountStateService — 账户余额/持仓/PnL 同步, 写 account_snapshots 表。
+﻿"""AccountStateService — 账户余额/持仓/PnL 同步, 写 account_snapshots 表。
 
 V0.1: 从 ExchangeAdapter 拿 USDT 可用余额; 从 positions 表加总未实现盈亏;
 从 trades 表加总今日已实现盈亏。total = available + sum(market_value of open positions)。
@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.core.exchange.adapter import ExchangeAdapter
-from src.shared.enums import PositionStatus
+from src.common.enums import PositionStatus
 from src.models.account import AccountSnapshot
 from src.models.position import Position
 from src.models.trade import Trade

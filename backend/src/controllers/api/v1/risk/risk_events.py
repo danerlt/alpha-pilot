@@ -1,4 +1,4 @@
-"""Risk events — /api/risk-events (GET) / /api/risk-events/{id}/resolve (POST).
+﻿"""Risk events — /api/risk-events (GET) / /api/risk-events/{id}/resolve (POST).
 
 GET 要求登录, POST 要求 admin (危险操作: 解除熔断会让自动交易重新开仓)。
 
@@ -17,8 +17,8 @@ from src.common.response.response_code import ErrorCode
 from src.controllers.dependencies import get_adapter, get_current_user, require_admin
 from src.services.manual_ops import ManualOpsService
 from src.services.events.outbox import OutboxWriter
-from src.shared.config import get_settings
-from src.shared.db import get_db
+from src.configs.app_configs import get_settings
+from src.db.session import get_db
 from src.models.risk_event import RiskEvent
 
 router = APIRouter(prefix="/api/risk-events", tags=["risk"])

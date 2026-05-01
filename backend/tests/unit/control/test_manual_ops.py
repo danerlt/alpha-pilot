@@ -1,4 +1,4 @@
-"""ManualOpsService 单测。"""
+﻿"""ManualOpsService 单测。"""
 from __future__ import annotations
 
 import os
@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from src.services.manual_ops import ManualOpsService
 from src.core.exchange.adapter import ExchangeAdapter
 from src.core.exchange.types import OrderRequest, OrderResult, Ticker
-from src.shared.enums import PositionStatus
+from src.common.enums import PositionStatus
 from src.models import AuditLog, Base, Position, RiskEvent, Trade
 
 

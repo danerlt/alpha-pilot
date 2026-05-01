@@ -1,4 +1,4 @@
-"""Runtime config — /api/config/runtime (GET / POST)."""
+﻿"""Runtime config — /api/config/runtime (GET / POST)."""
 from __future__ import annotations
 
 from typing import Any
@@ -10,11 +10,11 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from src.controllers.dependencies import require_admin
-from src.shared.config import get_base_settings, get_settings
-from src.shared.config_diagnostics import get_runtime_credential_status
-from src.shared.db import get_db
-from src.shared.enums import TradingMode
-from src.shared.runtime_config import (
+from src.configs.app_configs import get_app_config as get_base_settings, get_settings
+from src.configs.app_configs import get_runtime_credential_status
+from src.db.session import get_db
+from src.common.enums import TradingMode
+from src.services.system.runtime_config import (
     BINANCE_MAINNET_API_KEY,
     BINANCE_MAINNET_API_SECRET,
     BINANCE_TESTNET_API_KEY,

@@ -1,4 +1,4 @@
-"""Commands router 集成测试 (FastAPI TestClient)。"""
+﻿"""Commands router 集成测试 (FastAPI TestClient)。"""
 from __future__ import annotations
 
 import os
@@ -9,8 +9,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.app import app
-from src.shared.db import get_db, get_session_factory
-from src.shared.enums import PositionStatus
+from src.db.engines import get_session_factory
+from src.db.session import get_db
+from src.common.enums import PositionStatus
 from src.models import Base, Position, RiskEvent
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session

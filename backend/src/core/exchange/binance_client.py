@@ -1,4 +1,4 @@
-"""Binance API 客户端 — 统一封装 testnet/mainnet 切换。"""
+﻿"""Binance API 客户端 — 统一封装 testnet/mainnet 切换。"""
 from __future__ import annotations
 
 import logging
@@ -6,9 +6,9 @@ from functools import lru_cache
 from typing import Any
 
 from binance.client import Client
-from src.shared.config import get_settings
-from src.shared.config_diagnostics import can_call_binance, get_runtime_credential_status
-from src.shared.enums import TradingMode
+from src.configs.app_configs import get_settings
+from src.configs.app_configs import can_call_binance, get_runtime_credential_status
+from src.common.enums import TradingMode
 
 logger = logging.getLogger(__name__)
 

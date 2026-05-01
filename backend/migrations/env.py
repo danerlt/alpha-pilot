@@ -1,4 +1,4 @@
-import os
+﻿import os
 import sys
 from logging.config import fileConfig
 
@@ -8,7 +8,7 @@ from sqlalchemy import engine_from_config, pool
 # 将 src/ 加入路径，确保模型可导入
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from src.shared.config import get_settings
+from src.configs.app_configs import get_settings
 # 从 src.models 导入所有模型类，确保 Base.metadata 包含全部表（必须显式 import 触发注册）
 from src.models import (  # noqa: F401
     Account, AccountSnapshot, AgentInvocation, AIDecision, AuditLog,

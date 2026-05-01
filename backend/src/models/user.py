@@ -1,7 +1,7 @@
-from sqlalchemy import BigInteger, Integer, String
+﻿from sqlalchemy import BigInteger, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.shared.enums import UserRole, UserStatus
+from src.common.enums import UserRole, UserStatus
 from src.models.base import Base
 
 

@@ -1,4 +1,4 @@
-"""AlphaPilot 统一配置 — 8 个子配置类多继承聚合。
+﻿"""AlphaPilot 统一配置 — 8 个子配置类多继承聚合。
 
 加载优先级：代码默认 → .env 文件 → 真实环境变量。
 """
@@ -12,7 +12,7 @@ from urllib.parse import quote_plus
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from src.shared.enums import TradingMode  # 阶段 2 会迁到 src/common/enums.py 或 src/models/enums.py
+from src.common.enums import TradingMode  # 阶段 2 会迁到 src/common/enums.py 或 src/models/enums.py
 
 _ENV_FILE = Path(__file__).resolve().parent.parent.parent.parent / ".env"
 

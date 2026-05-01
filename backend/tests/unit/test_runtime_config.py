@@ -1,6 +1,6 @@
-import os
-from src.shared.enums import TradingMode
-from src.shared.runtime_config import (
+﻿import os
+from src.common.enums import TradingMode
+from src.services.system.runtime_config import (
     BINANCE_MAINNET_API_KEY,
     BINANCE_MAINNET_API_SECRET,
     MAX_CONSECUTIVE_LOSSES,

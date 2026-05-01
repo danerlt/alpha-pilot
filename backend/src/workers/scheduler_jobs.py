@@ -1,4 +1,4 @@
-"""APScheduler 任务包装层 (Plan 5)。
+﻿"""APScheduler 任务包装层 (Plan 5)。
 
 把 Plan 2 的 run_strategy_pipeline_once / run_position_monitor_once 封装成
 APScheduler 可调用的零参函数, 自带依赖注入 + KillSwitch 检查 + 错误兜底。
@@ -17,8 +17,8 @@ from src.controllers.dependencies import get_adapter
 from src.services.risk.kill_switch import KillSwitchService
 from src.services.events.outbox import OutboxWriter
 from src.core.exchange.binance_adapter import BinanceAdapter
-from src.shared.config import get_settings
-from src.shared.db import get_session_factory
+from src.configs.app_configs import get_settings
+from src.db.engines import get_session_factory
 from src.models.account_entity import RiskProfile
 from src.core.llm.client import (
     LLMClient,

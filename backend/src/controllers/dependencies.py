@@ -1,4 +1,4 @@
-"""FastAPI 共享依赖 — 认证 + 角色守卫 + 交易所 adapter 装配。
+﻿"""FastAPI 共享依赖 — 认证 + 角色守卫 + 交易所 adapter 装配。
 
 从原 src/app/router.py 抽出, 让所有领域 router 复用 get_current_user /
 require_admin / get_adapter, 不再各自重复实现。
@@ -15,9 +15,9 @@ from src.services.auth import (
     decode_access_token,
     ensure_user_is_active,
 )
-from src.shared.config import get_base_settings, get_settings
-from src.shared.db import get_db
-from src.shared.enums import TradingMode
+from src.configs.app_configs import get_app_config as get_base_settings, get_settings
+from src.db.session import get_db
+from src.common.enums import TradingMode
 
 
 def extract_bearer_token(authorization: str | None) -> str:

@@ -1,4 +1,4 @@
-"""Account — /api/account."""
+﻿"""Account — /api/account."""
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session
 
 from src.common.api_response import api_response
 from src.controllers.dependencies import get_current_user
-from src.shared.config import get_settings
-from src.shared.db import get_db
+from src.configs.app_configs import get_settings
+from src.db.session import get_db
 from src.models.account import AccountSnapshot
 
 router = APIRouter(prefix="/api/account", tags=["account"])

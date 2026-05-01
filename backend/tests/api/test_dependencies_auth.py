@@ -1,4 +1,4 @@
-"""dependencies.get_current_user 鉴权异常 → 401 单测.
+﻿"""dependencies.get_current_user 鉴权异常 → 401 单测.
 
 Code review (post Plan5 minor) 发现: decode_access_token 抛 ValueError /
 sub 不可转 int 时, FastAPI 默认会返 500 而不是 401, 导致前端 401 自动登出
@@ -15,7 +15,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from src.controllers.dependencies import get_current_user
-from src.shared.db import get_db
+from src.db.session import get_db
 from src.models import Base
 
 
@@ -75,7 +75,7 @@ def test_jwt_with_wrong_signature_returns_401(client):
 def test_jwt_with_non_int_sub_returns_401(client):
     """sub 不是数字串时 int(user_id) 会抛 ValueError, 必须 401 不能 500."""
     from src.services.auth import create_access_token
-    from src.shared.config import get_base_settings
+    from src.configs.app_configs import get_app_config as get_base_settings
     bad_sub_token = create_access_token(
         subject="not-a-number", role="user",
         secret_key=get_base_settings().APP_AUTH_SECRET_KEY,

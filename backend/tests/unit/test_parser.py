@@ -1,10 +1,10 @@
-"""单元测试：LLM 输出解析器 (decision_engine/parser.py)。"""
+﻿"""单元测试：LLM 输出解析器 (decision_engine/parser.py)。"""
 import json
 
 import pytest
 
 from src.services.strategy.decision_parser import DecisionPayload, parse_llm_output
-from src.shared.enums import Action
+from src.common.enums import Action
 
 
 # ─── 兜底（Fallback）场景 ──────────────────────────────────────────────────────

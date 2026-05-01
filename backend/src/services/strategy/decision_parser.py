@@ -1,4 +1,4 @@
-"""LLM 输出解析 — JSON 解析 + 兜底 HOLD。"""
+﻿"""LLM 输出解析 — JSON 解析 + 兜底 HOLD。"""
 from __future__ import annotations
 
 import json
@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from src.shared.enums import Action, EntryType, StrategyMode
+from src.common.enums import Action, EntryType, StrategyMode
 
 logger = logging.getLogger(__name__)
 

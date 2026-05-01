@@ -1,4 +1,4 @@
-"""WebSocket endpoint — 订阅 Redis 多频道, 实时推送给前端。
+﻿"""WebSocket endpoint — 订阅 Redis 多频道, 实时推送给前端。
 
 Critical fix C4:
   - accept 之前先校验 ?token=<jwt>; 失败立即 close(4401).
@@ -17,8 +17,8 @@ from fastapi import WebSocket, WebSocketDisconnect, WebSocketException, status
 from sqlalchemy import select
 
 from src.services.auth import decode_access_token, ensure_user_is_active
-from src.shared.config import get_base_settings
-from src.shared.db import get_session_factory
+from src.configs.app_configs import get_app_config as get_base_settings
+from src.db.engines import get_session_factory
 from src.models.event_store import EventOutbox
 
 logger = logging.getLogger(__name__)
