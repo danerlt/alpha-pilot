@@ -30,7 +30,7 @@ def admin_user_perm_db():
 
 @pytest.mark.asyncio
 async def test_admin_user_list_requires_admin(admin_user_perm_db, monkeypatch):
-    from src.api import router as router_module
+    from src.controllers import router as router_module
 
     monkeypatch.setattr(
         router_module,
@@ -53,7 +53,7 @@ async def test_admin_user_list_requires_admin(admin_user_perm_db, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_admin_user_update_requires_admin(admin_user_perm_db, monkeypatch):
-    from src.api import router as router_module
+    from src.controllers import router as router_module
 
     monkeypatch.setattr(
         router_module,
@@ -76,7 +76,7 @@ async def test_admin_user_update_requires_admin(admin_user_perm_db, monkeypatch)
 
 @pytest.mark.asyncio
 async def test_admin_update_user_returns_404_for_missing_user(admin_user_perm_db):
-    from src.api import router as router_module
+    from src.controllers import router as router_module
 
     def override_db():
         yield admin_user_perm_db

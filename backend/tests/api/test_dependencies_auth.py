@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from src.api.dependencies import get_current_user
+from src.controllers.dependencies import get_current_user
 from src.shared.db import get_db
 from src.models import Base
 

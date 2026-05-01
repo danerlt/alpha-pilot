@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from src.api.dependencies import require_admin
+from src.controllers.dependencies import require_admin
 from src.shared.db import get_db
 from src.shared.enums import UserRole, UserStatus
 from src.models.audit_log import AuditLog

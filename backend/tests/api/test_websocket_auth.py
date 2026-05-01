@@ -57,7 +57,7 @@ def client(engine, monkeypatch):
 
     # 让 websocket._replay_since / _verify_user_active 用同一个 in-memory engine
     Local = sessionmaker(bind=engine, autocommit=False, autoflush=False)
-    monkeypatch.setattr("src.api.websocket.get_session_factory", lambda: Local)
+    monkeypatch.setattr("src.controllers.websocket.get_session_factory", lambda: Local)
 
     # seed 一个 active user (id=1) 让所有 _make_token() 调用握手能过
     _seed_user(engine, user_id=1, status="active")
@@ -115,7 +115,7 @@ def test_ws_rejects_disabled_user(engine, monkeypatch):
 
     app.dependency_overrides[get_db] = _override_db
     Local = sessionmaker(bind=engine, autocommit=False, autoflush=False)
-    monkeypatch.setattr("src.api.websocket.get_session_factory", lambda: Local)
+    monkeypatch.setattr("src.controllers.websocket.get_session_factory", lambda: Local)
 
     # 唯一区别: status=disabled
     _seed_user(engine, user_id=99, status="disabled")
@@ -145,7 +145,7 @@ def test_ws_rejects_unknown_user(engine, monkeypatch):
 
     app.dependency_overrides[get_db] = _override_db
     Local = sessionmaker(bind=engine, autocommit=False, autoflush=False)
-    monkeypatch.setattr("src.api.websocket.get_session_factory", lambda: Local)
+    monkeypatch.setattr("src.controllers.websocket.get_session_factory", lambda: Local)
 
     # token 指向 user_id=999, 但没 seed 这个 user
     token = _make_token(user_id=999)

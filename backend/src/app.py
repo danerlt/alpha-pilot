@@ -23,10 +23,10 @@ from asgi_correlation_id import CorrelationIdMiddleware
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.api.router import router as _root_router
-from src.api.routers.commands import router as _commands_router
-from src.api.routers.events_catchup import router as _events_catchup_router
-from src.api.websocket import redis_subscriber, websocket_endpoint
+from src.controllers.router import router as _root_router
+from src.controllers.api.v1.risk.commands import router as _commands_router
+from src.controllers.api.v1.system.events_catchup import router as _events_catchup_router
+from src.controllers.websocket import redis_subscriber, websocket_endpoint
 from src.common.exception.exception_handler import register_exception_handlers
 from src.configs import get_app_config
 from src.services.risk.kill_switch import KillSwitchService

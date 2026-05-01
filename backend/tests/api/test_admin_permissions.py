@@ -18,7 +18,7 @@ class DummyDB:
 
 @pytest.mark.asyncio
 async def test_runtime_config_update_requires_admin(monkeypatch):
-    from src.api import router as router_module
+    from src.controllers import router as router_module
 
     monkeypatch.setattr(
         router_module,
@@ -44,8 +44,8 @@ async def test_runtime_config_update_requires_admin(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_runtime_config_update_allows_admin(monkeypatch):
-    from src.api import router as router_module
-    from src.api.routers import runtime_config as runtime_module
+    from src.controllers import router as router_module
+    from src.controllers.api.v1.system import runtime_config as runtime_module
 
     db = DummyDB()
     updates = []

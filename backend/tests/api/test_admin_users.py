@@ -29,7 +29,7 @@ def admin_users_db():
 
 @pytest.mark.asyncio
 async def test_admin_can_list_users(admin_users_db):
-    from src.api import router as router_module
+    from src.controllers import router as router_module
 
     admin_users_db.add_all(
         [
@@ -72,7 +72,7 @@ async def test_admin_can_list_users(admin_users_db):
 
 @pytest.mark.asyncio
 async def test_admin_can_update_user_role_and_status_with_audit_log(admin_users_db):
-    from src.api import router as router_module
+    from src.controllers import router as router_module
 
     target_user = User(
         username="bob",
@@ -122,7 +122,7 @@ async def test_admin_can_update_user_role_and_status_with_audit_log(admin_users_
 
 @pytest.mark.asyncio
 async def test_admin_update_user_requires_at_least_one_change(admin_users_db):
-    from src.api import router as router_module
+    from src.controllers import router as router_module
 
     target_user = User(
         username="carol",

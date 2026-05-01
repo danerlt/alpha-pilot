@@ -35,13 +35,13 @@ def client():
 
     # 鉴权 mock: 测试中绕过 JWT 解码, 注入 admin user.
     from types import SimpleNamespace
-    from src.api.dependencies import require_admin
+    from src.controllers.dependencies import require_admin
     app.dependency_overrides[require_admin] = lambda: SimpleNamespace(
         id=1, username="admin_test", role="admin", status="active",
     )
 
     # 替换 _adapter() 用 stub
-    from src.api.routers import commands as commands_module
+    from src.controllers.api.v1.risk import commands as commands_module
 
     class _StubAdapter:
         @property

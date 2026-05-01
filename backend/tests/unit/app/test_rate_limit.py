@@ -7,7 +7,7 @@ from __future__ import annotations
 import pytest
 from fastapi import HTTPException
 
-from src.api.rate_limit import InMemoryRateLimiter
+from src.controllers.rate_limit import InMemoryRateLimiter
 
 
 def test_under_threshold_passes():
@@ -62,7 +62,7 @@ def test_reset_all_clears_everything():
 
 def test_window_slides_after_expiry(monkeypatch):
     """超过窗口时间后旧 hit 应被清掉, quota 恢复."""
-    import src.api.rate_limit as rl_module
+    import src.controllers.rate_limit as rl_module
 
     fake_time = [0.0]
     monkeypatch.setattr(rl_module.time, "monotonic", lambda: fake_time[0])

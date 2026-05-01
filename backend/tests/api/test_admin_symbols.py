@@ -28,7 +28,7 @@ def admin_db():
 
 @pytest.mark.asyncio
 async def test_admin_can_create_and_list_symbols(admin_db):
-    from src.api import router as router_module
+    from src.controllers import router as router_module
 
     def override_db():
         yield admin_db
@@ -54,7 +54,7 @@ async def test_admin_can_create_and_list_symbols(admin_db):
 
 @pytest.mark.asyncio
 async def test_admin_can_update_symbol(admin_db):
-    from src.api import router as router_module
+    from src.controllers import router as router_module
 
     symbol = SymbolConfig(symbol="ETHUSDT", base_asset="ETH", quote_asset="USDT", timeframe="15m")
     admin_db.add(symbol)
