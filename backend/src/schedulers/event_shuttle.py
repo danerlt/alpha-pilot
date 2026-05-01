@@ -21,7 +21,7 @@ def event_shuttle_loop(stop_flag: threading.Event) -> None:
 
     出错时短退避不退出，进程退出时由 daemon=True 自动结束。
     """
-    from src.services.events.bus import RedisStreamsBus
+    from src.services.event_bus import RedisStreamsBus
     from src.workers.event_shuttle import EventShuttle
 
     cfg = get_app_config()

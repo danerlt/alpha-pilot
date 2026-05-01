@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from src.services.events.bus import InMemoryEventBus
+from src.services.event_bus import InMemoryEventBus
 from src.services.events.contracts import CandleClosed, EventEnvelope
 from src.services.events.ids import new_event_id
 
