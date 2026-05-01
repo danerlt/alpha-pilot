@@ -21,7 +21,7 @@ def client():
     from types import SimpleNamespace
 
     engine = create_engine(
-        os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:")),
+        os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:"),
     )
     Base.metadata.create_all(engine)
 
@@ -44,7 +44,7 @@ def client():
 def test_catchup_requires_authentication():
     """缺 token / 未注入鉴权 override 时, /catchup 必须 401."""
     engine = create_engine(
-        os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:")),
+        os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:"),
     )
     Base.metadata.create_all(engine)
 

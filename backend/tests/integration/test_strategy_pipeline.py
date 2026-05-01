@@ -38,7 +38,7 @@ from src.workers.strategy_pipeline import run_strategy_pipeline_once
 
 @pytest.fixture
 def session():
-    engine = create_engine(os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:"))))
+    engine = create_engine(os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:"))
     Base.metadata.create_all(engine)
     with Session(engine) as s:
         # 必须的种子: 1 个 active prompt template

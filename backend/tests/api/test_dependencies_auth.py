@@ -22,7 +22,7 @@ from src.models import Base
 @pytest.fixture
 def client():
     engine = create_engine(
-        os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:")),
+        os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:"),
     )
     Base.metadata.create_all(engine)
 

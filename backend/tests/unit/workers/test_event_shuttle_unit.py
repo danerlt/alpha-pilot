@@ -21,7 +21,7 @@ from src.workers.event_shuttle import DEFAULT_MAX_FAILED_ATTEMPTS, EventShuttle
 
 @pytest.fixture
 def engine():
-    eng = create_engine(os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:"))))
+    eng = create_engine(os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:"))
     Base.metadata.create_all(eng)
     yield eng
 

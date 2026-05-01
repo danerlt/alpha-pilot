@@ -1,9 +1,8 @@
 """Auth router tests.
-
-import os
 post-Plan5 安全审计 C5: 公开 register 已禁用, 改为预先在 DB seed admin
 然后测 login + me. register 端点测试改为验证它返 403.
 """
+import os
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import create_engine

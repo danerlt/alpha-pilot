@@ -21,7 +21,7 @@ def client():
     # SQLite in-memory + StaticPool 让多 session 共享同一个连接 (否则 :memory: 各自隔离)
     from sqlalchemy.pool import StaticPool
     engine = create_engine(
-        os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:")),
+        os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:"),
     )
     Base.metadata.create_all(engine)
 

@@ -19,7 +19,7 @@ from src.models import Base, EventOutbox
 @pytest.fixture
 def engine():
     eng = create_engine(
-        os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:")),
+        os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:"),
     )
     Base.metadata.create_all(eng)
     yield eng
