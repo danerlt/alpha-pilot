@@ -13,13 +13,18 @@ KillSwitchService, 自动写 audit_logs + manual.override 事件。
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from src.common.api_response import api_response
 from src.common.exception.errors import DBException, ParamsException
 from src.common.response.response_code import ErrorCode
 from src.controllers.dependencies import get_adapter, require_admin
+from src.schemas.command import (
+    CloseAllCreate,
+    ClosePositionCreate,
+    PauseCreate,
+    ResolveBreakerCreate,
+)
 from src.services.risk.kill_switch import KillSwitchService
 from src.services.manual_ops import ManualOpsService
 from src.services.events.outbox import OutboxWriter
@@ -33,27 +38,6 @@ router = APIRouter(prefix="/api/commands", tags=["commands"])
 _adapter = get_adapter
 
 
-# ----- Request schemas ------------------------------------------------------
-
-class CloseAllRequest(BaseModel):
-    confirmation: str   # 必须等于 "CLOSE ALL"
-    reason: str
-    account_id: int = 1
-    trading_mode: str = "testnet"
-
-
-class ClosePositionRequest(BaseModel):
-    reason: str
-
-
-class ResolveBreakerRequest(BaseModel):
-    reason: str
-
-
-class PauseRequest(BaseModel):
-    reason: str
-
-
 # ----- Endpoints ------------------------------------------------------------
 # 所有写操作要求 admin (require_admin), 防止未授权调用. (Critical fix C1)
 
@@ -62,7 +46,7 @@ class PauseRequest(BaseModel):
 @api_response()
 def close_position(
     position_id: int,
-    body: ClosePositionRequest,
+    body: ClosePositionCreate,
     db: Session = Depends(get_db),
     current_admin=Depends(require_admin),
 ):
@@ -80,7 +64,7 @@ def close_position(
 @router.post("/close-all")
 @api_response()
 def close_all(
-    body: CloseAllRequest,
+    body: CloseAllCreate,
     db: Session = Depends(get_db),
     current_admin=Depends(require_admin),
 ):
@@ -99,7 +83,7 @@ def close_all(
 @api_response()
 def resolve_breaker(
     event_id: int,
-    body: ResolveBreakerRequest,
+    body: ResolveBreakerCreate,
     db: Session = Depends(get_db),
     current_admin=Depends(require_admin),
 ):
@@ -117,7 +101,7 @@ def resolve_breaker(
 @router.post("/pause")
 @api_response()
 def pause(
-    body: PauseRequest,
+    body: PauseCreate,
     db: Session = Depends(get_db),
     current_admin=Depends(require_admin),
 ):
@@ -130,7 +114,7 @@ def pause(
 @router.post("/resume")
 @api_response()
 def resume(
-    body: PauseRequest,
+    body: PauseCreate,
     db: Session = Depends(get_db),
     current_admin=Depends(require_admin),
 ):

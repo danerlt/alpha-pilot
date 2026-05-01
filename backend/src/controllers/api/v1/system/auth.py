@@ -7,11 +7,11 @@ from fastapi import APIRouter, Depends, Request
 from src.common.api_response import api_response
 from src.common.exception.errors import ServiceException
 from src.common.response.response_code import ErrorCode
-from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
 from src.controllers.dependencies import get_current_user
 from src.controllers.rate_limit import login_email_limiter, login_ip_limiter
+from src.schemas.auth import AuthLoginCreate, UserRegisterCreate
 from src.services.auth import (
     create_access_token,
     ensure_user_is_active,
@@ -20,7 +20,6 @@ from src.services.auth import (
 )
 from src.configs.app_configs import get_app_config as get_base_settings
 from src.db.session import get_db
-from src.common.enums import UserRole, UserStatus
 from src.models.user import User
 
 # 用于 timing-equal: user 不存在时也跑一次 verify_password 让响应时延一致,
@@ -31,20 +30,9 @@ _DUMMY_PASSWORD_HASH = hash_password("dummy-password-for-timing-equal-only")
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
-class RegisterRequest(BaseModel):
-    username: str
-    email: EmailStr
-    password: str
-
-
-class LoginRequest(BaseModel):
-    email: EmailStr
-    password: str
-
-
 @router.post("/register")
 @api_response()
-def register(payload: RegisterRequest, db: Session = Depends(get_db)):
+def register(payload: UserRegisterCreate, db: Session = Depends(get_db)):
     """V0.1 单管理员场景下公开注册被禁用 (post-Plan5 安全审计 C5).
 
     所有账号必须由 admin 通过 admin_bootstrap (.env DEFAULT_ADMIN_*) 引导,
@@ -64,7 +52,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
 @router.post("/login")
 @api_response()
 def login(
-    payload: LoginRequest,
+    payload: AuthLoginCreate,
     request: Request,
     db: Session = Depends(get_db),
 ):
