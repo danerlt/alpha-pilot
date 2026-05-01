@@ -14,7 +14,7 @@ from src.execution.exchange.types import Kline, OrderRequest, OrderResult, Ticke
 from src.execution.monitor.position_monitor import PositionMonitor
 from src.execution.orders.executor import OrderExecutor
 from src.shared.enums import PositionStatus
-from src.shared.models import Base, Position, RiskEvent, Trade
+from src.models import Base, Position, RiskEvent, Trade
 
 
 @pytest.fixture

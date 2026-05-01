@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from src.events.contracts import CandleClosed
 from src.events.outbox import OutboxWriter
 from src.execution.exchange.adapter import ExchangeAdapter
-from src.shared.models.candle import Candle
+from src.models.candle import Candle
 
 logger = logging.getLogger(__name__)
 

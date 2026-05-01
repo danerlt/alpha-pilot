@@ -10,7 +10,7 @@ from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy.orm import Session
 
 from src.shared.enums import TradingMode
-from src.shared.models.system_setting import SystemSetting
+from src.models.system_setting import SystemSetting
 
 logger = logging.getLogger(__name__)
 

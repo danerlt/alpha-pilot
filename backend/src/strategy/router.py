@@ -12,7 +12,7 @@ from typing import Protocol
 
 from sqlalchemy.orm import Session
 
-from src.shared.models.audit_log import AuditLog
+from src.models.audit_log import AuditLog
 from src.strategy.ai_trader.pipeline import PipelineInput
 from src.strategy.proposal import DecisionProposal
 

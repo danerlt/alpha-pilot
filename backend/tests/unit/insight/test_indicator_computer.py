@@ -13,7 +13,7 @@ from src.insight.indicators.computer import (
     IndicatorValues,
     _compute_from_df,
 )
-from src.shared.models import Base, Candle
+from src.models import Base, Candle
 
 
 # ---------------------------------------------------------------------------
@@ -159,7 +159,7 @@ def test_compute_returns_none_snapshot_when_not_enough_candles(session):
     assert snapshot_id is None
     assert values.ema20 is None
     # No snapshot written.
-    from src.shared.models import IndicatorSnapshot
+    from src.models import IndicatorSnapshot
     assert session.query(IndicatorSnapshot).count() == 0
 
 
@@ -174,7 +174,7 @@ def test_compute_writes_indicator_snapshot_row(session):
     assert snapshot_id is not None
     assert values.is_valid_for_trading()
 
-    from src.shared.models import IndicatorSnapshot
+    from src.models import IndicatorSnapshot
     row = session.get(IndicatorSnapshot, snapshot_id)
     assert row is not None
     assert row.account_id == 1
@@ -196,7 +196,7 @@ def test_compute_snapshot_at_matches_latest_candle(session):
         account_id=1, trading_mode="testnet",
         symbol="BTCUSDT", timeframe="1h",
     )
-    from src.shared.models import IndicatorSnapshot
+    from src.models import IndicatorSnapshot
     row = session.get(IndicatorSnapshot, snapshot_id)
     expected_naive = (datetime(2026, 1, 1, tzinfo=timezone.utc) + timedelta(hours=n - 1)).replace(tzinfo=None)
     actual = row.snapshot_at.replace(tzinfo=None) if row.snapshot_at.tzinfo else row.snapshot_at

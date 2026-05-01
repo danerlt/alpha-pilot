@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from src.services.auth import hash_password, verify_password
 from src.shared.config import Settings
 from src.shared.enums import UserRole, UserStatus
-from src.shared.models.user import User
+from src.models.user import User
 
 logger = logging.getLogger(__name__)
 

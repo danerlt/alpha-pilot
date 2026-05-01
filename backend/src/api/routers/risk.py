@@ -16,7 +16,7 @@ from src.control.manual_ops.service import ManualOpsService
 from src.events.outbox import OutboxWriter
 from src.shared.config import get_settings
 from src.shared.db import get_db
-from src.shared.models.risk_event import RiskEvent
+from src.models.risk_event import RiskEvent
 
 router = APIRouter(prefix="/api/risk-events", tags=["risk"])
 

@@ -20,7 +20,7 @@ from src.events.outbox import OutboxWriter
 from src.execution.exchange.binance_adapter import BinanceAdapter
 from src.shared.config import get_settings
 from src.shared.db import get_session_factory
-from src.shared.models.account_entity import RiskProfile
+from src.models.account_entity import RiskProfile
 from src.strategy.ai_trader.llm_client import (
     LLMClient,
     MockLLMClient,

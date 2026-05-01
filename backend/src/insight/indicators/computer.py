@@ -30,8 +30,8 @@ import pandas_ta as ta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.shared.models.candle import Candle
-from src.shared.models.indicator import IndicatorSnapshot
+from src.models.candle import Candle
+from src.models.indicator import IndicatorSnapshot
 
 logger = logging.getLogger(__name__)
 

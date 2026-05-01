@@ -10,8 +10,8 @@ from sqlalchemy.orm import Session
 
 from src.execution.guard.execution_guard import ExecutionGuard, GuardDecision
 from src.shared.enums import PositionStatus
-from src.shared.models import Base, Position, RiskEvent, Trade
-from src.shared.models.account_entity import RiskProfile
+from src.models import Base, Position, RiskEvent, Trade
+from src.models.account_entity import RiskProfile
 from src.strategy.proposal import DecisionProposal
 
 
@@ -214,14 +214,14 @@ def _check_with_outbox(
 
 
 def test_pass_does_not_publish_decision_event(session, profile):
-    from src.shared.models.event_store import EventOutbox
+    from src.models.event_store import EventOutbox
     _check_with_outbox(session, profile, _open_long())  # PASS
     rows = session.execute(select(EventOutbox)).scalars().all()
     assert rows == []  # PASS 不发 decision.* 事件
 
 
 def test_degrade_publishes_decision_degraded(session, profile):
-    from src.shared.models.event_store import EventOutbox
+    from src.models.event_store import EventOutbox
     r = _check_with_outbox(
         session, profile, _open_long(), regime="chaotic",
     )
@@ -239,7 +239,7 @@ def test_degrade_publishes_decision_degraded(session, profile):
 
 
 def test_reject_publishes_decision_rejected(session, profile):
-    from src.shared.models.event_store import EventOutbox
+    from src.models.event_store import EventOutbox
     r = _check_with_outbox(
         session, profile, _open_long(), daily_pnl_pct=-0.04,
     )
@@ -255,7 +255,7 @@ def test_reject_publishes_decision_rejected(session, profile):
 
 def test_no_decision_id_skips_publish(session, profile):
     """decision_id=None 时不应 publish (没有 ai_decisions 行可关联)."""
-    from src.shared.models.event_store import EventOutbox
+    from src.models.event_store import EventOutbox
     _check_with_outbox(
         session, profile, _open_long(), regime="chaotic", decision_id=None,
     )
@@ -265,7 +265,7 @@ def test_no_decision_id_skips_publish(session, profile):
 
 def test_no_outbox_no_publish(session, profile):
     """不注入 outbox 时, 行为与原版一致 — 只写 risk_events, 不发事件."""
-    from src.shared.models.event_store import EventOutbox
+    from src.models.event_store import EventOutbox
     _check(session, profile, _open_long(), regime="chaotic")  # 默认无 outbox
     rows = session.execute(select(EventOutbox)).scalars().all()
     assert rows == []

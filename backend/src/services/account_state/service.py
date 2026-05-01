@@ -10,9 +10,9 @@ from sqlalchemy.orm import Session
 from src.services.market_data.binance_client import get_account_info
 from src.shared.config import get_settings
 from src.shared.enums import PositionStatus
-from src.shared.models.account import AccountSnapshot
-from src.shared.models.position import Position
-from src.shared.models.trade import Trade
+from src.models.account import AccountSnapshot
+from src.models.position import Position
+from src.models.trade import Trade
 
 logger = logging.getLogger(__name__)
 

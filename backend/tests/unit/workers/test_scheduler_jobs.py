@@ -11,7 +11,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from src.shared.models import Base
+from src.models import Base
 from src.workers import scheduler_jobs
 
 

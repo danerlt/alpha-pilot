@@ -8,7 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from src.insight.experience.retriever import ExperienceRetriever, ExperienceSummary
-from src.shared.models import Base, ExperienceV2
+from src.models import Base, ExperienceV2
 
 
 @pytest.fixture

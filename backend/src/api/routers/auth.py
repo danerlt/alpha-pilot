@@ -18,7 +18,7 @@ from src.services.auth import (
 from src.shared.config import get_base_settings
 from src.shared.db import get_db
 from src.shared.enums import UserRole, UserStatus
-from src.shared.models.user import User
+from src.models.user import User
 
 # 用于 timing-equal: user 不存在时也跑一次 verify_password 让响应时延一致,
 # 防止 attacker 通过响应时延差推断 email 是否注册.

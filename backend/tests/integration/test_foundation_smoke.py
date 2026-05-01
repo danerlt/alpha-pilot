@@ -33,7 +33,7 @@ from src.events.bus import RedisStreamsBus
 from src.events.contracts import EventEnvelope, PositionOpened
 from src.events.inbox import InboxGuard
 from src.events.outbox import OutboxWriter
-from src.shared.models import Position
+from src.models import Position
 from src.workers.event_shuttle import EventShuttle
 
 

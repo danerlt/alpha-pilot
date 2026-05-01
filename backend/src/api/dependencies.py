@@ -42,7 +42,7 @@ def get_current_user(
     所有 token 解码 / sub 转 int 的失败统一翻成 401, 避免泄漏成 500
     (前端 401 自动登出依赖此处必须抛 401, 否则会一直卡 loading).
     """
-    from src.shared.models.user import User
+    from src.models.user import User
 
     token = extract_bearer_token(authorization)
     secret_key = get_base_settings().APP_AUTH_SECRET_KEY

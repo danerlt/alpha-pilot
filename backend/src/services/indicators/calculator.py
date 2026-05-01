@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from src.services.market_data.candle_service import get_candle_df
 from src.shared.config import get_settings
-from src.shared.models.indicator import IndicatorSnapshot
+from src.models.indicator import IndicatorSnapshot
 
 logger = logging.getLogger(__name__)
 

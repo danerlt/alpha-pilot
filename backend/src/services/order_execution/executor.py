@@ -17,9 +17,9 @@ from src.services.market_data.binance_client import (
 )
 from src.shared.config import get_settings
 from src.shared.enums import Action, EntryType, OrderStatus, PositionStatus, TradeExitReason
-from src.shared.models.order import Order
-from src.shared.models.position import Position
-from src.shared.models.trade import Trade
+from src.models.order import Order
+from src.models.position import Position
+from src.models.trade import Trade
 
 logger = logging.getLogger(__name__)
 
@@ -91,10 +91,10 @@ def open_long(
 
     # 计算下单数量
     balance = (
-        db.query(__import__("src.shared.models.account", fromlist=["AccountSnapshot"]).AccountSnapshot)
+        db.query(__import__("src.models.account", fromlist=["AccountSnapshot"]).AccountSnapshot)
         .filter_by(trading_mode=settings.TRADING_MODE.value)
         .order_by(
-            __import__("src.shared.models.account", fromlist=["AccountSnapshot"]).AccountSnapshot.snapshot_at.desc()
+            __import__("src.models.account", fromlist=["AccountSnapshot"]).AccountSnapshot.snapshot_at.desc()
         )
         .first()
     )

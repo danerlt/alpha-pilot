@@ -20,8 +20,8 @@ from sqlalchemy.orm import Session
 from src.services.decision_engine.parser import DecisionPayload
 from src.shared.config import get_settings
 from src.shared.enums import Action, GuardResult, PositionStatus, RegimeType
-from src.shared.models.position import Position
-from src.shared.models.trade import Trade
+from src.models.position import Position
+from src.models.trade import Trade
 
 logger = logging.getLogger(__name__)
 

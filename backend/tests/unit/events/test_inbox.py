@@ -5,7 +5,7 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from src.events.inbox import InboxGuard
-from src.shared.models import Base, EventInbox
+from src.models import Base, EventInbox
 
 
 @pytest.fixture
@@ -49,7 +49,7 @@ def test_different_consumers_can_claim_same_event(session):
 def test_duplicate_claim_does_not_abort_caller_session(session):
     """When claim returns False it must use a SAVEPOINT so the caller's
     other pending changes stay alive."""
-    from src.shared.models.event_store import EventInbox as EI
+    from src.models.event_store import EventInbox as EI
 
     # Pre-claim once.
     guard = InboxGuard(consumer_name="c")

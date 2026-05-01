@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from src.execution.exchange.adapter import ExchangeAdapter
 from src.execution.exchange.types import Kline, OrderRequest, OrderResult, Ticker
-from src.shared.models import (
+from src.models import (
     AIDecision,
     Base,
     DecisionReview,
@@ -29,7 +29,7 @@ from src.shared.models import (
     PromptTemplate,
     RegimeSnapshot,
 )
-from src.shared.models.account_entity import RiskProfile
+from src.models.account_entity import RiskProfile
 from src.strategy.ai_trader.llm_client import MockLLMClient
 from src.workers.strategy_pipeline import run_strategy_pipeline_once
 
@@ -149,7 +149,7 @@ def test_pipeline_skips_decision_proposed_for_review_fallback(session, profile):
     DecisionProposed (event.action=HOLD vs ai_decisions.action=OPEN_LONG 会矛盾).
     review fail 信号通过 Guard 的 decision.rejected 已经覆盖."""
     from src.events.outbox import OutboxWriter
-    from src.shared.models.event_store import EventOutbox
+    from src.models.event_store import EventOutbox
 
     adapter = _PipelineAdapter()
     # OPEN_LONG + chaotic regime (但这里 regime_classifier 自动算; 我们用
@@ -183,7 +183,7 @@ def test_pipeline_records_outbox_events_when_outbox_present(session, profile):
     """传 OutboxWriter 后, 关键阶段应该 publish:
     indicators.computed / factors.updated / regime.classified / decision.proposed."""
     from src.events.outbox import OutboxWriter
-    from src.shared.models.event_store import EventOutbox
+    from src.models.event_store import EventOutbox
 
     adapter = _PipelineAdapter(ticker_price=50_000.0, fill_price=50_000.0)
     llm = MockLLMClient(canned_response=VALID_OPEN_LONG)

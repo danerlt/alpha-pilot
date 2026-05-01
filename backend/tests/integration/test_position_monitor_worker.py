@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from src.execution.exchange.adapter import ExchangeAdapter
 from src.execution.exchange.types import Kline, OrderRequest, OrderResult, Ticker
 from src.shared.enums import PositionStatus
-from src.shared.models import Base, Position, Trade
+from src.models import Base, Position, Trade
 from src.workers.position_monitor_worker import run_position_monitor_once
 
 

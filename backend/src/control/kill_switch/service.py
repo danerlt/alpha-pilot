@@ -22,9 +22,9 @@ from datetime import datetime, time, timedelta, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.shared.models.audit_log import AuditLog
-from src.shared.models.risk_event import RiskEvent
-from src.shared.models.system_setting import SystemSetting
+from src.models.audit_log import AuditLog
+from src.models.risk_event import RiskEvent
+from src.models.system_setting import SystemSetting
 
 KILL_SWITCH_KEY = "kill_switch_state"
 ACTIVE = "active"

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.shared.models import AgentInvocation, DecisionReview, ProposalDraft, PromptTemplate
+from src.models import AgentInvocation, DecisionReview, ProposalDraft, PromptTemplate
 
 
 def test_prompt_template_unique_name_version():

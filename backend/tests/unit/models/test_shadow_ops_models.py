@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.shared.models import OpsDiagnosis, ShadowDecision, ShadowEvaluation
+from src.models import OpsDiagnosis, ShadowDecision, ShadowEvaluation
 
 
 def test_shadow_decision_columns():

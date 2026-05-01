@@ -28,8 +28,8 @@ from src.services.order_execution.executor import close_long, open_long
 from src.services.regime.classifier import classify_and_store, get_latest_regime
 from src.shared.config import get_settings
 from src.shared.enums import Action, GuardResult, PositionStatus
-from src.shared.models.position import Position
-from src.shared.models.risk_event import RiskEvent
+from src.models.position import Position
+from src.models.risk_event import RiskEvent
 
 logger = logging.getLogger(__name__)
 

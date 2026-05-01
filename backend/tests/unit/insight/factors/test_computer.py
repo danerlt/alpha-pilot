@@ -12,7 +12,7 @@ from src.insight.factors.computer import FactorComputer
 from src.insight.factors.context import FactorContext
 from src.insight.factors.registry import DEFAULT_REGISTRY, FactorRegistry
 from src.insight.indicators.computer import IndicatorValues
-from src.shared.models import Base, FactorSnapshot
+from src.models import Base, FactorSnapshot
 
 
 @pytest.fixture

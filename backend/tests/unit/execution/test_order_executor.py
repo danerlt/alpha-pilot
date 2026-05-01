@@ -14,7 +14,7 @@ from src.execution.exchange.retry import ExchangeTemporarilyUnavailable
 from src.execution.exchange.types import Kline, OrderRequest, OrderResult, Ticker
 from src.execution.orders.executor import OrderExecutor, make_trace_id
 from src.shared.enums import OrderStatus, PositionStatus
-from src.shared.models import Base, EventOutbox, Order, Position, Trade
+from src.models import Base, EventOutbox, Order, Position, Trade
 from src.strategy.proposal import DecisionProposal
 
 

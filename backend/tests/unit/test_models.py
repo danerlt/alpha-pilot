@@ -1,4 +1,4 @@
-from src.shared.models import (
+from src.models import (
     Candle, AccountSnapshot, IndicatorSnapshot,
     RegimeSnapshot, Position, AIDecision,
     Order, Trade, RiskEvent, ExperienceRecord, DailyReport, SystemSetting, User, SymbolConfig, AuditLog

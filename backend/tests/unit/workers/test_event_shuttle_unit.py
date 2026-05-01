@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from src.events.contracts import EventEnvelope
 from src.events.ids import new_event_id
-from src.shared.models import Base, EventOutbox
+from src.models import Base, EventOutbox
 from src.workers.event_shuttle import DEFAULT_MAX_FAILED_ATTEMPTS, EventShuttle
 
 

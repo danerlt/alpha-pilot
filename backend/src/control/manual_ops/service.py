@@ -23,10 +23,10 @@ from src.events.outbox import OutboxWriter
 from src.execution.exchange.adapter import ExchangeAdapter
 from src.execution.orders.executor import OrderExecutor
 from src.shared.enums import PositionStatus
-from src.shared.models.audit_log import AuditLog
-from src.shared.models.position import Position
-from src.shared.models.risk_event import RiskEvent
-from src.shared.models.trade import Trade
+from src.models.audit_log import AuditLog
+from src.models.position import Position
+from src.models.risk_event import RiskEvent
+from src.models.trade import Trade
 
 logger = logging.getLogger(__name__)
 

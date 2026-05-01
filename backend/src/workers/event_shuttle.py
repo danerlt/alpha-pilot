@@ -34,7 +34,7 @@ from sqlalchemy.orm import Session
 
 from src.events.contracts import EventEnvelope
 from src.shared.constants import DEFAULT_EVENT_SHUTTLE_MAX_FAILED_ATTEMPTS
-from src.shared.models.event_store import EventOutbox
+from src.models.event_store import EventOutbox
 
 logger = logging.getLogger(__name__)
 

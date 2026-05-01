@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.shared.models import EventInbox, EventOutbox
+from src.models import EventInbox, EventOutbox
 
 
 def test_event_inbox_has_unique_consumer_event_id_index():

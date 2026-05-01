@@ -32,7 +32,7 @@ from typing import Literal
 from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
-from src.shared.models.regime import RegimeSnapshot
+from src.models.regime import RegimeSnapshot
 
 
 RegimeType = Literal["trending_up", "trending_down", "ranging", "chaotic"]

@@ -24,7 +24,7 @@ from datetime import datetime, timezone
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.shared.models.event_store import EventInbox
+from src.models.event_store import EventInbox
 
 
 @dataclass

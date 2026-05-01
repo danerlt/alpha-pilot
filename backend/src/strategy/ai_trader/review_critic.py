@@ -24,7 +24,7 @@ from typing import Literal
 from sqlalchemy.orm import Session
 
 from src.insight.experience.retriever import ExperienceSummary
-from src.shared.models.decision_review import DecisionReview
+from src.models.decision_review import DecisionReview
 from src.strategy.proposal import DecisionProposal
 
 

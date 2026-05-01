@@ -12,7 +12,7 @@ from src.events.outbox import OutboxWriter
 from src.execution.exchange.adapter import ExchangeAdapter
 from src.execution.exchange.types import Kline, OrderRequest, OrderResult, Ticker
 from src.execution.market.data import MarketDataService
-from src.shared.models import Base, Candle, EventOutbox
+from src.models import Base, Candle, EventOutbox
 
 
 @pytest.fixture

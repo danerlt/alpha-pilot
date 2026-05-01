@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.shared.models import FactorCandidate, FactorDefinition, FactorSnapshot
+from src.models import FactorCandidate, FactorDefinition, FactorSnapshot
 
 
 def test_factor_definition_has_core_columns():

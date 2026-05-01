@@ -8,7 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from src.insight.experience.retriever import ExperienceRetriever
-from src.shared.models import AIDecision, Base, DecisionReview, PromptTemplate
+from src.models import AIDecision, Base, DecisionReview, PromptTemplate
 from src.strategy.ai_trader.decision_solver import DecisionSolver
 from src.strategy.ai_trader.llm_client import MockLLMClient
 from src.strategy.ai_trader.pipeline import AITraderPipeline, PipelineInput
@@ -148,7 +148,7 @@ def test_full_run_persists_audit_trail(session):
     """Happy path: 1 proposal_drafts + 1 ai_decisions + 1 decision_reviews rows."""
     pipeline = _pipeline(session, VALID_OPEN_LONG)
     pipeline.run(_input())
-    from src.shared.models import ProposalDraft
+    from src.models import ProposalDraft
     assert session.query(ProposalDraft).count() == 1
     assert session.query(AIDecision).count() == 1
     assert session.query(DecisionReview).count() == 1
@@ -156,7 +156,7 @@ def test_full_run_persists_audit_trail(session):
 
 def test_proposal_draft_carries_trading_mode(session):
     """PromptContext.trading_mode 应写入 ProposalDraft, 不再硬编码 testnet."""
-    from src.shared.models import ProposalDraft
+    from src.models import ProposalDraft
 
     pipeline = _pipeline(session, VALID_OPEN_LONG)
     inp = _input()

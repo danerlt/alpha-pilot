@@ -48,9 +48,9 @@ from src.insight.factors.computer import FactorComputer
 from src.insight.indicators.computer import IndicatorComputer
 from src.insight.regime.classifier import RegimeClassifier
 from src.shared.enums import PositionStatus
-from src.shared.models.account_entity import RiskProfile
-from src.shared.models.candle import Candle
-from src.shared.models.position import Position
+from src.models.account_entity import RiskProfile
+from src.models.candle import Candle
+from src.models.position import Position
 from src.strategy.ai_trader.decision_solver import DecisionSolver
 from src.strategy.ai_trader.llm_client import LLMClient
 from src.strategy.ai_trader.pipeline import AITraderPipeline, PipelineInput

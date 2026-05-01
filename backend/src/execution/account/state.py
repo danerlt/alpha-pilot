@@ -13,9 +13,9 @@ from sqlalchemy.orm import Session
 
 from src.execution.exchange.adapter import ExchangeAdapter
 from src.shared.enums import PositionStatus
-from src.shared.models.account import AccountSnapshot
-from src.shared.models.position import Position
-from src.shared.models.trade import Trade
+from src.models.account import AccountSnapshot
+from src.models.position import Position
+from src.models.trade import Trade
 
 logger = logging.getLogger(__name__)
 

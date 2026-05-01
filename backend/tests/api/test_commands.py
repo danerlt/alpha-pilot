@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from src.app import app
 from src.shared.db import get_db, get_session_factory
 from src.shared.enums import PositionStatus
-from src.shared.models import Base, Position, RiskEvent
+from src.models import Base, Position, RiskEvent
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
@@ -140,7 +140,7 @@ def test_resolve_breaker_emits_manual_override_event(client):
     """Critical fix (post Plan5 minor): commands router 必须传 outbox 给
     ManualOpsService, 否则 manual.override 事件丢失."""
     from sqlalchemy import select
-    from src.shared.models.event_store import EventOutbox
+    from src.models.event_store import EventOutbox
 
     cli, engine = client
     with Session(engine) as s:
@@ -169,7 +169,7 @@ def test_resolve_breaker_emits_manual_override_event(client):
 def test_close_all_emits_manual_override_event(client):
     """同 above: close-all 也必须发 manual.override (一个或多个)."""
     from sqlalchemy import select
-    from src.shared.models.event_store import EventOutbox
+    from src.models.event_store import EventOutbox
 
     cli, engine = client
     with Session(engine) as s:

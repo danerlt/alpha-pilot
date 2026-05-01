@@ -12,7 +12,7 @@ from src.control.kill_switch.service import (
     KillSwitchService,
     PAUSED,
 )
-from src.shared.models import AuditLog, Base, RiskEvent
+from src.models import AuditLog, Base, RiskEvent
 
 
 @pytest.fixture

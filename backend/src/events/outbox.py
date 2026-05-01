@@ -29,7 +29,7 @@ from sqlalchemy.orm import Session
 
 from src.events.contracts import EventEnvelope, _Event
 from src.events.ids import new_event_id
-from src.shared.models.event_store import EventOutbox
+from src.models.event_store import EventOutbox
 
 
 class OutboxWriter:

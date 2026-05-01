@@ -17,7 +17,7 @@ from string import Template
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.shared.models.prompt import PromptTemplate, ProposalDraft
+from src.models.prompt import PromptTemplate, ProposalDraft
 
 
 @dataclass

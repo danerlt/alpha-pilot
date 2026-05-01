@@ -11,7 +11,7 @@ from src.api.dependencies import get_current_user, require_admin
 from src.services.reporting.reporter import generate_daily_report
 from src.shared.config import get_settings
 from src.shared.db import get_db
-from src.shared.models.report import DailyReport
+from src.models.report import DailyReport
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 

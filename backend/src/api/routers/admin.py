@@ -8,9 +8,9 @@ from sqlalchemy.orm import Session
 from src.api.dependencies import require_admin
 from src.shared.db import get_db
 from src.shared.enums import UserRole, UserStatus
-from src.shared.models.audit_log import AuditLog
-from src.shared.models.symbol_config import SymbolConfig
-from src.shared.models.user import User
+from src.models.audit_log import AuditLog
+from src.models.symbol_config import SymbolConfig
+from src.models.user import User
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 

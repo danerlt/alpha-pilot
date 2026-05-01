@@ -15,7 +15,7 @@ from sqlalchemy.pool import StaticPool
 
 from src.api.dependencies import get_current_user
 from src.shared.db import get_db
-from src.shared.models import Base
+from src.models import Base
 
 
 @pytest.fixture

@@ -33,9 +33,9 @@ from src.execution.exchange.retry import (
 )
 from src.execution.exchange.types import OrderRequest
 from src.shared.enums import OrderStatus, PositionStatus
-from src.shared.models.order import Order
-from src.shared.models.position import Position
-from src.shared.models.trade import Trade
+from src.models.order import Order
+from src.models.position import Position
+from src.models.trade import Trade
 from src.strategy.proposal import DecisionProposal
 
 logger = logging.getLogger(__name__)

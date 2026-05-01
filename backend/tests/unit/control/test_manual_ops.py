@@ -12,7 +12,7 @@ from src.control.manual_ops.service import ManualOpsService
 from src.execution.exchange.adapter import ExchangeAdapter
 from src.execution.exchange.types import OrderRequest, OrderResult, Ticker
 from src.shared.enums import PositionStatus
-from src.shared.models import AuditLog, Base, Position, RiskEvent, Trade
+from src.models import AuditLog, Base, Position, RiskEvent, Trade
 
 
 class _StubAdapter(ExchangeAdapter):

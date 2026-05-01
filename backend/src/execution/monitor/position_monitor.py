@@ -24,8 +24,8 @@ from src.execution.account.state import AccountStateService
 from src.execution.exchange.adapter import ExchangeAdapter
 from src.execution.orders.executor import OrderExecutor
 from src.shared.enums import PositionStatus
-from src.shared.models.position import Position
-from src.shared.models.risk_event import RiskEvent
+from src.models.position import Position
+from src.models.risk_event import RiskEvent
 
 logger = logging.getLogger(__name__)
 

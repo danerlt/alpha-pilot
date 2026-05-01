@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.shared.models import (
+from src.models import (
     ExperienceSummary, ExperienceV2, StrategyScore, TradeAttribution,
 )
 

@@ -19,7 +19,7 @@ from sqlalchemy import select
 from src.services.auth import decode_access_token, ensure_user_is_active
 from src.shared.config import get_base_settings
 from src.shared.db import get_session_factory
-from src.shared.models.event_store import EventOutbox
+from src.models.event_store import EventOutbox
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +98,7 @@ def _verify_user_active(user_id: int) -> None:
     SessionLocal = get_session_factory()
     try:
         with SessionLocal() as db:
-            from src.shared.models.user import User
+            from src.models.user import User
             user = db.query(User).filter(User.id == user_id).first()
             if user is None:
                 raise WebSocketException(code=4401, reason="user not found")

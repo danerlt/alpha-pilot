@@ -32,10 +32,10 @@ from sqlalchemy.orm import Session
 from src.events.contracts import DecisionDegraded, DecisionRejected
 from src.events.outbox import OutboxWriter
 from src.shared.enums import PositionStatus
-from src.shared.models.account_entity import RiskProfile
-from src.shared.models.position import Position
-from src.shared.models.risk_event import RiskEvent
-from src.shared.models.trade import Trade
+from src.models.account_entity import RiskProfile
+from src.models.position import Position
+from src.models.risk_event import RiskEvent
+from src.models.trade import Trade
 from src.strategy.proposal import DecisionProposal
 
 logger = logging.getLogger(__name__)

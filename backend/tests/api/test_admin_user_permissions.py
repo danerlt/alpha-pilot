@@ -8,9 +8,9 @@ from sqlalchemy.pool import StaticPool
 
 from src.app import app
 from src.shared.db import get_db
-from src.shared.models.audit_log import AuditLog
-from src.shared.models.base import Base
-from src.shared.models.user import User
+from src.models.audit_log import AuditLog
+from src.models.base import Base
+from src.models.user import User
 
 
 @pytest.fixture

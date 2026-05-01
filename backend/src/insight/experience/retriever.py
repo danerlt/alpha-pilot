@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.shared.models.experience_v2 import ExperienceV2
+from src.models.experience_v2 import ExperienceV2
 
 
 @dataclass

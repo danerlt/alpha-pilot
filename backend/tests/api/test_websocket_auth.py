@@ -12,7 +12,7 @@ from sqlalchemy.pool import StaticPool
 from src.app import app
 from src.shared.config import get_base_settings
 from src.shared.db import get_db, get_session_factory
-from src.shared.models import Base, EventOutbox
+from src.models import Base, EventOutbox
 
 
 @pytest.fixture
@@ -30,7 +30,7 @@ def _seed_user(engine, *, user_id=1, status="active"):
     """post-Plan5 安全审计 H1: WebSocket 鉴权后会查 user 表确认 active.
     所有 WS 测试都需要 seed 一个 user."""
     from src.services.auth import hash_password
-    from src.shared.models.user import User
+    from src.models.user import User
 
     with Session(engine) as s:
         u = User(

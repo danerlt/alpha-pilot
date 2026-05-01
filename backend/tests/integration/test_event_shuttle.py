@@ -69,7 +69,7 @@ def test_outbox_to_streams_roundtrip(pg_url, redis_url):
 
 
 def test_shuttle_marks_published_at(pg_url, redis_url):
-    from src.shared.models import EventOutbox
+    from src.models import EventOutbox
     engine = create_engine(pg_url)
     bus = RedisStreamsBus(redis_url)
 
@@ -106,7 +106,7 @@ def test_shuttle_marks_published_at(pg_url, redis_url):
 def test_shuttle_dead_letters_after_max_attempts(pg_url, redis_url):
     """Simulate a broken bus: failed_attempts accrues, then row ends up published_at set
     to avoid infinite reprocessing after dead-lettering."""
-    from src.shared.models import EventOutbox
+    from src.models import EventOutbox
     engine = create_engine(pg_url)
     real_bus = RedisStreamsBus(redis_url)
 

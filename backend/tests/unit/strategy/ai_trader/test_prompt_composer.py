@@ -10,7 +10,7 @@ from src.strategy.ai_trader.prompt_composer import (
     PromptContext,
     PromptTemplateNotFound,
 )
-from src.shared.models import Base, ProposalDraft, PromptTemplate
+from src.models import Base, ProposalDraft, PromptTemplate
 
 
 @pytest.fixture

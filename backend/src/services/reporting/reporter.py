@@ -8,9 +8,9 @@ from sqlalchemy import cast, Date, func
 from sqlalchemy.orm import Session
 
 from src.shared.config import get_settings
-from src.shared.models.report import DailyReport
-from src.shared.models.risk_event import RiskEvent
-from src.shared.models.trade import Trade
+from src.models.report import DailyReport
+from src.models.risk_event import RiskEvent
+from src.models.trade import Trade
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ def generate_daily_report(db: Session, report_date: date | None = None) -> Daily
     win_rate = wins / total if total > 0 else None
 
     # PnL% 需要账户余额基准（取今日最早快照）
-    from src.shared.models.account import AccountSnapshot
+    from src.models.account import AccountSnapshot
     first_snap = (
         db.query(AccountSnapshot)
         .filter(

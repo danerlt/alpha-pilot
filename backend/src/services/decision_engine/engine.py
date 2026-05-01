@@ -15,7 +15,7 @@ from src.services.decision_engine.prompt import (
 )
 from src.shared.config import get_settings
 from src.shared.config_diagnostics import can_call_llm, get_runtime_credential_status
-from src.shared.models.decision import AIDecision
+from src.models.decision import AIDecision
 
 logger = logging.getLogger(__name__)
 

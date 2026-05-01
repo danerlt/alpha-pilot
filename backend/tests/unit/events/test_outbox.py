@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from src.events.contracts import CandleClosed
 from src.events.outbox import OutboxWriter
-from src.shared.models import Base, EventOutbox
+from src.models import Base, EventOutbox
 
 
 @pytest.fixture

@@ -31,10 +31,10 @@ from src.events.bus import RedisStreamsBus
 from src.events.outbox import OutboxWriter
 from src.execution.exchange.adapter import ExchangeAdapter
 from src.execution.exchange.types import Kline, OrderRequest, OrderResult, Ticker
-from src.shared.models import (
+from src.models import (
     AIDecision, EventOutbox, Order, Position, PromptTemplate,
 )
-from src.shared.models.account_entity import RiskProfile
+from src.models.account_entity import RiskProfile
 from src.strategy.ai_trader.llm_client import MockLLMClient
 from src.workers.strategy_pipeline import run_strategy_pipeline_once
 

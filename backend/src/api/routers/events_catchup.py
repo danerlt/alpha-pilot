@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from src.api.dependencies import get_current_user
 from src.shared.constants import CATCHUP_LIMIT_HARD_CAP
 from src.shared.db import get_db
-from src.shared.models.event_store import EventOutbox
+from src.models.event_store import EventOutbox
 
 router = APIRouter(prefix="/api/events", tags=["events"])
 

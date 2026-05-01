@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.shared.models import AIDecision
+from src.models import AIDecision
 
 
 def test_ai_decision_has_extended_columns():

@@ -14,7 +14,7 @@ from src.api.dependencies import get_current_user
 from src.shared.config import get_settings
 from src.shared.db import get_db
 from src.shared.enums import PositionStatus
-from src.shared.models.position import Position
+from src.models.position import Position
 
 router = APIRouter(prefix="/api/positions", tags=["positions"])
 

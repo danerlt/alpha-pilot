@@ -14,7 +14,7 @@ Two classes of models:
 """
 from __future__ import annotations
 
-from src.shared.models import (
+from src.models import (
     Account,
     AccountSnapshot,
     AIDecision,

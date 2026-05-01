@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from src.shared.models import AuditLog, Base
+from src.models import AuditLog, Base
 from src.strategy.ai_trader.pipeline import PipelineInput
 from src.strategy.proposal import DecisionProposal
 from src.strategy.router import StrategyRouter

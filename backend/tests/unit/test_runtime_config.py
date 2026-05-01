@@ -9,8 +9,8 @@ from src.shared.runtime_config import (
     get_runtime_config_manager,
     upsert_system_setting,
 )
-from src.shared.models.base import Base
-from src.shared.models.system_setting import SystemSetting
+from src.models.base import Base
+from src.models.system_setting import SystemSetting
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 

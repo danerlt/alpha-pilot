@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from src.services.indicators.calculator import IndicatorResult, get_latest_indicators
 from src.shared.config import get_settings
 from src.shared.enums import RegimeType
-from src.shared.models.regime import RegimeSnapshot
+from src.models.regime import RegimeSnapshot
 
 logger = logging.getLogger(__name__)
 

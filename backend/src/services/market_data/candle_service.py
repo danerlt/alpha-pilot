@@ -10,7 +10,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from src.services.market_data.binance_client import get_klines
 from src.shared.config import get_settings
-from src.shared.models.candle import Candle
+from src.models.candle import Candle
 
 logger = logging.getLogger(__name__)
 

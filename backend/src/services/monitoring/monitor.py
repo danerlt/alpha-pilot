@@ -10,9 +10,9 @@ from src.services.market_data.binance_client import get_order, get_symbol_ticker
 from src.services.order_execution.executor import close_long
 from src.shared.config import get_settings
 from src.shared.enums import OrderStatus, PositionStatus, TradeExitReason
-from src.shared.models.order import Order
-from src.shared.models.position import Position
-from src.shared.models.risk_event import RiskEvent
+from src.models.order import Order
+from src.models.position import Position
+from src.models.risk_event import RiskEvent
 
 logger = logging.getLogger(__name__)
 

@@ -12,7 +12,7 @@ from sqlalchemy.pool import StaticPool
 from src.app import app
 from src.api.dependencies import get_current_user
 from src.shared.db import get_db
-from src.shared.models import Base, EventOutbox
+from src.models import Base, EventOutbox
 
 
 @pytest.fixture

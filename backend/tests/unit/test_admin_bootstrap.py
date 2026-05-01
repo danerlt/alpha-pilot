@@ -5,8 +5,8 @@ from sqlalchemy.pool import StaticPool
 from src.services.admin_bootstrap import ensure_default_admin
 from src.shared.config import Settings
 from src.shared.enums import UserRole, UserStatus
-from src.shared.models.base import Base
-from src.shared.models.user import User
+from src.models.base import Base
+from src.models.user import User
 from src.services.auth import hash_password
 
 

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from src.api.dependencies import get_current_user
 from src.shared.config import get_settings
 from src.shared.db import get_db
-from src.shared.models.trade import Trade
+from src.models.trade import Trade
 
 router = APIRouter(prefix="/api/trades", tags=["trades"])
 

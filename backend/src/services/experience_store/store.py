@@ -8,8 +8,8 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from src.shared.config import get_settings
-from src.shared.models.experience import ExperienceRecord
-from src.shared.models.trade import Trade
+from src.models.experience import ExperienceRecord
+from src.models.trade import Trade
 
 logger = logging.getLogger(__name__)
 

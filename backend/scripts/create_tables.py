@@ -6,20 +6,20 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.shared.db import get_engine
-from src.shared.models.base import Base
+from src.models.base import Base
 
 # 导入所有 model，确保 Base.metadata 里有完整表定义
-import src.shared.models.account      # noqa
-import src.shared.models.candle       # noqa
-import src.shared.models.decision     # noqa
-import src.shared.models.experience   # noqa
-import src.shared.models.indicator    # noqa
-import src.shared.models.order        # noqa
-import src.shared.models.position     # noqa
-import src.shared.models.regime       # noqa
-import src.shared.models.report       # noqa
-import src.shared.models.risk_event   # noqa
-import src.shared.models.trade        # noqa
+import src.models.account      # noqa
+import src.models.candle       # noqa
+import src.models.decision     # noqa
+import src.models.experience   # noqa
+import src.models.indicator    # noqa
+import src.models.order        # noqa
+import src.models.position     # noqa
+import src.models.regime       # noqa
+import src.models.report       # noqa
+import src.models.risk_event   # noqa
+import src.models.trade        # noqa
 
 
 def main():
