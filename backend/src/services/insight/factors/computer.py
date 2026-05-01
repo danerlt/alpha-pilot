@@ -26,9 +26,9 @@ import pandas as pd
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from src.insight.factors.context import FactorContext
-from src.insight.factors.registry import DEFAULT_REGISTRY, FactorRegistry
-from src.insight.indicators.computer import IndicatorValues
+from src.services.insight.factors.context import FactorContext
+from src.services.insight.factors.registry import DEFAULT_REGISTRY, FactorRegistry
+from src.services.insight.indicators.computer import IndicatorValues
 from src.models.factor import FactorSnapshot
 
 logger = logging.getLogger(__name__)

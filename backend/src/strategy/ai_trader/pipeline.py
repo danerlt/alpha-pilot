@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 
 from sqlalchemy.orm import Session
 
-from src.insight.experience.retriever import ExperienceRetriever, ExperienceSummary
+from src.services.insight.experience.retriever import ExperienceRetriever, ExperienceSummary
 from src.strategy.ai_trader.decision_solver import DecisionSolver
 from src.strategy.ai_trader.prompt_composer import (
     PromptComposer,

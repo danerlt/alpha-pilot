@@ -6,9 +6,9 @@ import FactorContext) would circularly re-enter the registry.
 """
 from __future__ import annotations
 
-from src.insight.factors.context import Factor, FactorContext
+from src.services.insight.factors.context import Factor, FactorContext
 
-# Re-export so older imports `from src.insight.factors.registry import FactorContext`
+# Re-export so older imports `from src.services.insight.factors.registry import FactorContext`
 # keep working.
 __all__ = ["Factor", "FactorContext", "FactorRegistry", "DEFAULT_REGISTRY"]
 
@@ -44,7 +44,7 @@ DEFAULT_REGISTRY = FactorRegistry()
 
 def _install_defaults() -> None:
     """Import catalog modules and register the six V0.1 presets."""
-    from src.insight.factors.catalog import (
+    from src.services.insight.factors.catalog import (
         breakout_validity,
         momentum_quality,
         pullback_opportunity,

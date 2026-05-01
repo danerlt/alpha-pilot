@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
-from src.services.indicators.calculator import IndicatorResult, get_latest_indicators
+from src.services.insight.indicators_calculator import IndicatorResult, get_latest_indicators
 from src.shared.config import get_settings
 from src.shared.enums import RegimeType
 from src.models.regime import RegimeSnapshot
@@ -111,7 +111,7 @@ def classify_and_store(db: Session, symbol: str, timeframe: str) -> RegimeSnapsh
         logger.warning("No indicator snapshot found for %s %s", symbol, timeframe)
         return None
 
-    from src.services.indicators.calculator import IndicatorResult
+    from src.services.insight.indicators_calculator import IndicatorResult
     ind = IndicatorResult(
         ema20=float(ind_snap.ema20) if ind_snap.ema20 else None,
         ema50=float(ind_snap.ema50) if ind_snap.ema50 else None,

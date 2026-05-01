@@ -16,7 +16,7 @@ Returns 0.0 when EMA20 or ATR isn't available.
 """
 from __future__ import annotations
 
-from src.insight.factors.context import FactorContext
+from src.services.insight.factors.context import FactorContext
 
 
 def _clamp(v: float, lo: float = -1.0, hi: float = 1.0) -> float:

@@ -20,7 +20,7 @@ keeps downstream regime classification from treating missing data as
 """
 from __future__ import annotations
 
-from src.insight.factors.context import FactorContext
+from src.services.insight.factors.context import FactorContext
 
 
 class VolatilityRegime:

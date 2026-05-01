@@ -9,7 +9,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from src.insight.experience.retriever import ExperienceRetriever
+from src.services.insight.experience.retriever import ExperienceRetriever
 from src.models import AIDecision, Base, DecisionReview, PromptTemplate
 from src.strategy.ai_trader.decision_solver import DecisionSolver
 from src.strategy.ai_trader.llm_client import MockLLMClient

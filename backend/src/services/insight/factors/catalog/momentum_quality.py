@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import math
 
-from src.insight.factors.context import FactorContext
+from src.services.insight.factors.context import FactorContext
 
 
 class MomentumQuality:

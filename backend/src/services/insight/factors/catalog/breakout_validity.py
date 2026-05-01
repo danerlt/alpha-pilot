@@ -19,7 +19,7 @@ Returns 0.0 when Bollinger Bands, volume_ma, or candles are missing.
 """
 from __future__ import annotations
 
-from src.insight.factors.context import FactorContext
+from src.services.insight.factors.context import FactorContext
 
 
 def _clamp(v: float, lo: float = -1.0, hi: float = 1.0) -> float:

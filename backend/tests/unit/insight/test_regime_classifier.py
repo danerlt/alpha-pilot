@@ -9,7 +9,7 @@ import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from src.insight.regime.classifier import RegimeClassifier
+from src.services.insight.regime.classifier import RegimeClassifier
 from src.models import Base, RegimeSnapshot
 
 

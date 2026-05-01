@@ -15,7 +15,7 @@ Returns 0.0 when volume_ma is missing / zero.
 """
 from __future__ import annotations
 
-from src.insight.factors.context import FactorContext
+from src.services.insight.factors.context import FactorContext
 
 
 class VolumeConfirmation:

@@ -4,7 +4,7 @@ import math
 import pandas as pd
 import pytest
 
-from src.services.indicators.calculator import IndicatorResult, calculate_indicators, _safe_float
+from src.services.insight.indicators_calculator import IndicatorResult, calculate_indicators, _safe_float
 
 
 # ─── 测试辅助 ─────────────────────────────────────────────────────────────────

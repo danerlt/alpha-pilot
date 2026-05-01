@@ -7,7 +7,7 @@ import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from src.insight.experience.retriever import ExperienceSummary
+from src.services.insight.experience.retriever import ExperienceSummary
 from src.models import AIDecision, Base, DecisionReview
 from src.strategy.ai_trader.review_critic import ReviewCritic
 from src.strategy.proposal import DecisionProposal

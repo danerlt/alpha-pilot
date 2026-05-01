@@ -43,10 +43,10 @@ from src.execution.exchange.adapter import ExchangeAdapter
 from src.execution.guard.execution_guard import ExecutionGuard
 from src.execution.market.data import MarketDataService
 from src.execution.orders.executor import OrderExecutor
-from src.insight.experience.retriever import ExperienceRetriever
-from src.insight.factors.computer import FactorComputer
-from src.insight.indicators.computer import IndicatorComputer
-from src.insight.regime.classifier import RegimeClassifier
+from src.services.insight.experience.retriever import ExperienceRetriever
+from src.services.insight.factors.computer import FactorComputer
+from src.services.insight.indicators.computer import IndicatorComputer
+from src.services.insight.regime.classifier import RegimeClassifier
 from src.shared.enums import PositionStatus
 from src.models.account_entity import RiskProfile
 from src.models.candle import Candle

@@ -3,12 +3,12 @@ from __future__ import annotations
 
 import pandas as pd
 
-from src.insight.factors.registry import (
+from src.services.insight.factors.registry import (
     DEFAULT_REGISTRY,
     FactorContext,
     FactorRegistry,
 )
-from src.insight.indicators.computer import IndicatorValues
+from src.services.insight.indicators.computer import IndicatorValues
 
 
 class _FakeFactor:

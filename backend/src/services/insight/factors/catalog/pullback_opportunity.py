@@ -18,7 +18,7 @@ Rationale: we want to buy dips in uptrends, not catch falling knives.
 """
 from __future__ import annotations
 
-from src.insight.factors.context import FactorContext
+from src.services.insight.factors.context import FactorContext
 
 
 def _clamp(v: float, lo: float = 0.0, hi: float = 1.0) -> float:

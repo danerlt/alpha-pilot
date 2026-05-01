@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from src.insight.factors.catalog import (
+from src.services.insight.factors.catalog import (
     breakout_validity,
     momentum_quality,
     pullback_opportunity,
@@ -17,8 +17,8 @@ from src.insight.factors.catalog import (
     volatility_regime,
     volume_confirmation,
 )
-from src.insight.factors.registry import FactorContext
-from src.insight.indicators.computer import IndicatorValues
+from src.services.insight.factors.registry import FactorContext
+from src.services.insight.indicators.computer import IndicatorValues
 
 
 def _build_candles(closes, volumes):

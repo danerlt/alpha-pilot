@@ -9,7 +9,7 @@ from typing import Protocol
 
 import pandas as pd
 
-from src.insight.indicators.computer import IndicatorValues
+from src.services.insight.indicators.computer import IndicatorValues
 
 
 @dataclass

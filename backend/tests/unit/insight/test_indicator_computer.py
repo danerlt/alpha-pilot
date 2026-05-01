@@ -10,7 +10,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from src.insight.indicators.computer import (
+from src.services.insight.indicators.computer import (
     IndicatorComputer,
     IndicatorValues,
     _compute_from_df,

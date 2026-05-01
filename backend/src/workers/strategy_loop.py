@@ -20,12 +20,12 @@ from src.services.account_state.service import (
 )
 from src.services.decision_engine.engine import make_decision
 from src.services.execution_guard.guard import GuardDecision, check as guard_check
-from src.services.experience_store.store import get_recent_experience
-from src.services.indicators.calculator import compute_and_store, get_latest_indicators
+from src.services.insight.experience_store import get_recent_experience
+from src.services.insight.indicators_calculator import compute_and_store, get_latest_indicators
 from src.services.market_data.binance_client import get_symbol_ticker
 from src.services.market_data.candle_service import SYMBOLS, TIMEFRAMES, fetch_and_store_candles
 from src.services.order_execution.executor import close_long, open_long
-from src.services.regime.classifier import classify_and_store, get_latest_regime
+from src.services.insight.regime_classifier import classify_and_store, get_latest_regime
 from src.shared.config import get_settings
 from src.shared.enums import Action, GuardResult, PositionStatus
 from src.models.position import Position
