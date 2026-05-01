@@ -8,13 +8,13 @@ resolve 路径走 ManualOpsService.manual_resolve_circuit_breaker, 与
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from src.common.api_response import api_response
 from src.common.exception.errors import DBException
 from src.common.response.response_code import ErrorCode
 from src.controllers.dependencies import get_adapter, get_current_user, require_admin
+from src.schemas.risk_event import RiskEventResolveCreate
 from src.services.manual_ops import ManualOpsService
 from src.services.events.outbox import OutboxWriter
 from src.configs.app_configs import get_settings
@@ -22,11 +22,6 @@ from src.db.session import get_db
 from src.models.risk_event import RiskEvent
 
 router = APIRouter(prefix="/api/risk-events", tags=["risk"])
-
-
-class ResolveRiskEventRequest(BaseModel):
-    """body 兼容性: reason 可选, 缺省给个标识来源的占位串. 前端最好显式传."""
-    reason: str = "ui_resolve_via_risk_events"
 
 
 @router.get("")
@@ -60,7 +55,7 @@ def list_risk_events(
 @api_response()
 def resolve_risk_event(
     event_id: int,
-    body: ResolveRiskEventRequest | None = None,
+    body: RiskEventResolveCreate | None = None,
     db: Session = Depends(get_db),
     current_admin=Depends(require_admin),
 ):

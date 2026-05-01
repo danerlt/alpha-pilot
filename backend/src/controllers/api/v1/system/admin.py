@@ -5,45 +5,17 @@ from fastapi import APIRouter, Depends
 from src.common.api_response import api_response
 from src.common.exception.errors import DBException, ParamsException, ServiceException
 from src.common.response.response_code import ErrorCode
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from src.controllers.dependencies import require_admin
 from src.db.session import get_db
-from src.common.enums import UserRole, UserStatus
 from src.models.audit_log import AuditLog
 from src.models.symbol_config import SymbolConfig
 from src.models.user import User
+from src.schemas.symbol_config import SymbolConfigCreate, SymbolConfigUpdate
+from src.schemas.user import UserUpdate
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
-
-
-class SymbolConfigCreate(BaseModel):
-    symbol: str
-    base_asset: str
-    quote_asset: str = "USDT"
-    enabled: bool = True
-    timeframe: str = "15m"
-    max_position_size_pct: float | None = None
-    priority: int = 100
-    sort_order: int = 100
-    notes: str | None = None
-
-
-class SymbolConfigUpdate(BaseModel):
-    base_asset: str | None = None
-    quote_asset: str | None = None
-    enabled: bool | None = None
-    timeframe: str | None = None
-    max_position_size_pct: float | None = None
-    priority: int | None = None
-    sort_order: int | None = None
-    notes: str | None = None
-
-
-class AdminUserUpdate(BaseModel):
-    role: UserRole | None = None
-    status: UserStatus | None = None
 
 
 # ─── Symbols ──────────────────────────────────────────────────────────────
@@ -182,7 +154,7 @@ def list_users(db: Session = Depends(get_db), current_admin=Depends(require_admi
 @router.patch("/users/{user_id}")
 @api_response()
 def update_user(
-    user_id: int, payload: AdminUserUpdate,
+    user_id: int, payload: UserUpdate,
     db: Session = Depends(get_db),
     current_admin=Depends(require_admin),
 ):

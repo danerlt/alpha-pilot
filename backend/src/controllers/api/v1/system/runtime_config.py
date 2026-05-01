@@ -6,14 +6,13 @@ from typing import Any
 from fastapi import APIRouter, Depends
 from src.common.api_response import api_response
 from src.common.exception.errors import ParamsException
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from src.controllers.dependencies import require_admin
 from src.configs.app_configs import get_app_config as get_base_settings, get_settings
 from src.configs.app_configs import get_runtime_credential_status
 from src.db.session import get_db
-from src.common.enums import TradingMode
+from src.schemas.runtime_config import RuntimeConfigUpdate
 from src.services.system.runtime_config import (
     BINANCE_MAINNET_API_KEY,
     BINANCE_MAINNET_API_SECRET,
@@ -34,21 +33,6 @@ from src.services.system.runtime_config import (
 )
 
 router = APIRouter(prefix="/api/config", tags=["config"])
-
-
-class RuntimeConfigUpdate(BaseModel):
-    trading_mode: TradingMode | None = None
-    binance_testnet_api_key: str | None = None
-    binance_testnet_api_secret: str | None = None
-    binance_mainnet_api_key: str | None = None
-    binance_mainnet_api_secret: str | None = None
-    llm_base_url: str | None = None
-    llm_model: str | None = None
-    llm_api_key: str | None = None
-    max_position_size_pct: float | None = None
-    max_daily_loss_pct: float | None = None
-    max_consecutive_losses: int | None = None
-    max_single_risk_pct: float | None = None
 
 
 @router.get("/runtime")
