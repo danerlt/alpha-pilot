@@ -422,13 +422,29 @@ class User(Base):
 
 **复合索引建议**（仅 `TradingModeMixin` 表）：业务高频查询模式是「按 trading_mode + 业务字段过滤」，对应 model 应该建 `(trading_mode, symbol)` / `(trading_mode, status)` 等复合索引。
 
-#### 4.2.4 主键改造的全局影响
+#### 4.2.4 主键改造的全局影响（v3.7 现状反映）
+
+> **2026-05-01 更新**：现状盘点后发现项目早已使用 BigInt 自增主键（30/34 表用 `BigIntPk = BigInteger().with_variant(Integer(), "sqlite")`，4 表用 `Integer`），与 spec 假设不符。本节按老板拍板的三个决策更新：
+> - 决策 1：彻底重构（删 migrations 重建）
+> - 决策 2：Base **不**收编 id 字段（每个 model 自定义）
+> - 决策 3：**删 sqlite variant**，所有测试用真 PostgreSQL（依赖 testcontainers）
 
 - **每个 model 文件第一字段必须是 `id`**：`Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)`
+- **不再使用 `BigIntPk` 类型别名**：现有 `src/shared/models/base.py` 中的 `BigIntPk = BigInteger().with_variant(Integer(), "sqlite")` 删除；所有 model 直接 import `from sqlalchemy import BigInteger`
+- **4 个 Integer 主键的表升级**（user / audit_log / symbol_config / system_setting）：统一到 `BigInteger`，配合迁移重建一并处理
 - **跨表关联列同步改 `BigInteger`**：`Order.position_id`、`Position.decision_id`、`Trade.decision_id`、`RiskEvent.decision_id`、`Trade.position_id` 等。CLAUDE.md 强制"不允许外键约束"，仅 `index=True` 加速 join
-- **`get_uuid_without_hyphen` 默认生成器不再用作主键**（utils 函数可保留供 trace_id 之类业务键用）
+- **`get_uuid_without_hyphen` 默认生成器不再用作主键**（utils 函数可保留供 request_id / 业务幂等键用）
 - **业务幂等键保持原样**：`Order.trace_id = SHA256(decision_id:symbol:action)` 仍是 `String(64)`，业务键不是主键
-- **`migrations/versions/*` 全量删除**，按新 schema 重新 `alembic revision --autogenerate -m "init schema with bigint pk"` 生成单个初始 migration
+- **`migrations/versions/*` 全量删除**，按新 schema 重新 `alembic revision --autogenerate -m "init_schema_after_v37_refactor"` 生成单个初始 migration
+- **Dev 数据库重建**：dev 阶段无生产数据，重建可接受；老板已明确接受
+
+#### 4.2.5 测试改造（删 sqlite variant 后果）
+
+- 现有单测中"内存 SQLite + ORM 行为"模式失效 —— 必须用真 PostgreSQL
+- **方案 A（推荐）**：testcontainers `postgres:16` 容器，`tests/conftest.py` 提供 module-scoped fixture
+- **方案 B**：依赖本地 `make dev-up` 起的 PG 容器，测试连同一实例（要小心数据隔离）
+- 测试运行时间会增加（PG 容器启动 5-10s vs SQLite 即时）；用 module-scoped 容器分摊
+- `pytest -k unit` 模式下能跳过依赖 PG 的测试 —— 用 `@pytest.mark.requires_postgres` marker 标记需要 PG 的测试，CI 中按需运行
 
 ### 4.3 CRUD 层（`src/cruds/base_crud.py`）
 
