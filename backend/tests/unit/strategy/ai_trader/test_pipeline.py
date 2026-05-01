@@ -11,11 +11,11 @@ from sqlalchemy.orm import Session
 
 from src.services.insight.experience.retriever import ExperienceRetriever
 from src.models import AIDecision, Base, DecisionReview, PromptTemplate
-from src.strategy.ai_trader.decision_solver import DecisionSolver
-from src.strategy.ai_trader.llm_client import MockLLMClient
-from src.strategy.ai_trader.pipeline import AITraderPipeline, PipelineInput
-from src.strategy.ai_trader.prompt_composer import PromptComposer
-from src.strategy.ai_trader.review_critic import ReviewCritic
+from src.services.strategy.decision_solver import DecisionSolver
+from src.core.llm.client import MockLLMClient
+from src.services.strategy.pipeline import AITraderPipeline, PipelineInput
+from src.services.strategy.prompt_composer import PromptComposer
+from src.services.strategy.review_critic import ReviewCritic
 
 
 @pytest.fixture

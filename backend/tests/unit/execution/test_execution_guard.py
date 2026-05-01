@@ -14,7 +14,7 @@ from src.services.execution.execution_guard import ExecutionGuard, GuardDecision
 from src.shared.enums import PositionStatus
 from src.models import Base, Position, RiskEvent, Trade
 from src.models.account_entity import RiskProfile
-from src.strategy.proposal import DecisionProposal
+from src.services.strategy.proposal import DecisionProposal
 
 
 @pytest.fixture

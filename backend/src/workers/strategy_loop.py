@@ -18,7 +18,7 @@ from src.services.execution.account_state_service import (
     get_daily_pnl,
     sync_account_snapshot,
 )
-from src.services.decision_engine.engine import make_decision
+from src.services.strategy.decision_engine import make_decision
 from src.services.execution.execution_guard_service import GuardDecision, check as guard_check
 from src.services.insight.experience_store import get_recent_experience
 from src.services.insight.indicators_calculator import compute_and_store, get_latest_indicators

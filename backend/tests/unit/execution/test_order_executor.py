@@ -17,7 +17,7 @@ from src.core.exchange.types import Kline, OrderRequest, OrderResult, Ticker
 from src.services.execution.order_executor import OrderExecutor, make_trace_id
 from src.shared.enums import OrderStatus, PositionStatus
 from src.models import Base, EventOutbox, Order, Position, Trade
-from src.strategy.proposal import DecisionProposal
+from src.services.strategy.proposal import DecisionProposal
 
 
 @pytest.fixture

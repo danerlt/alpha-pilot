@@ -25,7 +25,7 @@ from sqlalchemy.orm import Session
 
 from src.services.insight.experience.retriever import ExperienceSummary
 from src.models.decision_review import DecisionReview
-from src.strategy.proposal import DecisionProposal
+from src.services.strategy.proposal import DecisionProposal
 
 
 @dataclass

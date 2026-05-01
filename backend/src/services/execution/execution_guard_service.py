@@ -17,7 +17,7 @@ from datetime import date
 from sqlalchemy import cast, Date, func
 from sqlalchemy.orm import Session
 
-from src.services.decision_engine.parser import DecisionPayload
+from src.services.strategy.decision_parser import DecisionPayload
 from src.shared.config import get_settings
 from src.shared.enums import Action, GuardResult, PositionStatus, RegimeType
 from src.models.position import Position

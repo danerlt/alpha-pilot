@@ -7,8 +7,8 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from src.services.decision_engine.parser import DecisionPayload, parse_llm_output
-from src.services.decision_engine.prompt import (
+from src.services.strategy.decision_parser import DecisionPayload, parse_llm_output
+from src.services.strategy.decision_prompt import (
     SYSTEM_PROMPT,
     build_prompt_input,
     format_user_message,

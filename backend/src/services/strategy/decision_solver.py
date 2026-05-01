@@ -23,9 +23,9 @@ from sqlalchemy.orm import Session
 
 from src.shared.constants import MAX_POSITION_SIZE_PCT_HARD_CAP
 from src.models.decision import AIDecision
-from src.strategy.ai_trader.llm_client import LLMClient, LLMResult, LLMTimeout
-from src.strategy.ai_trader.prompt_composer import PromptBundle
-from src.strategy.proposal import DecisionProposal
+from src.core.llm.client import LLMClient, LLMResult, LLMTimeout
+from src.services.strategy.prompt_composer import PromptBundle
+from src.services.strategy.proposal import DecisionProposal
 
 logger = logging.getLogger(__name__)
 

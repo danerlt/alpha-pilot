@@ -4,7 +4,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from src.strategy.proposal import DecisionProposal
+from src.services.strategy.proposal import DecisionProposal
 
 
 def test_open_long_proposal_constructs():
@@ -153,14 +153,14 @@ class TestRejectsNonFiniteAndNegative:
 def test_decision_solver_rejects_nan_in_llm_json():
     """post-Plan5 安全审计 C6: LLM 输出 {"stop_loss": NaN} 必须在 json.loads
     阶段就被拒, 不能让 NaN 进 Pydantic."""
-    from src.strategy.ai_trader.decision_solver import _parse_llm_json
+    from src.services.strategy.decision_solver import _parse_llm_json
 
     with pytest.raises(ValueError, match="non-finite"):
         _parse_llm_json('{"action":"OPEN_LONG","stop_loss":NaN,"position_size_pct":0.1}')
 
 
 def test_decision_solver_rejects_infinity():
-    from src.strategy.ai_trader.decision_solver import _parse_llm_json
+    from src.services.strategy.decision_solver import _parse_llm_json
 
     with pytest.raises(ValueError, match="non-finite"):
         _parse_llm_json('{"take_profit": Infinity}')

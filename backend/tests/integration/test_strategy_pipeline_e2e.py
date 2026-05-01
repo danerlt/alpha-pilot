@@ -35,7 +35,7 @@ from src.models import (
     AIDecision, EventOutbox, Order, Position, PromptTemplate,
 )
 from src.models.account_entity import RiskProfile
-from src.strategy.ai_trader.llm_client import MockLLMClient
+from src.core.llm.client import MockLLMClient
 from src.workers.strategy_pipeline import run_strategy_pipeline_once
 
 

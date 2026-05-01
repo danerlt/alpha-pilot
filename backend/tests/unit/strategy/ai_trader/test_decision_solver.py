@@ -10,9 +10,9 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from src.models import AIDecision, Base
-from src.strategy.ai_trader.decision_solver import DecisionSolver
-from src.strategy.ai_trader.llm_client import MockLLMClient
-from src.strategy.ai_trader.prompt_composer import PromptBundle
+from src.services.strategy.decision_solver import DecisionSolver
+from src.core.llm.client import MockLLMClient
+from src.services.strategy.prompt_composer import PromptBundle
 
 
 @pytest.fixture

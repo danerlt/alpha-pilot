@@ -51,12 +51,12 @@ from src.shared.enums import PositionStatus
 from src.models.account_entity import RiskProfile
 from src.models.candle import Candle
 from src.models.position import Position
-from src.strategy.ai_trader.decision_solver import DecisionSolver
-from src.strategy.ai_trader.llm_client import LLMClient
-from src.strategy.ai_trader.pipeline import AITraderPipeline, PipelineInput
-from src.strategy.ai_trader.prompt_composer import PromptComposer
-from src.strategy.ai_trader.review_critic import ReviewCritic
-from src.strategy.router import StrategyRouter
+from src.services.strategy.decision_solver import DecisionSolver
+from src.core.llm.client import LLMClient
+from src.services.strategy.pipeline import AITraderPipeline, PipelineInput
+from src.services.strategy.prompt_composer import PromptComposer
+from src.services.strategy.review_critic import ReviewCritic
+from src.services.strategy.router import StrategyRouter
 
 logger = logging.getLogger(__name__)
 

@@ -9,8 +9,8 @@ from sqlalchemy.orm import Session
 
 from src.services.insight.experience.retriever import ExperienceSummary
 from src.models import AIDecision, Base, DecisionReview
-from src.strategy.ai_trader.review_critic import ReviewCritic
-from src.strategy.proposal import DecisionProposal
+from src.services.strategy.review_critic import ReviewCritic
+from src.services.strategy.proposal import DecisionProposal
 
 
 @pytest.fixture

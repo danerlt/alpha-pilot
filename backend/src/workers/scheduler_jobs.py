@@ -21,7 +21,7 @@ from src.core.exchange.binance_adapter import BinanceAdapter
 from src.shared.config import get_settings
 from src.shared.db import get_session_factory
 from src.models.account_entity import RiskProfile
-from src.strategy.ai_trader.llm_client import (
+from src.core.llm.client import (
     LLMClient,
     MockLLMClient,
     OpenAIClient,

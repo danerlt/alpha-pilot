@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.services.decision_engine.parser import DecisionPayload
+from src.services.strategy.decision_parser import DecisionPayload
 from src.services.execution.execution_guard_service import GuardDecision, check
 from src.shared.enums import Action, GuardResult, RegimeType
 

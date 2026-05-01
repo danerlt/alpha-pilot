@@ -26,14 +26,14 @@ from dataclasses import dataclass, field
 from sqlalchemy.orm import Session
 
 from src.services.insight.experience.retriever import ExperienceRetriever, ExperienceSummary
-from src.strategy.ai_trader.decision_solver import DecisionSolver
-from src.strategy.ai_trader.prompt_composer import (
+from src.services.strategy.decision_solver import DecisionSolver
+from src.services.strategy.prompt_composer import (
     PromptComposer,
     PromptContext,
     PromptTemplateNotFound,
 )
-from src.strategy.ai_trader.review_critic import ReviewCritic
-from src.strategy.proposal import DecisionProposal
+from src.services.strategy.review_critic import ReviewCritic
+from src.services.strategy.proposal import DecisionProposal
 
 logger = logging.getLogger(__name__)
 

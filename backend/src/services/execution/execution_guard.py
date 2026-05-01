@@ -36,7 +36,7 @@ from src.models.account_entity import RiskProfile
 from src.models.position import Position
 from src.models.risk_event import RiskEvent
 from src.models.trade import Trade
-from src.strategy.proposal import DecisionProposal
+from src.services.strategy.proposal import DecisionProposal
 
 logger = logging.getLogger(__name__)
 

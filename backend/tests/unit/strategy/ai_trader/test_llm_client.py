@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.strategy.ai_trader.llm_client import (
+from src.core.llm.client import (
     LLMResult,
     LLMTimeout,
     MockLLMClient,

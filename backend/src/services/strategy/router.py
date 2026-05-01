@@ -13,8 +13,8 @@ from typing import Protocol
 from sqlalchemy.orm import Session
 
 from src.models.audit_log import AuditLog
-from src.strategy.ai_trader.pipeline import PipelineInput
-from src.strategy.proposal import DecisionProposal
+from src.services.strategy.pipeline import PipelineInput
+from src.services.strategy.proposal import DecisionProposal
 
 logger = logging.getLogger(__name__)
 

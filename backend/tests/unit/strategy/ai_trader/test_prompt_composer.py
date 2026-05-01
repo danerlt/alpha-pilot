@@ -7,7 +7,7 @@ import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from src.strategy.ai_trader.prompt_composer import (
+from src.services.strategy.prompt_composer import (
     PromptComposer,
     PromptContext,
     PromptTemplateNotFound,

@@ -36,7 +36,7 @@ from src.shared.enums import OrderStatus, PositionStatus
 from src.models.order import Order
 from src.models.position import Position
 from src.models.trade import Trade
-from src.strategy.proposal import DecisionProposal
+from src.services.strategy.proposal import DecisionProposal
 
 logger = logging.getLogger(__name__)
 

@@ -8,7 +8,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from src.services.decision_engine.parser import DecisionPayload
+from src.services.strategy.decision_parser import DecisionPayload
 from src.core.exchange.binance_client import (
     cancel_order,
     create_order,

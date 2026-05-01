@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from src.services.decision_engine.parser import DecisionPayload, parse_llm_output
+from src.services.strategy.decision_parser import DecisionPayload, parse_llm_output
 from src.shared.enums import Action
 
 
