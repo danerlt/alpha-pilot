@@ -42,9 +42,9 @@ def pg_url():
     with PostgresContainer("postgres:16-alpine") as pg:
         url = pg.get_connection_url()
         backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
-        cfg = Config(os.path.join(backend_dir, "alembic.ini"))
+        cfg = Config(os.path.join(backend_dir, "src", "db", "alembic.ini"))
         cfg.set_main_option("sqlalchemy.url", url)
-        cfg.set_main_option("script_location", os.path.join(backend_dir, "migrations"))
+        cfg.set_main_option("script_location", os.path.join(backend_dir, "src", "db", "migrations"))
         command.upgrade(cfg, "head")
         yield url
 

@@ -81,7 +81,7 @@ def _ensure_test_database():
     env["DATABASE_URL"] = _TEST_DB_URL
     env["ALPHAPILOT_SKIP_SECRET_VALIDATION"] = "1"
     subprocess.run(
-        ["uv", "run", "alembic", "upgrade", "head"],
+        ["uv", "run", "alembic", "-c", "src/db/alembic.ini", "upgrade", "head"],
         env=env,
         check=True,
         cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),

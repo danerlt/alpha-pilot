@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def main():
     print("Running pending migrations...")
-    subprocess.run(["alembic", "upgrade", "head"], check=True)
+    subprocess.run(["alembic", "-c", "src/db/alembic.ini", "upgrade", "head"], check=True)
     print("Migrations complete.")
 
 
