@@ -8,7 +8,6 @@ trade.* 事件。
 """
 from __future__ import annotations
 
-import hashlib
 import logging
 from datetime import datetime, timezone
 from typing import Optional
@@ -41,9 +40,8 @@ from src.services.strategy.proposal import DecisionProposal
 logger = logging.getLogger(__name__)
 
 
-def make_trace_id(decision_id: int, symbol: str, action: str) -> str:
-    raw = f"{decision_id}:{symbol}:{action}"
-    return hashlib.sha256(raw.encode()).hexdigest()[:32]
+from src.core.trace.trace_id import generate_trace_id as make_trace_id  # noqa: E402, F401
+# (保留 make_trace_id 名作为向后兼容别名; 新代码直接 from src.core.trace.trace_id import generate_trace_id)
 
 
 class OrderExecutor:
