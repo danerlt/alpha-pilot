@@ -1,5 +1,6 @@
 """Auth router tests.
 
+import os
 post-Plan5 安全审计 C5: 公开 register 已禁用, 改为预先在 DB seed admin
 然后测 login + me. register 端点测试改为验证它返 403.
 """
@@ -7,7 +8,6 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from src.app import app
 from src.services.auth import hash_password
@@ -20,9 +20,7 @@ from src.models.user import User
 @pytest.fixture
 def auth_db():
     engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
+        os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:"),
     )
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base.metadata.create_all(engine, tables=[User.__table__])

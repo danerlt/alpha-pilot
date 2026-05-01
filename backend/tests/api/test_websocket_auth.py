@@ -1,13 +1,14 @@
 """WebSocket 鉴权 + catchup 测试 (Critical fix C4)。"""
 from __future__ import annotations
 
+import os
+
 from datetime import datetime, timezone
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
-from sqlalchemy.pool import StaticPool
 
 from src.app import app
 from src.shared.config import get_base_settings
@@ -18,9 +19,7 @@ from src.models import Base, EventOutbox
 @pytest.fixture
 def engine():
     eng = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
+        os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:")),
     )
     Base.metadata.create_all(eng)
     yield eng

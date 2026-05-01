@@ -33,7 +33,7 @@ def test_settings_safe_placeholders_for_tests(monkeypatch):
     assert s.BINANCE_API_KEY == "test-binance-api-key"
     assert s.BINANCE_API_SECRET == "test-binance-api-secret"
     assert s.LLM_API_KEY == "test-llm-api-key"
-    assert s.DATABASE_URL == "sqlite:///./alphapilot.db"
+    assert s.DATABASE_URL == ""  # v3.7：sqlite 占位已删除，留空走 PG_* 拼接
     assert s.REDIS_URL == "redis://localhost:6389/0"  # docker-compose 映射端口
 
 

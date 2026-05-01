@@ -17,18 +17,8 @@ from src.utils.json import dumps as _json_dumps
 
 
 def _make_engine(uri: str, echo: bool) -> Engine:
+    """创建 PostgreSQL engine（v3.7：彻底删除 sqlite 兼容路径）。"""
     cfg = get_app_config()
-
-    # SQLite 路径（占位 / 旧测试用）不支持 pool_size / max_overflow / connect_timeout
-    if uri.startswith("sqlite"):
-        return create_engine(
-            uri,
-            echo=echo,
-            json_serializer=_json_dumps,
-            pool_pre_ping=True,
-            connect_args={"check_same_thread": False},
-        )
-
     return create_engine(
         uri,
         echo=echo,

@@ -5,6 +5,8 @@ backend/tests/unit/execution/test_position_monitor.py 覆盖.
 """
 from __future__ import annotations
 
+import os
+
 from datetime import datetime, timezone
 from typing import Literal
 
@@ -21,7 +23,7 @@ from src.workers.position_monitor_worker import run_position_monitor_once
 
 @pytest.fixture
 def engine():
-    eng = create_engine("sqlite:///:memory:")
+    eng = create_engine(os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:"))))
     Base.metadata.create_all(eng)
     return eng
 

@@ -1,6 +1,8 @@
 """Unit tests for IndicatorComputer (Plan 2 Task A1)."""
 from __future__ import annotations
 
+import os
+
 from datetime import datetime, timedelta, timezone
 
 import pandas as pd
@@ -114,7 +116,7 @@ def test_compute_volatility_zero_on_flat_prices_is_near_zero():
 
 @pytest.fixture
 def session():
-    engine = create_engine("sqlite:///:memory:")
+    engine = create_engine(os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:"))))
     Base.metadata.create_all(engine)
     with Session(engine) as s:
         yield s

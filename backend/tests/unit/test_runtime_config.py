@@ -1,3 +1,4 @@
+import os
 from src.shared.enums import TradingMode
 from src.shared.runtime_config import (
     BINANCE_MAINNET_API_KEY,
@@ -16,7 +17,7 @@ from sqlalchemy.orm import sessionmaker
 
 
 def test_upsert_secret_setting_encrypts_value():
-    engine = create_engine("sqlite:///:memory:")
+    engine = create_engine(os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:"))))
     Base.metadata.create_all(engine, tables=[SystemSetting.__table__])
     SessionLocal = sessionmaker(engine)
     db = SessionLocal()
@@ -39,7 +40,7 @@ def test_upsert_secret_setting_encrypts_value():
 
 
 def test_refresh_applies_active_mode_credentials_and_risk_overrides():
-    engine = create_engine("sqlite:///:memory:")
+    engine = create_engine(os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:"))))
     Base.metadata.create_all(engine, tables=[SystemSetting.__table__])
     SessionLocal = sessionmaker(engine)
     db = SessionLocal()

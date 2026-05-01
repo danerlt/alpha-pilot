@@ -1,6 +1,8 @@
 """Tests for ExperienceRetriever (V0.1 tag-based)."""
 from __future__ import annotations
 
+import os
+
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -13,7 +15,7 @@ from src.models import Base, ExperienceV2
 
 @pytest.fixture
 def session():
-    engine = create_engine("sqlite:///:memory:")
+    engine = create_engine(os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:"))))
     Base.metadata.create_all(engine)
     with Session(engine) as s:
         yield s

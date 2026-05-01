@@ -5,6 +5,8 @@
 """
 from __future__ import annotations
 
+import os
+
 from types import SimpleNamespace
 
 import pytest
@@ -17,7 +19,7 @@ from src.workers import scheduler_jobs
 
 @pytest.fixture
 def engine():
-    eng = create_engine("sqlite:///:memory:")
+    eng = create_engine(os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:"))))
     Base.metadata.create_all(eng)
     return eng
 

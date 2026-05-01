@@ -1,6 +1,8 @@
 """ExecutionGuard 10 条规则链单测。"""
 from __future__ import annotations
 
+import os
+
 from datetime import datetime, timezone
 from decimal import Decimal
 
@@ -17,7 +19,7 @@ from src.strategy.proposal import DecisionProposal
 
 @pytest.fixture
 def session():
-    engine = create_engine("sqlite:///:memory:")
+    engine = create_engine(os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:"))))
     Base.metadata.create_all(engine)
     with Session(engine) as s:
         yield s

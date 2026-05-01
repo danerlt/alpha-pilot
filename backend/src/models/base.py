@@ -4,7 +4,8 @@
 - ``Base`` **不含 ``id``** 字段（决策 2：每个 model 自定义 BigInteger autoincrement）
 - ``Base`` **包含通用字段**（每个表都需要）：created_at / updated_at / enable_flag / delete_flag
 - ``TradingModeMixin`` 按需继承（业务表需要 testnet/mainnet 隔离时继承）
-- 不再使用 ``BigIntPk`` 类型别名（删 sqlite variant，统一用 BigInteger，测试改用真 PG）
+- **不再使用 sqlite**（决策 3 B 已彻底落实）：所有 model 主键直接 ``BigInteger``；
+  测试通过 testcontainers PG（``TEST_DATABASE_URL`` 环境变量）
 
 **强制规则**：所有 Model 的 ``Mapped[...] = mapped_column(...)`` 字段定义**必须保持单行**，
 便于 grep / IDE 跳转 / 字段速览。注释写在行尾或单独 ``#`` 注释行。
@@ -13,14 +14,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Integer, String, func, text
+from sqlalchemy import Boolean, DateTime, String, func, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-
-# ── 临时兼容：sqlite in-memory 测试需要的 PK 类型 ─────────────────────────────
-# 决策 3（B）说"删 sqlite variant"。但所有现有测试依赖 sqlite，一次性改 PG 工作量大。
-# Stage 2 阶段：保留 BigIntPk 作为 model 主键类型（业务代码 grep 不到 BigIntPk）。
-# Stage 2 末尾任务：把测试 fixture 全切 testcontainers PG，再删除本类型别名。
-BigIntPk = BigInteger().with_variant(Integer(), "sqlite")
 
 
 class Base(DeclarativeBase):

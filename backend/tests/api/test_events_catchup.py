@@ -1,13 +1,14 @@
 """GET /api/events/catchup 测试。"""
 from __future__ import annotations
 
+import os
+
 from datetime import datetime, timezone
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
-from sqlalchemy.pool import StaticPool
 
 from src.app import app
 from src.api.dependencies import get_current_user
@@ -20,9 +21,7 @@ def client():
     from types import SimpleNamespace
 
     engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
+        os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:")),
     )
     Base.metadata.create_all(engine)
 
@@ -45,9 +44,7 @@ def client():
 def test_catchup_requires_authentication():
     """缺 token / 未注入鉴权 override 时, /catchup 必须 401."""
     engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
+        os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:")),
     )
     Base.metadata.create_all(engine)
 

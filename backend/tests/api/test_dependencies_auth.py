@@ -6,12 +6,13 @@ sub 不可转 int 时, FastAPI 默认会返 500 而不是 401, 导致前端 401 
 """
 from __future__ import annotations
 
+import os
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
-from sqlalchemy.pool import StaticPool
 
 from src.api.dependencies import get_current_user
 from src.shared.db import get_db
@@ -21,9 +22,7 @@ from src.models import Base
 @pytest.fixture
 def client():
     engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
+        os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:")),
     )
     Base.metadata.create_all(engine)
 

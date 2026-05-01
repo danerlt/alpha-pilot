@@ -1,6 +1,8 @@
 """AccountStateService 单测。"""
 from __future__ import annotations
 
+import os
+
 from datetime import date, datetime, timezone
 from typing import Literal
 
@@ -17,7 +19,7 @@ from src.models import Base, Position, Trade
 
 @pytest.fixture
 def session():
-    engine = create_engine("sqlite:///:memory:")
+    engine = create_engine(os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:"))))
     Base.metadata.create_all(engine)
     with Session(engine) as s:
         yield s

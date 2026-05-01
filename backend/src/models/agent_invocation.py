@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy import BigInteger, DateTime, Index, Integer, JSON, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.models.base import Base, BigIntPk
+from src.models.base import Base
 
 
 class AgentInvocation(Base):
@@ -16,7 +16,7 @@ class AgentInvocation(Base):
         Index("ix_agent_invocations_prompt_template_id", "prompt_template_id"),
     )
 
-    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     # Fresh table — NO Python default; callers must pass account_id explicitly.
     account_id: Mapped[int] = mapped_column(
         nullable=False

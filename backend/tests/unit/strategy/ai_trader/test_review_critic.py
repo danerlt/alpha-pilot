@@ -1,6 +1,8 @@
 """Tests for ReviewCritic (rule-based V0.1)."""
 from __future__ import annotations
 
+import os
+
 import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
@@ -13,7 +15,7 @@ from src.strategy.proposal import DecisionProposal
 
 @pytest.fixture
 def session():
-    engine = create_engine("sqlite:///:memory:")
+    engine = create_engine(os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:"))))
     Base.metadata.create_all(engine)
     with Session(engine) as s:
         # Seed a referenced ai_decisions row so decision_id FK is satisfied.

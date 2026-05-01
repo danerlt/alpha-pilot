@@ -1,14 +1,14 @@
 from datetime import datetime
 from sqlalchemy import BigInteger, String, DateTime, Text, Boolean
 from sqlalchemy.orm import Mapped, mapped_column
-from src.models.base import Base, BigIntPk
+from src.models.base import Base
 from src.shared.enums import TradingMode
 
 
 class RiskEvent(Base):
     __tablename__ = "risk_events"
 
-    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     account_id: Mapped[int] = mapped_column(nullable=False, default=1)
     trading_mode: Mapped[str] = mapped_column(String(10), nullable=False, default=TradingMode.TESTNET.value)
     event_type: Mapped[str] = mapped_column(String(50), nullable=False)

@@ -78,15 +78,16 @@ class PostgreSQLConfig(BaseSettings):
     PRINT_SQL: bool = Field(default=False, description="echo SQL 到日志（仅 dev）")
 
     # 兼容性：旧代码读 DATABASE_URL；新代码用 db_uri property
+    # v3.7：sqlite 占位删除；空字符串走 PG_* 拼接，仅显式 postgres:// URL 时使用
     DATABASE_URL: str = Field(
-        default="sqlite:///./alphapilot.db",
-        description="向后兼容字段（默认值仅供旧测试占位）；阶段 2 后业务代码统一用 db_uri property",
+        default="",
+        description="向后兼容字段；非空且 postgres:// 开头时优先用，否则按 PG_* 字段拼 db_uri",
     )
 
     @property
     def db_uri(self) -> str:
         """优先级：
-        1. DATABASE_URL 显式设为 postgresql:// 或 postgres:// 开头时直接使用（兼容旧 .env）
+        1. DATABASE_URL 显式设为 postgresql:// 开头时直接使用（兼容旧 .env）
         2. 否则用 PG_* 字段拼接 postgresql+psycopg2:// URI
         """
         if self.DATABASE_URL.startswith(("postgresql://", "postgresql+psycopg2://", "postgres://")):

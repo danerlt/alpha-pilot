@@ -1,6 +1,8 @@
 """Commands router 集成测试 (FastAPI TestClient)。"""
 from __future__ import annotations
 
+import os
+
 from datetime import datetime, timezone
 
 import pytest
@@ -19,9 +21,7 @@ def client():
     # SQLite in-memory + StaticPool 让多 session 共享同一个连接 (否则 :memory: 各自隔离)
     from sqlalchemy.pool import StaticPool
     engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
+        os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:")),
     )
     Base.metadata.create_all(engine)
 

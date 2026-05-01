@@ -1,6 +1,8 @@
 """Tests for DecisionSolver — parse + validate + persist + fallback HOLD."""
 from __future__ import annotations
 
+import os
+
 import json
 
 import pytest
@@ -15,7 +17,7 @@ from src.strategy.ai_trader.prompt_composer import PromptBundle
 
 @pytest.fixture
 def session():
-    engine = create_engine("sqlite:///:memory:")
+    engine = create_engine(os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:"))))
     Base.metadata.create_all(engine)
     with Session(engine) as s:
         yield s

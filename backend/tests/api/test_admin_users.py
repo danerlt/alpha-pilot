@@ -1,8 +1,8 @@
+import os
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from src.app import app
 from src.shared.db import get_db
@@ -15,9 +15,7 @@ from src.models.user import User
 @pytest.fixture
 def admin_users_db():
     engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
+        os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:"),
     )
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base.metadata.create_all(engine, tables=[User.__table__, AuditLog.__table__])

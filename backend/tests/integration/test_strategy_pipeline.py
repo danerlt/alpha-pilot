@@ -6,6 +6,8 @@ ai_decisions / orders / positions / decision_reviews / proposal_drafts 均有
 """
 from __future__ import annotations
 
+import os
+
 import json
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
@@ -36,7 +38,7 @@ from src.workers.strategy_pipeline import run_strategy_pipeline_once
 
 @pytest.fixture
 def session():
-    engine = create_engine("sqlite:///:memory:")
+    engine = create_engine(os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:"))))
     Base.metadata.create_all(engine)
     with Session(engine) as s:
         # 必须的种子: 1 个 active prompt template

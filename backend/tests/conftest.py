@@ -52,34 +52,95 @@ def _reset_logger_disabled_state():
     yield
 
 
-# ── Stage 2: 真 PostgreSQL fixture（取代 sqlite in-memory 测试）─────────────────
+# ── Stage 2/3: 真 PostgreSQL fixture（取代 sqlite in-memory 测试）─────────────────
+# 优化：复用本地已运行的 docker postgres (alpha-pilot-postgres-1, 5442)，
+# 避免 testcontainers 每个 session 启停 PG 容器的开销。
+_TEST_DB_NAME = "alphapilot_test"
+_TEST_DB_URL = f"postgresql+psycopg2://alphapilot:alphapilot@localhost:5442/{_TEST_DB_NAME}"
+_TEST_ENGINE = None  # session-global，单 engine 服务所有 truncate
+
+
+def _ensure_test_database():
+    """创建 alphapilot_test DB（如不存在）+ 应用 alembic upgrade head。"""
+    import subprocess
+    from sqlalchemy import create_engine, text
+
+    # 1. 用 alphapilot 默认库连接，确保 test DB 存在
+    admin_url = "postgresql+psycopg2://alphapilot:alphapilot@localhost:5442/alphapilot"
+    admin_eng = create_engine(admin_url, isolation_level="AUTOCOMMIT")
+    with admin_eng.connect() as conn:
+        exists = conn.execute(
+            text(f"SELECT 1 FROM pg_database WHERE datname = '{_TEST_DB_NAME}'")
+        ).first()
+        if not exists:
+            conn.execute(text(f"CREATE DATABASE {_TEST_DB_NAME}"))
+    admin_eng.dispose()
+
+    # 2. 应用 alembic 到 test DB
+    env = os.environ.copy()
+    env["DATABASE_URL"] = _TEST_DB_URL
+    env["ALPHAPILOT_SKIP_SECRET_VALIDATION"] = "1"
+    subprocess.run(
+        ["uv", "run", "alembic", "upgrade", "head"],
+        env=env,
+        check=True,
+        cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        capture_output=True,
+    )
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _set_test_database_url() -> "str":
+    """Session-scoped autouse：确保 test DB 存在 + alembic 应用 + TEST_DATABASE_URL 设置。"""
+    _ensure_test_database()
+    os.environ["TEST_DATABASE_URL"] = _TEST_DB_URL
+    yield _TEST_DB_URL
+
+
+def _get_test_engine():
+    """复用单 engine 用于 truncate（避免每个测试新建 engine 的开销）。"""
+    global _TEST_ENGINE
+    if _TEST_ENGINE is None:
+        from sqlalchemy import create_engine
+
+        _TEST_ENGINE = create_engine(_TEST_DB_URL, pool_pre_ping=True)
+    return _TEST_ENGINE
+
+
 @pytest.fixture(scope="session")
-def pg_container_url() -> str:
-    """Session-scoped 真 PostgreSQL 容器，所有 ORM 测试共用。
+def pg_container_url(_set_test_database_url) -> str:
+    """保留兼容名字。"""
+    return _set_test_database_url
 
-    使用 testcontainers 起 postgres:16-alpine。session 级别共用一个容器，
-    避免每个 test 都启停。各 test 之间靠事务回滚做数据隔离。
-    """
-    from testcontainers.postgres import PostgresContainer
 
-    pg = PostgresContainer("postgres:16-alpine")
-    pg.start()
+@pytest.fixture(autouse=True)
+def _truncate_all_pg_tables_after_each_test(_set_test_database_url):
+    """每个测试结束后 TRUNCATE 所有表（保留 schema）。复用 session engine 提速。"""
+    yield
     try:
-        url = pg.get_connection_url()
-        # testcontainers 默认返回 postgresql+psycopg2://，与本项目一致
-        if "+psycopg2" not in url and url.startswith("postgresql://"):
-            url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
-        yield url
-    finally:
-        pg.stop()
+        from sqlalchemy import text
+
+        engine = _get_test_engine()
+        with engine.connect() as conn:
+            result = conn.execute(text(
+                "SELECT tablename FROM pg_tables "
+                "WHERE schemaname = 'public' AND tablename != 'alembic_version'"
+            ))
+            tables = [row[0] for row in result]
+            if tables:
+                truncate_sql = "TRUNCATE TABLE " + ", ".join(f'"{t}"' for t in tables) + " CASCADE"
+                conn.execute(text(truncate_sql))
+                conn.commit()
+    except Exception:
+        pass
 
 
 @pytest.fixture
-def pg_engine(pg_container_url: str):
-    """Function-scoped engine 绑定到 session pg；每个 test 跑完销毁。"""
+def pg_engine(_set_test_database_url):
+    """Function-scoped engine（轻量；连同 session 用同一 PG 实例）。"""
     from sqlalchemy import create_engine
 
-    engine = create_engine(pg_container_url, pool_pre_ping=True)
+    engine = create_engine(_set_test_database_url, pool_pre_ping=True)
     try:
         yield engine
     finally:
@@ -88,7 +149,7 @@ def pg_engine(pg_container_url: str):
 
 @pytest.fixture
 def pg_session(pg_engine):
-    """Function-scoped session，自动 rollback（保证测试间数据隔离）。"""
+    """Function-scoped session。"""
     from sqlalchemy.orm import sessionmaker
 
     Session = sessionmaker(bind=pg_engine, autocommit=False, autoflush=False, expire_on_commit=False)

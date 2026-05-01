@@ -1,6 +1,6 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from src.services.admin_bootstrap import ensure_default_admin
 from src.shared.config import Settings
@@ -12,9 +12,7 @@ from src.services.auth import hash_password
 
 def make_db():
     engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
+        os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:"),
     )
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base.metadata.create_all(engine, tables=[User.__table__])

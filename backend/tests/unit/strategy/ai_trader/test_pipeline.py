@@ -1,6 +1,8 @@
 """Tests for AITraderPipeline — end-to-end orchestration with mock LLM."""
 from __future__ import annotations
 
+import os
+
 import json
 
 import pytest
@@ -18,7 +20,7 @@ from src.strategy.ai_trader.review_critic import ReviewCritic
 
 @pytest.fixture
 def session():
-    engine = create_engine("sqlite:///:memory:")
+    engine = create_engine(os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:"))))
     Base.metadata.create_all(engine)
     with Session(engine) as s:
         # Always seed an active prompt template so compose() succeeds.
