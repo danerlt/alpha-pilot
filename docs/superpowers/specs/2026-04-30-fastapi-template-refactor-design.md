@@ -138,15 +138,19 @@ backend/
     │   │   ├── risk/
     │   │   │   ├── events.py
     │   │   │   └── kill_switch.py
-    │   │   ├── reports.py
-    │   │   ├── auth.py
-    │   │   ├── runtime_config.py
-    │   │   ├── commands.py
-    │   │   └── events_catchup.py
+    │   │   ├── reports.py                   # ⚠️ 实施偏差: 实际放 v1/strategy/reports.py
+    │   │   ├── auth.py                      # ⚠️ 实施偏差: 实际放 v1/system/auth.py
+    │   │   ├── runtime_config.py            # ⚠️ 实施偏差: 实际放 v1/system/runtime_config.py
+    │   │   ├── commands.py                  # ⚠️ 实施偏差: 实际放 v1/risk/commands.py
+    │   │   └── events_catchup.py            # ⚠️ 实施偏差: 实际放 v1/system/events_catchup.py
     │   └── system/
     │       ├── router.py
     │       └── health.py
     │
+    # ⚠️ 实施偏差汇总: spec 把 reports/auth/runtime_config/commands/events_catchup 5 个
+    # 文件平铺在 v1/ 根, 实际实现按 4 子目录 (execution/strategy/risk/system) 全部归类,
+    # 比平铺更易维护 (避免 v1/ 根膨胀); 与 spec 语义等价, 已与老板确认保留实施版。
+    #
     ├── services/                           # 业务编排层（按领域聚合）
     │   ├── execution/
     │   │   ├── order_execution.py
