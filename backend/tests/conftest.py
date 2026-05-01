@@ -50,3 +50,51 @@ def _reset_logger_disabled_state():
         lg.disabled = False
         lg.propagate = True
     yield
+
+
+# ── Stage 2: 真 PostgreSQL fixture（取代 sqlite in-memory 测试）─────────────────
+@pytest.fixture(scope="session")
+def pg_container_url() -> str:
+    """Session-scoped 真 PostgreSQL 容器，所有 ORM 测试共用。
+
+    使用 testcontainers 起 postgres:16-alpine。session 级别共用一个容器，
+    避免每个 test 都启停。各 test 之间靠事务回滚做数据隔离。
+    """
+    from testcontainers.postgres import PostgresContainer
+
+    pg = PostgresContainer("postgres:16-alpine")
+    pg.start()
+    try:
+        url = pg.get_connection_url()
+        # testcontainers 默认返回 postgresql+psycopg2://，与本项目一致
+        if "+psycopg2" not in url and url.startswith("postgresql://"):
+            url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
+        yield url
+    finally:
+        pg.stop()
+
+
+@pytest.fixture
+def pg_engine(pg_container_url: str):
+    """Function-scoped engine 绑定到 session pg；每个 test 跑完销毁。"""
+    from sqlalchemy import create_engine
+
+    engine = create_engine(pg_container_url, pool_pre_ping=True)
+    try:
+        yield engine
+    finally:
+        engine.dispose()
+
+
+@pytest.fixture
+def pg_session(pg_engine):
+    """Function-scoped session，自动 rollback（保证测试间数据隔离）。"""
+    from sqlalchemy.orm import sessionmaker
+
+    Session = sessionmaker(bind=pg_engine, autocommit=False, autoflush=False, expire_on_commit=False)
+    session = Session()
+    try:
+        yield session
+    finally:
+        session.rollback()
+        session.close()
