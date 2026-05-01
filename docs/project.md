@@ -50,7 +50,7 @@ backend/
 │   │   ├── events.py
 │   │   ├── exception/
 │   │   ├── response/
-│   │   └── schemas/
+│   │   └── pagination.py        # Paginated[T] 泛型（顶层；Task 8）
 │   ├── controllers/            # API 路由层（Stage 4 重组）
 │   │   ├── dependencies.py
 │   │   ├── rate_limit.py
