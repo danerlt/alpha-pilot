@@ -12,10 +12,12 @@ KillSwitchService, 自动写 audit_logs + manual.override 事件。
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from src.common.exception.errors import DBException, ParamsException
+from src.common.response.response_code import ErrorCode
 from src.controllers.dependencies import get_adapter, require_admin
 from src.services.risk.kill_switch import KillSwitchService
 from src.services.manual_ops import ManualOpsService
@@ -69,7 +71,7 @@ def close_position(
     )
     db.commit()
     if trade is None:
-        raise HTTPException(status_code=404, detail="position not open or not found")
+        raise DBException(error_code=ErrorCode.NOT_FOUND, message="position not open or not found")
     return {"position_id": position_id, "trade_id": trade.id, "status": "closed"}
 
 
@@ -80,7 +82,7 @@ def close_all(
     current_admin=Depends(require_admin),
 ):
     if body.confirmation != "CLOSE ALL":
-        raise HTTPException(status_code=400, detail="must confirm with 'CLOSE ALL'")
+        raise ParamsException("must confirm with 'CLOSE ALL'")
     svc = ManualOpsService(db, _adapter(), outbox=OutboxWriter())
     closed = svc.manual_close_all(
         account_id=body.account_id, trading_mode=body.trading_mode,
@@ -104,7 +106,7 @@ def resolve_breaker(
     )
     db.commit()
     if not ok:
-        raise HTTPException(status_code=404, detail="risk_event not found")
+        raise DBException(error_code=ErrorCode.NOT_FOUND, message="risk_event not found")
     return {"risk_event_id": event_id, "resolved": True}
 
 

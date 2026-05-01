@@ -59,7 +59,7 @@ def test_catchup_requires_authentication():
     try:
         cli = TestClient(app)
         r = cli.get("/api/events/catchup")
-        assert r.status_code == 401
+        assert r.status_code == 200; assert r.json()["success"] is False; assert r.json()["code"] == "400003"
     finally:
         app.dependency_overrides.clear()
 

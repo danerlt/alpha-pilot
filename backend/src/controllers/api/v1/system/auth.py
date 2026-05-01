@@ -3,7 +3,9 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
+from src.common.exception.errors import ServiceException
+from src.common.response.response_code import ErrorCode
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
@@ -51,9 +53,9 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
 
     V0.1.x 多账户场景重启用时, 必须改成 invite-token 流程 + 限速 + 邮箱验证.
     """
-    raise HTTPException(
-        status_code=403,
-        detail="Public registration disabled. Contact your admin.",
+    raise ServiceException(
+        message="Public registration disabled. Contact your admin.",
+        error_code=ErrorCode.FORBIDDEN,
     )
 
 
@@ -84,15 +86,15 @@ def login(
     if user is None:
         # 不存在时跑 dummy verify 让 timing 一致 (~50ms)
         verify_password(payload.password, _DUMMY_PASSWORD_HASH)
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise ServiceException("Invalid credentials", error_code=ErrorCode.AUTH_ERROR)
 
     if not verify_password(payload.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise ServiceException("Invalid credentials", error_code=ErrorCode.AUTH_ERROR)
 
     try:
         ensure_user_is_active(user.status)
     except ValueError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
+        raise ServiceException(str(exc), error_code=ErrorCode.FORBIDDEN) from exc
 
     user.last_login_at = datetime.now(timezone.utc).isoformat()
     db.commit()

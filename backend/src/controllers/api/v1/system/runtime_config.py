@@ -3,7 +3,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
+from src.common.exception.errors import ParamsException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -112,7 +113,7 @@ def update_runtime_config(
         update_map.append((MAX_SINGLE_RISK_PCT, payload.max_single_risk_pct, "单笔最大风险比例"))
 
     if not update_map:
-        raise HTTPException(status_code=400, detail="No config fields provided")
+        raise ParamsException("No config fields provided")
 
     for key, value, description in update_map:
         upsert_system_setting(db, key=key, value=value, fernet=fernet, description=description)

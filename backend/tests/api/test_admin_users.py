@@ -146,6 +146,6 @@ async def test_admin_update_user_requires_at_least_one_change(admin_users_db):
     finally:
         app.dependency_overrides.clear()
 
-    assert response.status_code == 400
-    assert response.json()["detail"] == "No user fields provided"
+    assert response.status_code == 200; assert response.json()["success"] is False; assert response.json()["code"] == "400001"
+    assert response.json()["message"] == "No user fields provided"
     assert admin_users_db.query(AuditLog).count() == 0

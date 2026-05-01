@@ -1,7 +1,9 @@
 """Admin endpoints — /api/admin/symbols /users /audit-logs."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
+from src.common.exception.errors import DBException, ParamsException, ServiceException
+from src.common.response.response_code import ErrorCode
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -72,7 +74,7 @@ def create_symbol_config(
 ):
     symbol = payload.symbol.upper().strip()
     if db.query(SymbolConfig).filter(SymbolConfig.symbol == symbol).first():
-        raise HTTPException(status_code=409, detail="Symbol already exists")
+        raise ServiceException("Symbol already exists", error_code=ErrorCode.CONFLICT)
 
     item = SymbolConfig(
         symbol=symbol,
@@ -115,7 +117,7 @@ def update_symbol_config(
 ):
     item = db.query(SymbolConfig).filter(SymbolConfig.id == symbol_id).first()
     if not item:
-        raise HTTPException(status_code=404, detail="Symbol config not found")
+        raise DBException(error_code=ErrorCode.NOT_FOUND, message="Symbol config not found")
 
     before = {
         "enabled": item.enabled, "timeframe": item.timeframe,
@@ -180,7 +182,7 @@ def update_user(
 ):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise DBException(error_code=ErrorCode.NOT_FOUND, message="User not found")
 
     before = {"role": user.role, "status": user.status}
     changed = False
@@ -192,7 +194,7 @@ def update_user(
         changed = True
 
     if payload.role is None and payload.status is None:
-        raise HTTPException(status_code=400, detail="No user fields provided")
+        raise ParamsException("No user fields provided")
 
     if changed:
         db.add(AuditLog(

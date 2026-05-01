@@ -27,6 +27,8 @@ def client():
     Base.metadata.create_all(engine)
 
     app = FastAPI()
+    from src.common.exception.exception_handler import register_exception_handlers
+    register_exception_handlers(app)
 
     @app.get("/api/protected")
     def _protected(user=pytest.importorskip("fastapi").Depends(get_current_user)):
@@ -46,18 +48,18 @@ def client():
 
 def test_no_authorization_header_returns_401(client):
     r = client.get("/api/protected")
-    assert r.status_code == 401
+    assert r.status_code == 200; assert r.json()["success"] is False; assert r.json()["code"] == "400003"
 
 
 def test_non_bearer_authorization_returns_401(client):
     r = client.get("/api/protected", headers={"Authorization": "Basic xyz"})
-    assert r.status_code == 401
+    assert r.status_code == 200; assert r.json()["success"] is False; assert r.json()["code"] == "400003"
 
 
 def test_garbage_jwt_returns_401_not_500(client):
     """关键回归: decode_access_token 抛 ValueError 必须翻成 401."""
     r = client.get("/api/protected", headers={"Authorization": "Bearer not-a-jwt"})
-    assert r.status_code == 401, f"got {r.status_code}: {r.text}"
+    assert r.status_code == 200; assert r.json()["success"] is False; assert r.json()["code"] == "400003", f"got {r.status_code}: {r.text}"
 
 
 def test_jwt_with_wrong_signature_returns_401(client):
@@ -67,7 +69,7 @@ def test_jwt_with_wrong_signature_returns_401(client):
         subject="1", role="user", secret_key="wrong-secret-key",
     )
     r = client.get("/api/protected", headers={"Authorization": f"Bearer {bad_token}"})
-    assert r.status_code == 401
+    assert r.status_code == 200; assert r.json()["success"] is False; assert r.json()["code"] == "400003"
 
 
 def test_jwt_with_non_int_sub_returns_401(client):
@@ -82,4 +84,4 @@ def test_jwt_with_non_int_sub_returns_401(client):
         "/api/protected",
         headers={"Authorization": f"Bearer {bad_sub_token}"},
     )
-    assert r.status_code == 401
+    assert r.status_code == 200; assert r.json()["success"] is False; assert r.json()["code"] == "400003"

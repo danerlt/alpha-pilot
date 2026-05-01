@@ -5,7 +5,9 @@ require_admin / get_adapter, 不再各自重复实现。
 """
 from __future__ import annotations
 
-from fastapi import Depends, Header, HTTPException
+from fastapi import Depends, Header
+from src.common.exception.errors import ServiceException
+from src.common.response.response_code import ErrorCode
 from sqlalchemy.orm import Session
 
 from src.core.exchange.binance_adapter import BinanceAdapter
@@ -25,7 +27,7 @@ def extract_bearer_token(authorization: str | None) -> str:
     (e.g. WebSocket 鉴权) 复用.
     """
     if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Missing bearer token")
+        raise ServiceException("Missing bearer token", error_code=ErrorCode.AUTH_ERROR)
     return authorization.replace("Bearer ", "", 1)
 
 
@@ -50,24 +52,24 @@ def get_current_user(
         payload = decode_access_token(token, secret_key)
     except ValueError as exc:
         # JWT 过期 / 签名错 / payload 解析失败都进这里
-        raise HTTPException(status_code=401, detail=f"Invalid token: {exc}") from exc
+        raise ServiceException(f"Invalid token: {exc}", error_code=ErrorCode.AUTH_ERROR) from exc
 
     user_id = payload.get("sub")
     if not user_id:
-        raise HTTPException(status_code=401, detail="Invalid token subject")
+        raise ServiceException("Invalid token subject", error_code=ErrorCode.AUTH_ERROR)
 
     try:
         user_id_int = int(user_id)
     except (TypeError, ValueError) as exc:
-        raise HTTPException(status_code=401, detail="Invalid token subject (non-int)") from exc
+        raise ServiceException("Invalid token subject (non-int)", error_code=ErrorCode.AUTH_ERROR) from exc
 
     user = db.query(User).filter(User.id == user_id_int).first()
     if not user:
-        raise HTTPException(status_code=401, detail="User not found")
+        raise ServiceException("User not found", error_code=ErrorCode.AUTH_ERROR)
     try:
         ensure_user_is_active(user.status)
     except ValueError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
+        raise ServiceException(str(exc), error_code=ErrorCode.FORBIDDEN) from exc
     return user
 
 
@@ -76,7 +78,7 @@ def require_admin(current_user=Depends(get_current_user)):
         from src.services.auth import ensure_user_is_admin
         ensure_user_is_admin(current_user.role)
     except PermissionError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
+        raise ServiceException(str(exc), error_code=ErrorCode.FORBIDDEN) from exc
     return current_user
 
 

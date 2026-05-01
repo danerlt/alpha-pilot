@@ -7,10 +7,12 @@ resolve 路径走 ManualOpsService.manual_resolve_circuit_breaker, 与
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from src.common.exception.errors import DBException
+from src.common.response.response_code import ErrorCode
 from src.controllers.dependencies import get_adapter, get_current_user, require_admin
 from src.services.manual_ops import ManualOpsService
 from src.services.events.outbox import OutboxWriter
@@ -75,7 +77,7 @@ def resolve_risk_event(
         .first()
     )
     if not event:
-        raise HTTPException(status_code=404, detail="Risk event not found")
+        raise DBException(error_code=ErrorCode.NOT_FOUND, message="Risk event not found")
 
     reason = body.reason if body is not None else "ui_resolve_via_risk_events"
     svc = ManualOpsService(db, get_adapter(), outbox=OutboxWriter())
@@ -87,5 +89,5 @@ def resolve_risk_event(
     db.commit()
     if not ok:
         # ManualOpsService 内部找不到 (理论上前面 query 已找到, 防御性兜底)
-        raise HTTPException(status_code=404, detail="Risk event not found")
+        raise DBException(error_code=ErrorCode.NOT_FOUND, message="Risk event not found")
     return {"message": "Risk event resolved", "id": event_id}

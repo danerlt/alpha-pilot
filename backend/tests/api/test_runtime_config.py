@@ -89,7 +89,7 @@ async def test_get_runtime_config_requires_admin():
     finally:
         app.dependency_overrides.clear()
 
-    assert response.status_code == 401
+    assert response.status_code == 200; assert response.json()["success"] is False; assert response.json()["code"] == "400003"
 
 
 @pytest.mark.asyncio
@@ -191,5 +191,5 @@ async def test_update_runtime_config_rejects_empty_payload_for_admin():
     finally:
         app.dependency_overrides.clear()
 
-    assert response.status_code == 400
-    assert response.json()["detail"] == "No config fields provided"
+    assert response.status_code == 200; assert response.json()["success"] is False; assert response.json()["code"] == "400001"
+    assert response.json()["message"] == "No config fields provided"

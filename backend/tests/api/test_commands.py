@@ -90,7 +90,7 @@ def test_close_all_requires_confirmation(client):
         "confirmation": "wrong",
         "reason": "test",
     })
-    assert r.status_code == 400
+    assert r.status_code == 200; assert r.json()["success"] is False; assert r.json()["code"] == "400001"
 
 
 def test_close_all_returns_closed_ids(client):
@@ -115,7 +115,7 @@ def test_close_all_returns_closed_ids(client):
 def test_close_position_not_found(client):
     cli, _ = client
     r = cli.post("/api/commands/close-position/9999", json={"reason": "test"})
-    assert r.status_code == 404
+    assert r.status_code == 200; assert r.json()["success"] is False; assert r.json()["code"] == "400005"
 
 
 def test_resolve_breaker(client):

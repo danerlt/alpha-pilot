@@ -39,7 +39,7 @@ async def test_runtime_config_update_requires_admin(monkeypatch):
     finally:
         app.dependency_overrides.clear()
 
-    assert response.status_code == 401 or response.status_code == 403
+    assert response.status_code == 200; assert response.json()["success"] is False; assert response.json()["code"] == "400003" or response.status_code == 403
 
 
 @pytest.mark.asyncio

@@ -48,7 +48,7 @@ async def test_admin_user_list_requires_admin(admin_user_perm_db, monkeypatch):
     finally:
         app.dependency_overrides.clear()
 
-    assert response.status_code in {401, 403}
+    assert response.status_code == 200; assert response.json()["success"] is False; assert response.json()["code"] in ("400003", "400004")
 
 
 @pytest.mark.asyncio
@@ -71,7 +71,7 @@ async def test_admin_user_update_requires_admin(admin_user_perm_db, monkeypatch)
     finally:
         app.dependency_overrides.clear()
 
-    assert response.status_code in {401, 403}
+    assert response.status_code == 200; assert response.json()["success"] is False; assert response.json()["code"] in ("400003", "400004")
 
 
 @pytest.mark.asyncio
@@ -89,6 +89,6 @@ async def test_admin_update_user_returns_404_for_missing_user(admin_user_perm_db
     finally:
         app.dependency_overrides.clear()
 
-    assert response.status_code == 404
-    assert response.json()["detail"] == "User not found"
+    assert response.status_code == 200; assert response.json()["success"] is False; assert response.json()["code"] == "400005"
+    assert response.json()["message"] == "User not found"
     assert admin_user_perm_db.query(AuditLog).count() == 0

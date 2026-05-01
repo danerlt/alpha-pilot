@@ -1,10 +1,11 @@
-"""@api_response 装饰器：自动 ORM→Pydantic + response_base.success 包装。
+"""@api_response 装饰器：自动包装 router 返回值为 Response[T]。
 
-阶段 1 引入但不强制使用；阶段 4 重构 controllers 时全面应用。
+stage 4 wave 2 应用到所有 controllers/api/v1/*/*.py 的 router 函数。
 """
 from __future__ import annotations
 
 import functools
+import inspect
 from typing import Any, Callable
 
 from pydantic import BaseModel
@@ -26,16 +27,26 @@ def to_schema(raw: Any, schema: type[BaseModel] | None) -> Any:
 def api_response(schema: Any = None) -> Callable:
     """装饰器：把 controller 函数返回值包装为 Response[T]。
 
-    业务异常直接抛出，由全局 exception handler 处理；不在装饰器里捕获。
+    支持 sync / async 函数。业务异常直接抛出，由全局 exception handler 处理。
     """
 
     def decorator(fn: Callable) -> Callable:
+        if inspect.iscoroutinefunction(fn):
+
+            @functools.wraps(fn)
+            async def async_wrapper(*args: Any, **kwargs: Any) -> Response:
+                raw = await fn(*args, **kwargs)
+                payload = to_schema(raw, schema)
+                return response_base.success(data=payload)
+
+            return async_wrapper
+
         @functools.wraps(fn)
-        def wrapper(*args: Any, **kwargs: Any) -> Response:
+        def sync_wrapper(*args: Any, **kwargs: Any) -> Response:
             raw = fn(*args, **kwargs)
             payload = to_schema(raw, schema)
             return response_base.success(data=payload)
 
-        return wrapper
+        return sync_wrapper
 
     return decorator

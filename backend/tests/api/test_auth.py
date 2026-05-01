@@ -89,7 +89,7 @@ async def test_public_register_is_disabled(auth_db):
                 "/api/auth/register",
                 json={"username": "anyone", "email": "anyone@example.com", "password": "strongpass123"},
             )
-            assert r.status_code == 403, f"got {r.status_code}: {r.text}"
+            assert r.status_code == 200; assert r.json()["success"] is False; assert r.json()["code"] == "400004", f"got {r.status_code}: {r.text}"
             # 没真创建 user
             assert auth_db.query(User).count() == 0
     finally:
@@ -110,7 +110,7 @@ async def test_login_wrong_password_returns_401(auth_db):
                 "/api/auth/login",
                 json={"email": "alice@example.com", "password": "wrong-password-1234"},
             )
-            assert r.status_code == 401
+            assert r.status_code == 200; assert r.json()["success"] is False; assert r.json()["code"] == "400003"
     finally:
         app.dependency_overrides.clear()
 
@@ -128,6 +128,6 @@ async def test_login_unknown_email_returns_401(auth_db):
                 "/api/auth/login",
                 json={"email": "nobody@example.com", "password": "any-password-12345"},
             )
-            assert r.status_code == 401
+            assert r.status_code == 200; assert r.json()["success"] is False; assert r.json()["code"] == "400003"
     finally:
         app.dependency_overrides.clear()
