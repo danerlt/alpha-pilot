@@ -15,8 +15,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.api.dependencies import get_adapter
-from src.control.kill_switch.service import KillSwitchService
-from src.events.outbox import OutboxWriter
+from src.services.risk.kill_switch import KillSwitchService
+from src.services.events.outbox import OutboxWriter
 from src.execution.exchange.binance_adapter import BinanceAdapter
 from src.shared.config import get_settings
 from src.shared.db import get_session_factory

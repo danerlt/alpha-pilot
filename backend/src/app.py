@@ -29,7 +29,7 @@ from src.api.routers.events_catchup import router as _events_catchup_router
 from src.api.websocket import redis_subscriber, websocket_endpoint
 from src.common.exception.exception_handler import register_exception_handlers
 from src.configs import get_app_config
-from src.control.kill_switch.service import KillSwitchService
+from src.services.risk.kill_switch import KillSwitchService
 from src.db.session import get_db_session
 from src.middleware.error_logging_middleware import ErrorLoggingMiddleware
 from src.middleware.request_logging_middleware import RequestLoggingMiddleware

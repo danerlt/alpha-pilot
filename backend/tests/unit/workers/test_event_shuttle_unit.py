@@ -13,8 +13,8 @@ import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from src.events.contracts import EventEnvelope
-from src.events.ids import new_event_id
+from src.services.events.contracts import EventEnvelope
+from src.services.events.ids import new_event_id
 from src.models import Base, EventOutbox
 from src.workers.event_shuttle import DEFAULT_MAX_FAILED_ATTEMPTS, EventShuttle
 

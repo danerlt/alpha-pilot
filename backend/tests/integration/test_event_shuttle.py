@@ -13,9 +13,9 @@ from testcontainers.redis import RedisContainer
 from alembic import command
 from alembic.config import Config
 
-from src.events.bus import RedisStreamsBus
-from src.events.contracts import CandleClosed
-from src.events.outbox import OutboxWriter
+from src.services.events.bus import RedisStreamsBus
+from src.services.events.contracts import CandleClosed
+from src.services.events.outbox import OutboxWriter
 from src.workers.event_shuttle import EventShuttle
 
 

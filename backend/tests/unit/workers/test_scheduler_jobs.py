@@ -71,7 +71,7 @@ def test_parse_csv_handles_empty_string():
 def test_strategy_job_returns_early_when_kill_switch_paused(
     monkeypatch, engine, session_factory,
 ):
-    from src.control.kill_switch.service import KillSwitchService
+    from src.services.risk.kill_switch import KillSwitchService
 
     # 预先 pause
     with session_factory() as s:

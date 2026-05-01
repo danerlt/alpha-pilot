@@ -18,7 +18,7 @@ from typing import Callable, Iterator, Protocol
 
 import redis as redis_lib
 
-from src.events.contracts import EventEnvelope
+from src.services.events.contracts import EventEnvelope
 
 logger = logging.getLogger(__name__)
 

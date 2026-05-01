@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 import uuid
 
-from src.events.ids import new_event_id, parse_event_id
+from src.services.events.ids import new_event_id, parse_event_id
 
 
 def test_new_event_id_is_uuid_v7_shape():

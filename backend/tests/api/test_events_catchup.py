@@ -66,7 +66,7 @@ def test_catchup_requires_authentication():
 
 def _seed(session, n: int = 5):
     """种子 n 条已 published 的 outbox 行, event_id 用 UUIDv7 时间序。"""
-    from src.events.ids import new_event_id
+    from src.services.events.ids import new_event_id
     import time
     rows = []
     for i in range(n):
@@ -121,7 +121,7 @@ def test_catchup_excludes_unpublished(client):
     cli, engine = client
     with Session(engine) as s:
         # 一条 published, 一条 published_at=None
-        from src.events.ids import new_event_id
+        from src.services.events.ids import new_event_id
         s.add(EventOutbox(
             aggregate_type="x", aggregate_id=1, event_type="x.published",
             event_id=new_event_id(),

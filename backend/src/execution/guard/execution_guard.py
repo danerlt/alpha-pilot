@@ -29,8 +29,8 @@ from typing import Literal, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.events.contracts import DecisionDegraded, DecisionRejected
-from src.events.outbox import OutboxWriter
+from src.services.events.contracts import DecisionDegraded, DecisionRejected
+from src.services.events.outbox import OutboxWriter
 from src.shared.enums import PositionStatus
 from src.models.account_entity import RiskProfile
 from src.models.position import Position

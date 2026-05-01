@@ -18,8 +18,8 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.events.contracts import ManualOverride
-from src.events.outbox import OutboxWriter
+from src.services.events.contracts import ManualOverride
+from src.services.events.outbox import OutboxWriter
 from src.execution.exchange.adapter import ExchangeAdapter
 from src.execution.orders.executor import OrderExecutor
 from src.shared.enums import PositionStatus

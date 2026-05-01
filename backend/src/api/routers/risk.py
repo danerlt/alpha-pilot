@@ -12,8 +12,8 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from src.api.dependencies import get_adapter, get_current_user, require_admin
-from src.control.manual_ops.service import ManualOpsService
-from src.events.outbox import OutboxWriter
+from src.services.manual_ops import ManualOpsService
+from src.services.events.outbox import OutboxWriter
 from src.shared.config import get_settings
 from src.shared.db import get_db
 from src.models.risk_event import RiskEvent

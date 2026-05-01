@@ -16,7 +16,7 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.events.contracts import (
+from src.services.events.contracts import (
     OrderFailed,
     OrderFilled,
     OrderSubmitted,
@@ -24,7 +24,7 @@ from src.events.contracts import (
     PositionOpened,
     TradeClosed,
 )
-from src.events.outbox import OutboxWriter
+from src.services.events.outbox import OutboxWriter
 from src.execution.exchange.adapter import ExchangeAdapter
 from src.shared.datetime_utils import ensure_aware
 from src.execution.exchange.retry import (

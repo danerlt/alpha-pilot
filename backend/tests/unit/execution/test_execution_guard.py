@@ -203,7 +203,7 @@ def _check_with_outbox(
     regime="trending_up", available=10_000.0, daily_pnl=0.0, daily_pnl_pct=0.0,
     atr=200.0, decision_id=42, review_rejected=False,
 ):
-    from src.events.outbox import OutboxWriter
+    from src.services.events.outbox import OutboxWriter
     g = ExecutionGuard(session, risk_profile=profile, outbox=OutboxWriter())
     return g.check(
         proposal=proposal, trading_mode="testnet",

@@ -10,7 +10,7 @@ import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from src.events.outbox import OutboxWriter
+from src.services.events.outbox import OutboxWriter
 from src.execution.exchange.adapter import ExchangeAdapter
 from src.execution.exchange.types import Kline, OrderRequest, OrderResult, Ticker
 from src.execution.market.data import MarketDataService

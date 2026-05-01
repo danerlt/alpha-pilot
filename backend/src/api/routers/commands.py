@@ -17,9 +17,9 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from src.api.dependencies import get_adapter, require_admin
-from src.control.kill_switch.service import KillSwitchService
-from src.control.manual_ops.service import ManualOpsService
-from src.events.outbox import OutboxWriter
+from src.services.risk.kill_switch import KillSwitchService
+from src.services.manual_ops import ManualOpsService
+from src.services.events.outbox import OutboxWriter
 from src.shared.db import get_db
 
 router = APIRouter(prefix="/api/commands", tags=["commands"])

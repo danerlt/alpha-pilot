@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from src.events.contracts import (
+from src.services.events.contracts import (
     EVENT_TYPE_REGISTRY,
     CandleClosed,
     CircuitBreakerTriggered,
@@ -23,7 +23,7 @@ from src.events.contracts import (
     RiskEventTriggered,
     TradeClosed,
 )
-from src.events.ids import new_event_id
+from src.services.events.ids import new_event_id
 
 
 def test_envelope_required_fields():
@@ -115,7 +115,7 @@ def test_registry_covers_star_events():
 
 
 def test_registry_values_subclass_event_base():
-    from src.events.contracts import _Event
+    from src.services.events.contracts import _Event
     for cls in EVENT_TYPE_REGISTRY.values():
         assert issubclass(cls, _Event), f"{cls.__name__} must subclass _Event"
 

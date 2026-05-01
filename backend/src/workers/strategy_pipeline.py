@@ -30,14 +30,14 @@ import pandas as pd
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.control.kill_switch.service import KillSwitchService
-from src.events.contracts import (
+from src.services.risk.kill_switch import KillSwitchService
+from src.services.events.contracts import (
     DecisionProposed,
     FactorsUpdated,
     IndicatorsComputed,
     RegimeClassified,
 )
-from src.events.outbox import OutboxWriter
+from src.services.events.outbox import OutboxWriter
 from src.execution.account.state import AccountStateService
 from src.execution.exchange.adapter import ExchangeAdapter
 from src.execution.guard.execution_guard import ExecutionGuard

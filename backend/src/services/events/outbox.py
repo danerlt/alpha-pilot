@@ -27,8 +27,8 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
-from src.events.contracts import EventEnvelope, _Event
-from src.events.ids import new_event_id
+from src.services.events.contracts import EventEnvelope, _Event
+from src.services.events.ids import new_event_id
 from src.models.event_store import EventOutbox
 
 

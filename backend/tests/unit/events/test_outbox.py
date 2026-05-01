@@ -7,8 +7,8 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from src.events.contracts import CandleClosed
-from src.events.outbox import OutboxWriter
+from src.services.events.contracts import CandleClosed
+from src.services.events.outbox import OutboxWriter
 from src.models import Base, EventOutbox
 
 

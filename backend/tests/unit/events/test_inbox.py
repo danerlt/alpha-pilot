@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from src.events.inbox import InboxGuard
+from src.services.events.inbox import InboxGuard
 from src.models import Base, EventInbox
 
 

@@ -11,7 +11,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from src.events.outbox import OutboxWriter
+from src.services.events.outbox import OutboxWriter
 from src.execution.account.state import AccountStateService
 from src.execution.exchange.adapter import ExchangeAdapter
 from src.execution.monitor.position_monitor import MonitorResult, PositionMonitor

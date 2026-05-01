@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from src.events.bus import InMemoryEventBus
-from src.events.contracts import CandleClosed, EventEnvelope
-from src.events.ids import new_event_id
+from src.services.events.bus import InMemoryEventBus
+from src.services.events.contracts import CandleClosed, EventEnvelope
+from src.services.events.ids import new_event_id
 
 
 def _make_envelope(evt: CandleClosed) -> EventEnvelope:

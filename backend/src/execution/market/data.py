@@ -15,8 +15,8 @@ from typing import Optional
 from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
-from src.events.contracts import CandleClosed
-from src.events.outbox import OutboxWriter
+from src.services.events.contracts import CandleClosed
+from src.services.events.outbox import OutboxWriter
 from src.execution.exchange.adapter import ExchangeAdapter
 from src.models.candle import Candle
 

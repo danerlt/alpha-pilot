@@ -162,7 +162,7 @@ def test_ws_rejects_unknown_user(engine, monkeypatch):
 
 def test_ws_replays_outbox_when_since_provided(client, engine):
     """握手时带 ?since= → 回放 event_outbox > since 的行."""
-    from src.events.ids import new_event_id
+    from src.services.events.ids import new_event_id
 
     # 种子 3 条 published 事件, 第 2 条作为 since 边界
     with Session(engine) as s:
