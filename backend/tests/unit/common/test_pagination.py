@@ -1,4 +1,4 @@
-from src.common.schemas.pagination import Paginated
+from src.common.pagination import Paginated
 
 
 def test_paginated_default():
