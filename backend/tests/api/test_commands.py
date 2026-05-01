@@ -72,16 +72,16 @@ def test_kill_switch_default_state(client):
     cli, _ = client
     r = cli.get("/api/commands/kill-switch")
     assert r.status_code == 200
-    assert r.json() == {"state": "active"}
+    assert r.json()["data"] == {"state": "active"}
 
 
 def test_pause_then_resume(client):
     cli, _ = client
     r = cli.post("/api/commands/pause", json={"reason": "test"})
     assert r.status_code == 200
-    assert r.json()["state"] == "paused"
+    assert r.json()["data"]["state"] == "paused"
     r = cli.post("/api/commands/resume", json={"reason": "ok"})
-    assert r.json()["state"] == "active"
+    assert r.json()["data"]["state"] == "active"
 
 
 def test_close_all_requires_confirmation(client):
@@ -109,7 +109,7 @@ def test_close_all_returns_closed_ids(client):
         "reason": "emergency",
     })
     assert r.status_code == 200
-    assert len(r.json()["closed_position_ids"]) == 1
+    assert len(r.json()["data"]["closed_position_ids"]) == 1
 
 
 def test_close_position_not_found(client):
@@ -133,7 +133,7 @@ def test_resolve_breaker(client):
 
     r = cli.post(f"/api/commands/resolve-breaker/{eid}", json={"reason": "manual ok"})
     assert r.status_code == 200
-    assert r.json()["resolved"] is True
+    assert r.json()["data"]["resolved"] is True
 
 
 def test_resolve_breaker_emits_manual_override_event(client):

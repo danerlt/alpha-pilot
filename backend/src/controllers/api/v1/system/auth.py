@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Request
+from src.common.api_response import api_response
 from src.common.exception.errors import ServiceException
 from src.common.response.response_code import ErrorCode
 from pydantic import BaseModel, EmailStr
@@ -42,6 +43,7 @@ class LoginRequest(BaseModel):
 
 
 @router.post("/register")
+@api_response()
 def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     """V0.1 单管理员场景下公开注册被禁用 (post-Plan5 安全审计 C5).
 
@@ -60,6 +62,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/login")
+@api_response()
 def login(
     payload: LoginRequest,
     request: Request,
@@ -113,6 +116,7 @@ def login(
 
 
 @router.get("/me")
+@api_response()
 def auth_me(current_user=Depends(get_current_user)):
     return {
         "id": current_user.id,

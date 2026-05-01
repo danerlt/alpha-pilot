@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from src.common.api_response import api_response
 from src.common.exception.errors import DBException
 from src.common.response.response_code import ErrorCode
 from src.controllers.dependencies import get_adapter, get_current_user, require_admin
@@ -29,6 +30,7 @@ class ResolveRiskEventRequest(BaseModel):
 
 
 @router.get("")
+@api_response()
 def list_risk_events(
     # post-Plan5 安全审计 M3: limit 加上限防 DoS / OOM
     limit: int = Query(default=50, ge=1, le=500),
@@ -55,6 +57,7 @@ def list_risk_events(
 
 
 @router.post("/{event_id}/resolve")
+@api_response()
 def resolve_risk_event(
     event_id: int,
     body: ResolveRiskEventRequest | None = None,

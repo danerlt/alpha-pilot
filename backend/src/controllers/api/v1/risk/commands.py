@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from src.common.api_response import api_response
 from src.common.exception.errors import DBException, ParamsException
 from src.common.response.response_code import ErrorCode
 from src.controllers.dependencies import get_adapter, require_admin
@@ -58,6 +59,7 @@ class PauseRequest(BaseModel):
 
 
 @router.post("/close-position/{position_id}")
+@api_response()
 def close_position(
     position_id: int,
     body: ClosePositionRequest,
@@ -76,6 +78,7 @@ def close_position(
 
 
 @router.post("/close-all")
+@api_response()
 def close_all(
     body: CloseAllRequest,
     db: Session = Depends(get_db),
@@ -93,6 +96,7 @@ def close_all(
 
 
 @router.post("/resolve-breaker/{event_id}")
+@api_response()
 def resolve_breaker(
     event_id: int,
     body: ResolveBreakerRequest,
@@ -111,6 +115,7 @@ def resolve_breaker(
 
 
 @router.post("/pause")
+@api_response()
 def pause(
     body: PauseRequest,
     db: Session = Depends(get_db),
@@ -123,6 +128,7 @@ def pause(
 
 
 @router.post("/resume")
+@api_response()
 def resume(
     body: PauseRequest,
     db: Session = Depends(get_db),
@@ -135,6 +141,7 @@ def resume(
 
 
 @router.get("/kill-switch")
+@api_response()
 def kill_switch_state(
     db: Session = Depends(get_db),
     current_admin=Depends(require_admin),

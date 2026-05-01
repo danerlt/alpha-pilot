@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.common.api_response import api_response
 from src.controllers.dependencies import get_current_user
 from src.shared.constants import CATCHUP_LIMIT_HARD_CAP
 from src.shared.db import get_db
@@ -23,6 +24,7 @@ router = APIRouter(prefix="/api/events", tags=["events"])
 
 
 @router.get("/catchup")
+@api_response()
 def catchup(
     since: str | None = Query(default=None, description="last event_id; 返回此 id 之后的事件"),
     limit: int = Query(default=200, ge=1, le=CATCHUP_LIMIT_HARD_CAP),

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
+from src.common.api_response import api_response
 from src.common.exception.errors import DBException, ParamsException, ServiceException
 from src.common.response.response_code import ErrorCode
 from pydantic import BaseModel
@@ -49,6 +50,7 @@ class AdminUserUpdate(BaseModel):
 
 
 @router.get("/symbols")
+@api_response()
 def list_symbol_configs(db: Session = Depends(get_db), current_admin=Depends(require_admin)):
     items = db.query(SymbolConfig).order_by(
         SymbolConfig.sort_order.asc(), SymbolConfig.symbol.asc()
@@ -67,6 +69,7 @@ def list_symbol_configs(db: Session = Depends(get_db), current_admin=Depends(req
 
 
 @router.post("/symbols")
+@api_response()
 def create_symbol_config(
     payload: SymbolConfigCreate,
     db: Session = Depends(get_db),
@@ -110,6 +113,7 @@ def create_symbol_config(
 
 
 @router.patch("/symbols/{symbol_id}")
+@api_response()
 def update_symbol_config(
     symbol_id: int, payload: SymbolConfigUpdate,
     db: Session = Depends(get_db),
@@ -160,6 +164,7 @@ def update_symbol_config(
 
 
 @router.get("/users")
+@api_response()
 def list_users(db: Session = Depends(get_db), current_admin=Depends(require_admin)):
     users = db.query(User).order_by(User.id.asc()).all()
     return [
@@ -175,6 +180,7 @@ def list_users(db: Session = Depends(get_db), current_admin=Depends(require_admi
 
 
 @router.patch("/users/{user_id}")
+@api_response()
 def update_user(
     user_id: int, payload: AdminUserUpdate,
     db: Session = Depends(get_db),
@@ -220,6 +226,7 @@ def update_user(
 
 
 @router.get("/audit-logs")
+@api_response()
 def list_audit_logs(
     limit: int = 50,
     db: Session = Depends(get_db),

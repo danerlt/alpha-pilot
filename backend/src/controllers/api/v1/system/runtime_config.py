@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Depends
+from src.common.api_response import api_response
 from src.common.exception.errors import ParamsException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -51,10 +52,16 @@ class RuntimeConfigUpdate(BaseModel):
 
 
 @router.get("/runtime")
+@api_response()
 def get_runtime_config(
     db: Session = Depends(get_db),
     current_admin=Depends(require_admin),
 ):
+    return _build_runtime_config_payload(db)
+
+
+def _build_runtime_config_payload(db: Session) -> dict:
+    """构造 runtime config 数据 payload（被 GET 和 POST 共享，避免相互调用导致双层包装）。"""
     base_settings = get_base_settings()
     settings = get_settings()
     raw = get_runtime_config_manager().get_raw()
@@ -77,6 +84,7 @@ def get_runtime_config(
 
 
 @router.post("/runtime")
+@api_response()
 def update_runtime_config(
     payload: RuntimeConfigUpdate,
     db: Session = Depends(get_db),
@@ -124,4 +132,4 @@ def update_runtime_config(
         master_key=base_settings.APP_CONFIG_MASTER_KEY,
         default_trading_mode=base_settings.TRADING_MODE,
     )
-    return get_runtime_config(db=db, current_admin=current_admin)
+    return _build_runtime_config_payload(db)

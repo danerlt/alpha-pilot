@@ -62,14 +62,14 @@ async def test_login_and_me_with_seeded_user(auth_db):
                 json={"email": "alice@example.com", "password": "strongpass123"},
             )
             assert login_response.status_code == 200
-            token = login_response.json()["access_token"]
+            token = login_response.json()["data"]["access_token"]
 
             me_response = await client.get(
                 "/api/auth/me",
                 headers={"Authorization": f"Bearer {token}"},
             )
             assert me_response.status_code == 200
-            data = me_response.json()
+            data = me_response.json()["data"]
             assert data["username"] == "alice"
             assert data["role"] == "user"
     finally:

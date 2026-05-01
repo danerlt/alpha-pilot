@@ -63,7 +63,7 @@ async def test_admin_can_list_users(admin_users_db):
         app.dependency_overrides.clear()
 
     assert response.status_code == 200
-    data = response.json()
+    data = response.json()["data"]
     assert [item["username"] for item in data] == ["admin", "alice"]
     assert data[0]["role"] == "admin"
     assert data[1]["status"] == "disabled"
@@ -100,7 +100,7 @@ async def test_admin_can_update_user_role_and_status_with_audit_log(admin_users_
         app.dependency_overrides.clear()
 
     assert response.status_code == 200
-    payload = response.json()
+    payload = response.json()["data"]
     assert payload["id"] == target_user.id
     assert payload["role"] == "admin"
     assert payload["status"] == "disabled"

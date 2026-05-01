@@ -4,6 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from src.common.api_response import api_response
 from src.controllers.dependencies import get_current_user
 from src.shared.config import get_settings
 from src.shared.db import get_db
@@ -13,6 +14,7 @@ router = APIRouter(prefix="/api/account", tags=["account"])
 
 
 @router.get("")
+@api_response()
 def get_account(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),

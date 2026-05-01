@@ -4,6 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
+from src.common.api_response import api_response
 from src.controllers.dependencies import get_current_user
 from src.shared.config import get_settings
 from src.shared.db import get_db
@@ -13,6 +14,7 @@ router = APIRouter(prefix="/api/decisions", tags=["decisions"])
 
 
 @router.get("")
+@api_response()
 def list_decisions(
     # post-Plan5 安全审计 M3: limit 加上限防 DoS / OOM
     limit: int = Query(default=20, ge=1, le=200),

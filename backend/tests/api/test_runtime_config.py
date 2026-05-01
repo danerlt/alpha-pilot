@@ -67,7 +67,7 @@ async def test_get_runtime_config_masks_secrets_and_reports_config_state(monkeyp
         app.dependency_overrides.clear()
 
     assert response.status_code == 200
-    data = response.json()
+    data = response.json()["data"]
     assert data["trading_mode"] == "mainnet"
     assert data["binance_testnet_configured"] is True
     assert data["binance_mainnet_configured"] is True
@@ -170,7 +170,7 @@ async def test_update_runtime_config_persists_and_refreshes(monkeypatch):
     assert ("binance.mainnet.api_secret", "new-main-secret", "Binance Mainnet API Secret") in updates
     assert ("risk.max_daily_loss_pct", 0.05, "最大日亏损比例") in updates
     assert refresh_calls == [("test-key", "testnet")]
-    data = response.json()
+    data = response.json()["data"]
     assert data["trading_mode"] == "mainnet"
     assert data["binance_mainnet_configured"] is True
     assert "new-main-secret" not in str(data)

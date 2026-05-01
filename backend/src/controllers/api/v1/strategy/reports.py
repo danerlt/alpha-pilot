@@ -7,6 +7,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
+from src.common.api_response import api_response
 from src.controllers.dependencies import get_current_user, require_admin
 from src.services.reporting.reporter import generate_daily_report
 from src.shared.config import get_settings
@@ -17,6 +18,7 @@ router = APIRouter(prefix="/api/reports", tags=["reports"])
 
 
 @router.get("")
+@api_response()
 def list_reports(
     # post-Plan5 安全审计 M3: limit 加上限防 DoS / OOM
     limit: int = Query(default=30, ge=1, le=365),
@@ -49,6 +51,7 @@ def list_reports(
 
 
 @router.post("/generate")
+@api_response()
 def generate_report(
     db: Session = Depends(get_db),
     current_admin=Depends(require_admin),

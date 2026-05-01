@@ -90,7 +90,7 @@ def test_catchup_returns_all_published_events(client):
         rows = _seed(s, n=3)
     r = cli.get("/api/events/catchup")
     assert r.status_code == 200
-    body = r.json()
+    body = r.json()["data"]
     assert body["count"] == 3
     assert all(e["event_type"] == "position.opened" for e in body["events"])
 
@@ -101,7 +101,7 @@ def test_catchup_filters_by_since(client):
         rows = _seed(s, n=5)
         third_event_id = rows[2].event_id
     r = cli.get(f"/api/events/catchup?since={third_event_id}")
-    body = r.json()
+    body = r.json()["data"]
     # since=第 3 个 event_id; 应返回第 4、5 共 2 条
     assert body["count"] == 2
     returned_ids = [e["event_id"] for e in body["events"]]
@@ -113,7 +113,7 @@ def test_catchup_respects_limit(client):
     with Session(engine) as s:
         _seed(s, n=10)
     r = cli.get("/api/events/catchup?limit=3")
-    body = r.json()
+    body = r.json()["data"]
     assert body["count"] == 3
 
 
@@ -136,6 +136,6 @@ def test_catchup_excludes_unpublished(client):
         ))
         s.commit()
     r = cli.get("/api/events/catchup")
-    body = r.json()
+    body = r.json()["data"]
     assert body["count"] == 1
     assert body["events"][0]["event_type"] == "x.published"

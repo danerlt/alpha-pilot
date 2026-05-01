@@ -45,7 +45,7 @@ async def test_admin_can_create_and_list_symbols(admin_db):
 
             list_resp = await client.get("/api/admin/symbols")
             assert list_resp.status_code == 200
-            data = list_resp.json()
+            data = list_resp.json()["data"]
             assert len(data) == 1
             assert data[0]["symbol"] == "BTCUSDT"
     finally:
@@ -73,7 +73,7 @@ async def test_admin_can_update_symbol(admin_db):
                 json={"enabled": False, "timeframe": "1h", "notes": "disabled for review"},
             )
             assert resp.status_code == 200
-            data = resp.json()
+            data = resp.json()["data"]
             assert data["enabled"] is False
             assert data["timeframe"] == "1h"
     finally:
