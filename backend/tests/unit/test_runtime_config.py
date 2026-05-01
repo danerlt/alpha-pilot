@@ -42,7 +42,6 @@ def test_upsert_secret_setting_encrypts_value():
 import pytest
 
 
-@pytest.mark.skip(reason="Stage 3 已知问题：apply_runtime_settings_refresh 在测试环境 hang（疑似 binance_client cache 导致）；Stage 4 业务层重组时一并处理")
 def test_refresh_applies_active_mode_credentials_and_risk_overrides():
     engine = create_engine(os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:"))
     Base.metadata.create_all(engine, tables=[SystemSetting.__table__])
