@@ -115,23 +115,31 @@ def pg_container_url(_set_test_database_url) -> str:
 
 @pytest.fixture(autouse=True)
 def _truncate_all_pg_tables_after_each_test(_set_test_database_url):
-    """每个测试结束后 TRUNCATE 所有表（保留 schema）。复用 session engine 提速。"""
+    """每个测试结束后 TRUNCATE 所有表（保留 schema）。
+
+    为避免测试遗漏 close session 导致 TRUNCATE 阻塞，先 ``SET LOCAL lock_timeout = '3s'``
+    让 TRUNCATE 在 3 秒内拿不到 ACCESS EXCLUSIVE 锁就失败（不 hang 测试套件）。
+    """
     yield
     try:
         from sqlalchemy import text
 
         engine = _get_test_engine()
-        with engine.connect() as conn:
+        with engine.begin() as conn:
+            conn.execute(text("SET LOCAL lock_timeout = '3s'"))
             result = conn.execute(text(
                 "SELECT tablename FROM pg_tables "
                 "WHERE schemaname = 'public' AND tablename != 'alembic_version'"
             ))
             tables = [row[0] for row in result]
             if tables:
-                truncate_sql = "TRUNCATE TABLE " + ", ".join(f'"{t}"' for t in tables) + " CASCADE"
-                conn.execute(text(truncate_sql))
-                conn.commit()
+                # 用 DELETE 而不是 TRUNCATE：DELETE 拿 ROW EXCLUSIVE 锁，
+                # 不等其他 session 结束（避免 hang）。性能对 100 行级测试数据可接受。
+                # 顺序：先删带外键引用的表（CASCADE 会自动跟着删被引用表，但本项目无外键）
+                for t in tables:
+                    conn.execute(text(f'DELETE FROM "{t}"'))
     except Exception:
+        # 容器还没起 / 没建表 / lock timeout / 测试本身没碰 PG —— 都忽略
         pass
 
 
