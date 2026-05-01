@@ -10,50 +10,18 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from typing import Set
 
 import redis.asyncio as aioredis
 from fastapi import WebSocket, WebSocketDisconnect, WebSocketException, status
 from sqlalchemy import select
 
 from src.services.auth import decode_access_token, ensure_user_is_active
+from src.services.ws_manager import ws_manager as manager
 from src.configs.app_configs import get_app_config as get_base_settings
 from src.db.engines import get_session_factory
 from src.models.event_store import EventOutbox
 
 logger = logging.getLogger(__name__)
-
-
-class ConnectionManager:
-    """管理所有活跃的 WebSocket 连接."""
-
-    def __init__(self) -> None:
-        self._active: Set[WebSocket] = set()
-
-    async def add(self, ws: WebSocket) -> None:
-        self._active.add(ws)
-        logger.info("WS client added, total=%d", len(self._active))
-
-    def remove(self, ws: WebSocket) -> None:
-        self._active.discard(ws)
-        logger.info("WS client removed, total=%d", len(self._active))
-
-    async def broadcast(self, message: str) -> None:
-        dead: Set[WebSocket] = set()
-        for ws in self._active.copy():
-            try:
-                await ws.send_text(message)
-            except Exception:
-                dead.add(ws)
-        for ws in dead:
-            self._active.discard(ws)
-
-    @property
-    def count(self) -> int:
-        return len(self._active)
-
-
-manager = ConnectionManager()
 
 
 def _verify_token(token: str | None) -> int:
