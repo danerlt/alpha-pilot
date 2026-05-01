@@ -5,17 +5,17 @@ from datetime import datetime
 from sqlalchemy import BigInteger, DateTime, Index, Integer, JSON, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.models.base import Base, TimestampMixin
+from src.models.base import Base, BigIntPk
 
 
-class TradeAttribution(Base, TimestampMixin):
+class TradeAttribution(Base):
     __tablename__ = "trade_attributions"
 
     __table_args__ = (
         Index("ix_trade_attributions_trade_id", "trade_id"),
     )
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     trade_id: Mapped[int] = mapped_column(nullable=False)
     by_symbol: Mapped[dict | None] = mapped_column(JSON)
     by_time_bucket: Mapped[str | None] = mapped_column(String(40))
@@ -26,7 +26,7 @@ class TradeAttribution(Base, TimestampMixin):
     generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
-class StrategyScore(Base, TimestampMixin):
+class StrategyScore(Base):
     __tablename__ = "strategy_scores"
 
     __table_args__ = (
@@ -37,7 +37,7 @@ class StrategyScore(Base, TimestampMixin):
         ),
     )
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     # Fresh table — NO Python default on account_id.
     account_id: Mapped[int] = mapped_column(
         nullable=False

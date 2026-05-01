@@ -1,14 +1,14 @@
 from datetime import date
 from sqlalchemy import BigInteger, String, Numeric, Date, JSON, Integer
 from sqlalchemy.orm import Mapped, mapped_column
-from src.models.base import Base, TimestampMixin
+from src.models.base import Base, BigIntPk
 from src.shared.enums import TradingMode
 
 
-class DailyReport(Base, TimestampMixin):
+class DailyReport(Base):
     __tablename__ = "daily_reports"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     account_id: Mapped[int] = mapped_column(nullable=False, default=1)
     trading_mode: Mapped[str] = mapped_column(String(10), nullable=False, default=TradingMode.TESTNET.value)
     report_date: Mapped[date] = mapped_column(Date, nullable=False)

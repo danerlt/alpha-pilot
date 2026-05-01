@@ -1,13 +1,13 @@
 from sqlalchemy import BigInteger, Boolean, String, Text, JSON, Integer
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.models.base import Base, TimestampMixin
+from src.models.base import Base, BigIntPk
 
 
-class SystemSetting(Base, TimestampMixin):
+class SystemSetting(Base):
     __tablename__ = "system_settings"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     key: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
     value_json: Mapped[dict | str | int | float | bool | None] = mapped_column(JSON)
     encrypted_value: Mapped[str | None] = mapped_column(Text)

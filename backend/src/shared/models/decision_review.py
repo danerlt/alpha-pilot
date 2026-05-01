@@ -1,17 +1,3 @@
-from __future__ import annotations
-
-from sqlalchemy import BigInteger, JSON, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
-
-from src.shared.models.base import Base, BigIntPk, TimestampMixin
-
-
-class DecisionReview(Base, TimestampMixin):
-    __tablename__ = "decision_reviews"
-
-    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
-    decision_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    reviewer_type: Mapped[str] = mapped_column(String(20), nullable=False)
-    result: Mapped[str] = mapped_column(String(20), nullable=False)
-    adjustments_json: Mapped[dict | None] = mapped_column(JSON)
-    notes: Mapped[str | None] = mapped_column(Text)
+"""Re-export from src.models.decision_review (兼容 wrapper, 阶段 3 删)."""
+from src.models.decision_review import DecisionReview
+__all__ = ['DecisionReview']

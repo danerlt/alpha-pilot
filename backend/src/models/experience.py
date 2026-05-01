@@ -1,18 +1,18 @@
 from datetime import datetime
 from sqlalchemy import BigInteger, String, Numeric, DateTime, JSON
 from sqlalchemy.orm import Mapped, mapped_column
-from src.models.base import Base, TimestampMixin
+from src.models.base import Base, BigIntPk
 from src.shared.enums import TradingMode
 
 
-class ExperienceRecord(Base, TimestampMixin):
+class ExperienceRecord(Base):
     """
     交易经验库（V0.1 基础版）：
     记录已平仓交易的结构化结果，不做 LLM 摘要。
     """
     __tablename__ = "experience_store"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     account_id: Mapped[int] = mapped_column(nullable=False, default=1)
     trading_mode: Mapped[str] = mapped_column(String(10), nullable=False, default=TradingMode.TESTNET.value)
     trade_id: Mapped[int] = mapped_column(nullable=False, unique=True)

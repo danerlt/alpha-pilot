@@ -5,10 +5,10 @@ from datetime import datetime
 from sqlalchemy import BigInteger, DateTime, Index, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.models.base import Base, TimestampMixin
+from src.models.base import Base, BigIntPk
 
 
-class EventInbox(Base, TimestampMixin):
+class EventInbox(Base):
     __tablename__ = "event_inbox"
 
     __table_args__ = (
@@ -19,13 +19,13 @@ class EventInbox(Base, TimestampMixin):
         ),
     )
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     consumer_name: Mapped[str] = mapped_column(String(80), nullable=False)
     event_id: Mapped[str] = mapped_column(String(40), nullable=False)
     processed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
-class EventOutbox(Base, TimestampMixin):
+class EventOutbox(Base):
     __tablename__ = "event_outbox"
 
     # event_id 索引: catchup / WebSocket _replay_since 都跑
@@ -34,7 +34,7 @@ class EventOutbox(Base, TimestampMixin):
         Index("ix_event_outbox_event_id", "event_id"),
     )
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     aggregate_type: Mapped[str] = mapped_column(String(40), nullable=False)
     aggregate_id: Mapped[int | None] = mapped_column(BigInteger)
     event_type: Mapped[str] = mapped_column(String(60), nullable=False)

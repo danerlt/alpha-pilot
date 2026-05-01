@@ -1,14 +1,14 @@
 from datetime import datetime
 from sqlalchemy import BigInteger, String, Numeric, DateTime
 from sqlalchemy.orm import Mapped, mapped_column
-from src.models.base import Base, TimestampMixin
+from src.models.base import Base, BigIntPk
 from src.shared.enums import TradingMode
 
 
-class Trade(Base, TimestampMixin):
+class Trade(Base):
     __tablename__ = "trades"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     account_id: Mapped[int] = mapped_column(nullable=False, default=1)
     trading_mode: Mapped[str] = mapped_column(String(10), nullable=False, default=TradingMode.TESTNET.value)
     position_id: Mapped[int] = mapped_column(nullable=False)

@@ -1,5 +1,5 @@
 """ORM models 集中导出（alembic metadata 收集 + IDE 跳转友好）。"""
-from src.models.base import Base, SoftDeleteMixin, TimestampMixin, TradingModeMixin
+from src.models.base import Base, TradingModeMixin
 from src.models.account import AccountSnapshot
 from src.models.account_entity import Account, ParameterVersion, RiskProfile
 from src.models.agent_invocation import AgentInvocation
@@ -29,8 +29,6 @@ from src.models.user import User
 __all__ = [
     # 基类与 mixin
     "Base",
-    "SoftDeleteMixin",
-    "TimestampMixin",
     "TradingModeMixin",
     # 业务实体
     "Account",

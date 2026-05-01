@@ -5,10 +5,10 @@ from datetime import datetime
 from sqlalchemy import BigInteger, Boolean, DateTime, Index, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.models.base import Base, TimestampMixin
+from src.models.base import Base, BigIntPk
 
 
-class FactorDefinition(Base, TimestampMixin):
+class FactorDefinition(Base):
     __tablename__ = "factor_definitions"
 
     # Declare indexes on the model too (not only in migrations) so:
@@ -18,7 +18,7 @@ class FactorDefinition(Base, TimestampMixin):
         Index("ix_factor_definitions_name_version", "name", "version", unique=True),
     )
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(80), nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     inputs_json: Mapped[dict | None] = mapped_column(JSON)
@@ -27,7 +27,7 @@ class FactorDefinition(Base, TimestampMixin):
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
 
-class FactorSnapshot(Base, TimestampMixin):
+class FactorSnapshot(Base):
     __tablename__ = "factor_snapshots"
 
     __table_args__ = (
@@ -38,7 +38,7 @@ class FactorSnapshot(Base, TimestampMixin):
         ),
     )
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     # Fresh table — NO Python default; callers must set account_id explicitly
     # (see Task 1 convention).
     account_id: Mapped[int] = mapped_column(
@@ -52,10 +52,10 @@ class FactorSnapshot(Base, TimestampMixin):
     factor_def_versions_json: Mapped[dict | None] = mapped_column(JSON)
 
 
-class FactorCandidate(Base, TimestampMixin):
+class FactorCandidate(Base):
     __tablename__ = "factor_candidates"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     proposed_by_agent: Mapped[str] = mapped_column(String(40), nullable=False, default="factor_ai")
     name: Mapped[str] = mapped_column(String(80), nullable=False)
     formula_code_ref: Mapped[str | None] = mapped_column(String(200))

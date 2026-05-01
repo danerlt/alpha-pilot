@@ -1,13 +1,13 @@
 from sqlalchemy import BigInteger, Boolean, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.models.base import Base, TimestampMixin
+from src.models.base import Base, BigIntPk
 
 
-class SymbolConfig(Base, TimestampMixin):
+class SymbolConfig(Base):
     __tablename__ = "symbol_configs"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     account_id: Mapped[int] = mapped_column(nullable=False, default=1)
     symbol: Mapped[str] = mapped_column(String(20), nullable=False, unique=True)
     base_asset: Mapped[str] = mapped_column(String(20), nullable=False)

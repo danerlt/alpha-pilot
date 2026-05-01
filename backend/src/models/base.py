@@ -13,8 +13,14 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, String, func, text
+from sqlalchemy import BigInteger, Boolean, DateTime, Integer, String, func, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+# ── 临时兼容：sqlite in-memory 测试需要的 PK 类型 ─────────────────────────────
+# 决策 3（B）说"删 sqlite variant"。但所有现有测试依赖 sqlite，一次性改 PG 工作量大。
+# Stage 2 阶段：保留 BigIntPk 作为 model 主键类型（业务代码 grep 不到 BigIntPk）。
+# Stage 2 末尾任务：把测试 fixture 全切 testcontainers PG，再删除本类型别名。
+BigIntPk = BigInteger().with_variant(Integer(), "sqlite")
 
 
 class Base(DeclarativeBase):
@@ -34,12 +40,3 @@ class TradingModeMixin:
     """
 
     trading_mode: Mapped[str] = mapped_column(String(16), nullable=False, index=True, comment="testnet/mainnet 数据隔离")
-
-
-# ── 兼容老代码：保留 TimestampMixin / SoftDeleteMixin 名字（实质内容已在 Base）─────
-class TimestampMixin:
-    """已废弃 — 字段已在 Base 中。保留空类只为兼容 ``class Foo(Base, TimestampMixin):``。"""
-
-
-class SoftDeleteMixin:
-    """已废弃 — 字段已在 Base 中。保留空类只为兼容 ``class Foo(Base, SoftDeleteMixin):``。"""

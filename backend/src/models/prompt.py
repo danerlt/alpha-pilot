@@ -3,16 +3,16 @@ from __future__ import annotations
 from sqlalchemy import BigInteger, Boolean, Index, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.models.base import Base, TimestampMixin
+from src.models.base import Base, BigIntPk
 
 
-class PromptTemplate(Base, TimestampMixin):
+class PromptTemplate(Base):
     __tablename__ = "prompt_templates"
     __table_args__ = (
         Index("ix_prompt_templates_name_version", "name", "version", unique=True),
     )
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(80), nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     system_template: Mapped[str] = mapped_column(Text, nullable=False)
@@ -22,10 +22,10 @@ class PromptTemplate(Base, TimestampMixin):
     created_by: Mapped[int | None] = mapped_column(BigInteger)
 
 
-class ProposalDraft(Base, TimestampMixin):
+class ProposalDraft(Base):
     __tablename__ = "proposal_drafts"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     # Fresh table — NO Python default; callers must pass account_id explicitly.
     account_id: Mapped[int] = mapped_column(
         nullable=False
