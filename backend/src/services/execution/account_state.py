@@ -11,7 +11,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.execution.exchange.adapter import ExchangeAdapter
+from src.core.exchange.adapter import ExchangeAdapter
 from src.shared.enums import PositionStatus
 from src.models.account import AccountSnapshot
 from src.models.position import Position

@@ -10,9 +10,9 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from src.execution.account.state import AccountStateService
-from src.execution.exchange.adapter import ExchangeAdapter
-from src.execution.exchange.types import Kline, OrderRequest, OrderResult, Ticker
+from src.services.execution.account_state import AccountStateService
+from src.core.exchange.adapter import ExchangeAdapter
+from src.core.exchange.types import Kline, OrderRequest, OrderResult, Ticker
 from src.shared.enums import PositionStatus
 from src.models import Base, Position, Trade
 

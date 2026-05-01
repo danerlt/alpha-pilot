@@ -14,8 +14,8 @@ import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from src.execution.exchange.adapter import ExchangeAdapter
-from src.execution.exchange.types import OrderRequest, OrderResult, Ticker
+from src.core.exchange.adapter import ExchangeAdapter
+from src.core.exchange.types import OrderRequest, OrderResult, Ticker
 from src.shared.enums import PositionStatus
 from src.models import Base, Position
 from src.workers.position_monitor_worker import run_position_monitor_once

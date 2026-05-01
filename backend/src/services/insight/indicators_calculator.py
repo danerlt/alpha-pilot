@@ -9,7 +9,7 @@ import pandas as pd
 import pandas_ta as ta
 from sqlalchemy.orm import Session
 
-from src.services.market_data.candle_service import get_candle_df
+from src.services.execution.candle_service import get_candle_df
 from src.shared.config import get_settings
 from src.models.indicator import IndicatorSnapshot
 

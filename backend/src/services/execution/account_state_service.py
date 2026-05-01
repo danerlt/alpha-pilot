@@ -7,7 +7,7 @@ from datetime import datetime, timezone, date
 from sqlalchemy import func, cast, Date
 from sqlalchemy.orm import Session
 
-from src.services.market_data.binance_client import get_account_info
+from src.core.exchange.binance_client import get_account_info
 from src.shared.config import get_settings
 from src.shared.enums import PositionStatus
 from src.models.account import AccountSnapshot

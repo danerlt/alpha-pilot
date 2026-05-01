@@ -9,7 +9,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from src.services.decision_engine.parser import DecisionPayload
-from src.services.market_data.binance_client import (
+from src.core.exchange.binance_client import (
     cancel_order,
     create_order,
     get_order,

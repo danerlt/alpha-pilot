@@ -4,8 +4,8 @@ from datetime import datetime, timezone
 
 import pytest
 
-from src.execution.exchange.adapter import ExchangeAdapter
-from src.execution.exchange.types import Kline, OrderRequest, OrderResult, Ticker
+from src.core.exchange.adapter import ExchangeAdapter
+from src.core.exchange.types import Kline, OrderRequest, OrderResult, Ticker
 
 
 def test_kline_round_trip():

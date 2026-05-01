@@ -25,13 +25,13 @@ from src.services.events.contracts import (
     TradeClosed,
 )
 from src.services.events.outbox import OutboxWriter
-from src.execution.exchange.adapter import ExchangeAdapter
+from src.core.exchange.adapter import ExchangeAdapter
 from src.shared.datetime_utils import ensure_aware
-from src.execution.exchange.retry import (
+from src.core.exchange.retry import (
     ExchangeTemporarilyUnavailable,
     PermanentExchangeError,
 )
-from src.execution.exchange.types import OrderRequest
+from src.core.exchange.types import OrderRequest
 from src.shared.enums import OrderStatus, PositionStatus
 from src.models.order import Order
 from src.models.position import Position

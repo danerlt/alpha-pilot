@@ -29,8 +29,8 @@ from alembic.config import Config
 
 from src.services.events.bus import RedisStreamsBus
 from src.services.events.outbox import OutboxWriter
-from src.execution.exchange.adapter import ExchangeAdapter
-from src.execution.exchange.types import Kline, OrderRequest, OrderResult, Ticker
+from src.core.exchange.adapter import ExchangeAdapter
+from src.core.exchange.types import Kline, OrderRequest, OrderResult, Ticker
 from src.models import (
     AIDecision, EventOutbox, Order, Position, PromptTemplate,
 )

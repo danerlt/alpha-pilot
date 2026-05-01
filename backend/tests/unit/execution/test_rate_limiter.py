@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from src.execution.exchange.rate_limiter import RateLimiter, RateLimitExceeded
+from src.core.exchange.rate_limiter import RateLimiter, RateLimitExceeded
 
 
 def test_bucket_allows_up_to_capacity():

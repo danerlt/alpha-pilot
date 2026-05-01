@@ -47,11 +47,11 @@ def client():
         @property
         def trading_mode(self): return "testnet"
         def get_ticker(self, s):
-            from src.execution.exchange.types import Ticker
+            from src.core.exchange.types import Ticker
             return Ticker(symbol=s, price=50_000.0)
         def get_klines(self, s, t, **kw): return []
         def submit_order(self, r):
-            from src.execution.exchange.types import OrderResult
+            from src.core.exchange.types import OrderResult
             return OrderResult(
                 exchange_order_id="EX", symbol=r.symbol, side=r.side,
                 order_type=r.order_type, status="FILLED",

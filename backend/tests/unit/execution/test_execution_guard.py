@@ -10,7 +10,7 @@ import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from src.execution.guard.execution_guard import ExecutionGuard, GuardDecision
+from src.services.execution.execution_guard import ExecutionGuard, GuardDecision
 from src.shared.enums import PositionStatus
 from src.models import Base, Position, RiskEvent, Trade
 from src.models.account_entity import RiskProfile

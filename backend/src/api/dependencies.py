@@ -8,7 +8,7 @@ from __future__ import annotations
 from fastapi import Depends, Header, HTTPException
 from sqlalchemy.orm import Session
 
-from src.execution.exchange.binance_adapter import BinanceAdapter
+from src.core.exchange.binance_adapter import BinanceAdapter
 from src.services.auth import (
     decode_access_token,
     ensure_user_is_active,

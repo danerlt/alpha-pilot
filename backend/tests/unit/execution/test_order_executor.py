@@ -11,10 +11,10 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from src.services.events.outbox import OutboxWriter
-from src.execution.exchange.adapter import ExchangeAdapter
-from src.execution.exchange.retry import ExchangeTemporarilyUnavailable
-from src.execution.exchange.types import Kline, OrderRequest, OrderResult, Ticker
-from src.execution.orders.executor import OrderExecutor, make_trace_id
+from src.core.exchange.adapter import ExchangeAdapter
+from src.core.exchange.retry import ExchangeTemporarilyUnavailable
+from src.core.exchange.types import Kline, OrderRequest, OrderResult, Ticker
+from src.services.execution.order_executor import OrderExecutor, make_trace_id
 from src.shared.enums import OrderStatus, PositionStatus
 from src.models import Base, EventOutbox, Order, Position, Trade
 from src.strategy.proposal import DecisionProposal

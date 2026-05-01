@@ -20,9 +20,9 @@ from src.services.events.contracts import (
     RiskEventTriggered,
 )
 from src.services.events.outbox import OutboxWriter
-from src.execution.account.state import AccountStateService
-from src.execution.exchange.adapter import ExchangeAdapter
-from src.execution.orders.executor import OrderExecutor
+from src.services.execution.account_state import AccountStateService
+from src.core.exchange.adapter import ExchangeAdapter
+from src.services.execution.order_executor import OrderExecutor
 from src.shared.enums import PositionStatus
 from src.models.position import Position
 from src.models.risk_event import RiskEvent

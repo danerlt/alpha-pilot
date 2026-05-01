@@ -4,7 +4,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Literal
 
-from src.execution.exchange.types import Kline, OrderRequest, OrderResult, Ticker
+from src.core.exchange.types import Kline, OrderRequest, OrderResult, Ticker
 
 
 class ExchangeAdapter(ABC):

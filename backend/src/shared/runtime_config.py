@@ -153,7 +153,7 @@ def upsert_system_setting(
 
 
 def apply_runtime_settings_refresh(db: Session, *, master_key: str, default_trading_mode: TradingMode) -> dict[str, Any]:
-    from src.services.market_data.binance_client import get_binance_client
+    from src.core.exchange.binance_client import get_binance_client
 
     manager = get_runtime_config_manager()
     overrides = manager.refresh_from_db(db, build_fernet(master_key), default_trading_mode)

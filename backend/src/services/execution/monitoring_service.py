@@ -6,8 +6,8 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
-from src.services.market_data.binance_client import get_order, get_symbol_ticker
-from src.services.order_execution.executor import close_long
+from src.core.exchange.binance_client import get_order, get_symbol_ticker
+from src.services.execution.order_execution_service import close_long
 from src.shared.config import get_settings
 from src.shared.enums import OrderStatus, PositionStatus, TradeExitReason
 from src.models.order import Order

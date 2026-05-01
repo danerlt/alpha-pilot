@@ -20,8 +20,8 @@ from sqlalchemy.orm import Session
 
 from src.services.events.contracts import ManualOverride
 from src.services.events.outbox import OutboxWriter
-from src.execution.exchange.adapter import ExchangeAdapter
-from src.execution.orders.executor import OrderExecutor
+from src.core.exchange.adapter import ExchangeAdapter
+from src.services.execution.order_executor import OrderExecutor
 from src.shared.enums import PositionStatus
 from src.models.audit_log import AuditLog
 from src.models.position import Position

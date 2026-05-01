@@ -13,18 +13,18 @@ from typing import Any
 import redis as redis_lib
 from sqlalchemy.orm import Session
 
-from src.services.account_state.service import (
+from src.services.execution.account_state_service import (
     get_current_balance_usdt,
     get_daily_pnl,
     sync_account_snapshot,
 )
 from src.services.decision_engine.engine import make_decision
-from src.services.execution_guard.guard import GuardDecision, check as guard_check
+from src.services.execution.execution_guard_service import GuardDecision, check as guard_check
 from src.services.insight.experience_store import get_recent_experience
 from src.services.insight.indicators_calculator import compute_and_store, get_latest_indicators
-from src.services.market_data.binance_client import get_symbol_ticker
-from src.services.market_data.candle_service import SYMBOLS, TIMEFRAMES, fetch_and_store_candles
-from src.services.order_execution.executor import close_long, open_long
+from src.core.exchange.binance_client import get_symbol_ticker
+from src.services.execution.candle_service import SYMBOLS, TIMEFRAMES, fetch_and_store_candles
+from src.services.execution.order_execution_service import close_long, open_long
 from src.services.insight.regime_classifier import classify_and_store, get_latest_regime
 from src.shared.config import get_settings
 from src.shared.enums import Action, GuardResult, PositionStatus

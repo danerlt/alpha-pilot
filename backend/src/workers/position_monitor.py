@@ -8,8 +8,8 @@ from typing import Any
 import redis as redis_lib
 from sqlalchemy.orm import Session
 
-from src.services.account_state.service import get_daily_pnl
-from src.services.monitoring.monitor import run_monitor_cycle
+from src.services.execution.account_state_service import get_daily_pnl
+from src.services.execution.monitoring_service import run_monitor_cycle
 from src.shared.config import get_settings
 
 logger = logging.getLogger(__name__)

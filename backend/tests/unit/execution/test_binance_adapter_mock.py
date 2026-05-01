@@ -6,12 +6,12 @@ from unittest.mock import MagicMock
 import pytest
 from binance.exceptions import BinanceAPIException
 
-from src.execution.exchange.binance_adapter import BinanceAdapter
-from src.execution.exchange.retry import (
+from src.core.exchange.binance_adapter import BinanceAdapter
+from src.core.exchange.retry import (
     ExchangeTemporarilyUnavailable,
     PermanentExchangeError,
 )
-from src.execution.exchange.types import OrderRequest
+from src.core.exchange.types import OrderRequest
 
 
 def _mk_binance_exception(status_code: int) -> BinanceAPIException:

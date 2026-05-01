@@ -10,7 +10,7 @@ import os
 
 import pytest
 
-from src.execution.exchange.binance_adapter import BinanceAdapter
+from src.core.exchange.binance_adapter import BinanceAdapter
 
 
 def _skip_if_no_credentials():

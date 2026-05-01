@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.services.decision_engine.parser import DecisionPayload
-from src.services.execution_guard.guard import GuardDecision, check
+from src.services.execution.execution_guard_service import GuardDecision, check
 from src.shared.enums import Action, GuardResult, RegimeType
 
 
@@ -47,7 +47,7 @@ def _make_losing_trade(pnl: float = -100.0) -> MagicMock:
 
 # ─── 规则 1: 日亏损熔断 ───────────────────────────────────────────────────────
 
-@patch("src.services.execution_guard.guard.get_settings")
+@patch("src.services.execution.execution_guard_service.get_settings")
 def test_daily_loss_circuit_breaker_rejects(mock_settings):
     mock_settings.return_value.MAX_DAILY_LOSS_PCT = 0.03
     mock_settings.return_value.MAX_CONSECUTIVE_LOSSES = 3
@@ -62,7 +62,7 @@ def test_daily_loss_circuit_breaker_rejects(mock_settings):
     assert "daily_loss" in result.reason
 
 
-@patch("src.services.execution_guard.guard.get_settings")
+@patch("src.services.execution.execution_guard_service.get_settings")
 def test_daily_loss_below_limit_does_not_reject(mock_settings):
     mock_settings.return_value.MAX_DAILY_LOSS_PCT = 0.03
     mock_settings.return_value.MAX_CONSECUTIVE_LOSSES = 3
@@ -78,7 +78,7 @@ def test_daily_loss_below_limit_does_not_reject(mock_settings):
 
 # ─── 规则 2: 连续亏损熔断 ─────────────────────────────────────────────────────
 
-@patch("src.services.execution_guard.guard.get_settings")
+@patch("src.services.execution.execution_guard_service.get_settings")
 def test_consecutive_losses_circuit_breaker(mock_settings):
     mock_settings.return_value.MAX_DAILY_LOSS_PCT = 0.03
     mock_settings.return_value.MAX_CONSECUTIVE_LOSSES = 3
@@ -99,7 +99,7 @@ def test_consecutive_losses_circuit_breaker(mock_settings):
     assert "consecutive_losses" in result.reason
 
 
-@patch("src.services.execution_guard.guard.get_settings")
+@patch("src.services.execution.execution_guard_service.get_settings")
 def test_two_losses_not_enough_for_circuit_breaker(mock_settings):
     mock_settings.return_value.MAX_DAILY_LOSS_PCT = 0.03
     mock_settings.return_value.MAX_CONSECUTIVE_LOSSES = 3
@@ -120,7 +120,7 @@ def test_two_losses_not_enough_for_circuit_breaker(mock_settings):
 
 # ─── 规则 3: 重复开仓 REJECT ──────────────────────────────────────────────────
 
-@patch("src.services.execution_guard.guard.get_settings")
+@patch("src.services.execution.execution_guard_service.get_settings")
 def test_existing_position_rejects_open_long(mock_settings):
     mock_settings.return_value.MAX_DAILY_LOSS_PCT = 0.03
     mock_settings.return_value.MAX_CONSECUTIVE_LOSSES = 3
@@ -142,7 +142,7 @@ def test_existing_position_rejects_open_long(mock_settings):
 
 # ─── 规则 4: 仓位上限 REJECT ──────────────────────────────────────────────────
 
-@patch("src.services.execution_guard.guard.get_settings")
+@patch("src.services.execution.execution_guard_service.get_settings")
 def test_position_size_exceeds_limit_rejects(mock_settings):
     mock_settings.return_value.MAX_DAILY_LOSS_PCT = 0.03
     mock_settings.return_value.MAX_CONSECUTIVE_LOSSES = 3
@@ -159,7 +159,7 @@ def test_position_size_exceeds_limit_rejects(mock_settings):
 
 # ─── 规则 5: 单笔风险上限 ─────────────────────────────────────────────────────
 
-@patch("src.services.execution_guard.guard.get_settings")
+@patch("src.services.execution.execution_guard_service.get_settings")
 def test_single_trade_risk_exceeds_limit_rejects(mock_settings):
     mock_settings.return_value.MAX_DAILY_LOSS_PCT = 0.03
     mock_settings.return_value.MAX_CONSECUTIVE_LOSSES = 3
@@ -178,7 +178,7 @@ def test_single_trade_risk_exceeds_limit_rejects(mock_settings):
 
 # ─── 规则 6: CHAOTIC 市场 DEGRADE ────────────────────────────────────────────
 
-@patch("src.services.execution_guard.guard.get_settings")
+@patch("src.services.execution.execution_guard_service.get_settings")
 def test_chaotic_regime_degrades_open_long(mock_settings):
     mock_settings.return_value.MAX_DAILY_LOSS_PCT = 0.03
     mock_settings.return_value.MAX_CONSECUTIVE_LOSSES = 3
@@ -196,7 +196,7 @@ def test_chaotic_regime_degrades_open_long(mock_settings):
 
 # ─── HOLD 动作总是 PASS ───────────────────────────────────────────────────────
 
-@patch("src.services.execution_guard.guard.get_settings")
+@patch("src.services.execution.execution_guard_service.get_settings")
 def test_hold_always_passes(mock_settings):
     mock_settings.return_value.MAX_DAILY_LOSS_PCT = 0.03
     mock_settings.return_value.MAX_CONSECUTIVE_LOSSES = 3
@@ -212,7 +212,7 @@ def test_hold_always_passes(mock_settings):
 
 # ─── 全部检查通过 PASS ────────────────────────────────────────────────────────
 
-@patch("src.services.execution_guard.guard.get_settings")
+@patch("src.services.execution.execution_guard_service.get_settings")
 def test_valid_open_long_passes_all_checks(mock_settings):
     mock_settings.return_value.MAX_DAILY_LOSS_PCT = 0.03
     mock_settings.return_value.MAX_CONSECUTIVE_LOSSES = 3

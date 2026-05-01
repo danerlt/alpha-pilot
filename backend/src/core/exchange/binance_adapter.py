@@ -19,14 +19,14 @@ from typing import Literal
 from binance.client import Client
 from binance.exceptions import BinanceAPIException, BinanceRequestException
 
-from src.execution.exchange.adapter import ExchangeAdapter
-from src.execution.exchange.rate_limiter import RateLimiter
-from src.execution.exchange.retry import (
+from src.core.exchange.adapter import ExchangeAdapter
+from src.core.exchange.rate_limiter import RateLimiter
+from src.core.exchange.retry import (
     ExchangeTemporarilyUnavailable,
     PermanentExchangeError,
     with_retry,
 )
-from src.execution.exchange.types import Kline, OrderRequest, OrderResult, Ticker
+from src.core.exchange.types import Kline, OrderRequest, OrderResult, Ticker
 
 # python-binance interval constants for the timeframes V0.1 uses.
 _TIMEFRAME_MAP = {
