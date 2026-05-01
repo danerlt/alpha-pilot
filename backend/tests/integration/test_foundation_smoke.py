@@ -29,7 +29,7 @@ from testcontainers.redis import RedisContainer
 from alembic import command
 from alembic.config import Config
 
-from src.services.events.bus import RedisStreamsBus
+from src.services.event_bus import RedisStreamsBus
 from src.services.events.contracts import EventEnvelope, PositionOpened
 from src.services.events.inbox import InboxGuard
 from src.services.events.outbox import OutboxWriter

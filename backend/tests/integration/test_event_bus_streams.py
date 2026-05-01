@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 import pytest
 from testcontainers.redis import RedisContainer
 
-from src.services.events.bus import RedisStreamsBus
+from src.services.event_bus import RedisStreamsBus
 from src.services.events.contracts import CandleClosed, EventEnvelope
 from src.services.events.ids import new_event_id
 

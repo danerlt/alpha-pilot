@@ -27,7 +27,7 @@ from testcontainers.redis import RedisContainer
 from alembic import command
 from alembic.config import Config
 
-from src.services.events.bus import RedisStreamsBus
+from src.services.event_bus import RedisStreamsBus
 from src.services.events.outbox import OutboxWriter
 from src.core.exchange.adapter import ExchangeAdapter
 from src.core.exchange.types import Kline, OrderRequest, OrderResult, Ticker
