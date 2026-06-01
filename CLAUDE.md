@@ -7,8 +7,10 @@
 在新机器上开启新的 Claude 会话时：
 
 1. 克隆仓库并 `cd` 进入项目目录
-2. 告诉 Claude：**"读取 CLAUDE.md 和 .claude/memory/ 目录下所有记忆文件，然后继续开发"**
+2. 告诉 Claude：**"读取 CLAUDE.md、docs/project.md 和 .claude/memory/ 目录下所有记忆文件，然后继续开发"**
 3. Claude 会读取 `.claude/memory/MEMORY.md` 及所有链接文件，恢复完整上下文
+
+> **编码前必读优先级**：① 用户/老板明确指示 → ② [`docs/project.md`](docs/project.md)（工程宪法，全量结构/命名/分层/API 契约/异常/异步/日志/测试/Git 规范）→ ③ spec v3.7 / 模板。本 CLAUDE.md 仅为"快速恢复指南"，结构细节以 project.md 为权威。
 
 ---
 
@@ -25,12 +27,13 @@
 
 ## 后端 Python 包导入规则（强制）
 
-- PYTHONPATH 根目录为 `backend/`（pytest `pythonpath = ["."]`，alembic `prepend_sys_path = .`）
-- **所有项目内部 import 一律以 `src.` 开头**，例如：
-  - ✅ `from src.app.app import app`
-  - ✅ `from src.shared.models.position import Position`
-  - ❌ `from app.app import app` / `from services.xxx import yyy` / `from shared.xxx import zzz`
-- ASGI 入口统一为 `src.app.app:app`（main.py / Makefile / scripts/start.sh / docker entrypoint）
+- PYTHONPATH 根目录为 `backend/`（pytest `pythonpath = ["."]`，alembic `prepend_sys_path = ../..`，配置在 `src/db/alembic.ini`）
+- **所有项目内部 import 一律以 `src.` 开头**，例如（v3.7 重构后 `app.py` 提级到 src 根，`shared/` 已拆解）：
+  - ✅ `from src.app import app`
+  - ✅ `from src.models.position import Position`
+  - ✅ `from src.schemas.auth import LoginCreate` / `from src.core.trace.trace_id import generate_trace_id`
+  - ❌ `from src.app.app import app` / `from src.shared.models.xxx import yyy` / `from services.xxx import zzz`
+- ASGI 入口统一为 `src.app:app`（scripts/start_api.py / scripts/start.sh / Makefile / docker entrypoint）
 - 第三方依赖通过 `uv sync --extra dev` 安装；新增依赖改 `backend/pyproject.toml` 后必须 `uv sync` 一遍并提交 `uv.lock`
 
 ---
@@ -45,24 +48,33 @@
 | LLM | OpenAI 兼容协议（默认 DeepSeek，可配 base_url 切换任意端点） |
 | 交易所 | Binance Testnet + Mainnet（python-binance） |
 | 数据库 | PostgreSQL 16 |
-| 缓存/事件总线 | Redis 7（含 Pub/Sub） |
+| 缓存/事件总线/任务队列 | Redis 7（Pub/Sub + BRPOP 任务队列） |
+| 认证 | JWT（python-jose）+ bcrypt（passlib），含管理后台 |
 | 部署 | Docker Compose |
 
 ---
 
-## 当前实现状态
+## 当前实现状态（截至 2026-05-02）
 
-| 阶段 | 内容 | 状态 |
+> ⚠️ 旧的 Phase 1/2/3 阶段划分已被 2026-04~05 的 **FastAPI 模板全量重构（spec v3.7）** 取代。当前以"重构 + 规格收口"为主线，工程宪法见 [`docs/project.md`](docs/project.md)。
+
+| 里程碑 | 内容 | 状态 |
 |------|------|------|
-| Phase 1 | DB 模型（11张表）、FastAPI 骨架、Docker、Alembic | ✅ 完成 |
-| Phase 2 | 全部核心服务 + APScheduler Worker + REST API | ✅ 完成 |
-| Phase 3 | WebSocket Handler、Next.js 前端、数据库迁移、测试回归 | 🟡 已基本落地，进入收口阶段 |
+| 原型 Phase 1-3 | DB 模型、核心服务、Worker、REST API、WebSocket、Next.js 前端 | ✅ 完成 |
+| v3.7 重构 Stage 1-5 | 迁到分层模板：`controllers/services/cruds/schemas/models/core/db`，alembic 重建 | ✅ 完成 |
+| 认证 + 管理后台 | JWT 登录注册、`admin_bootstrap`、用户/审计日志/币种管理（前后端） | ✅ 完成 |
+| 异步任务调度（§4.9.1） | `task_dispatcher` + Redis BRPOP + 孤儿恢复 + `task_request` 状态机 | ✅ 已落地（控制器入队路径待接通） |
+| Spec Gap Closure | 11 个差距项全清，**100% 对齐 spec v3.7** | ✅ 完成 |
+
+**测试基线：443 passed + 2 skipped（全绿）。后端 ~195 个源码文件、83 个测试文件、27 张数据表。**
 
 ---
 
 ## 已实现功能
 
-### 后端服务（`backend/src/services/`）
+### 后端服务（`backend/src/services/`，已按域拆子目录：strategy/risk/execution/insight/reporting/events/system）
+
+> 下表为业务能力概览；权威目录布局与命名规范见 [`docs/project.md`](docs/project.md) §1。
 
 | 服务 | 功能 |
 |------|------|
@@ -74,15 +86,23 @@
 | execution_guard | 风控校验 PASS/REJECT/DEGRADE（日亏损熔断、连续亏损、仓位上限、单笔风险） |
 | order_execution | 幂等开多/平多（trace_id = SHA256(decision_id:symbol:action)），写 Position+Order+Trade |
 | monitoring | 止损检测、止盈轮询、日亏损熔断触发 |
-| experience_store | 已平仓交易经验记录与检索 |
+| experience_store | 已平仓交易经验记录与检索（含 experience_v2） |
 | reporting | 每日日报生成 |
+| auth / admin_bootstrap | JWT 登录注册、首次管理员引导、审计日志 |
+| task_dispatcher | Redis BRPOP 任务消费 + 状态机流转 + 孤儿任务恢复（§4.9.1） |
+| event_bus / ws_manager | 事件总线（Pub/Sub）+ WebSocket 连接管理 |
 
-### Worker（`backend/src/workers/`）
+新增数据域（27 张表）：`event_store`（事件溯源）、`factor`、`shadow`、`attribution`、`ops_diagnosis`、`decision_review`、`agent_invocation`、`prompt`、`task_request`、`user`、`audit_log`、`symbol_config`、`system_setting` 等。
 
-| Worker | 触发频率 | 功能 |
+### 调度进程（`backend/src/schedulers/`，入口 `scripts/start_scheduler.py`）
+
+| 调度器 | 触发频率 | 功能 |
 |--------|----------|------|
-| strategy_loop.py | 每 15 分钟 | 完整策略链：行情→指标→状态→决策→守卫→下单→发布事件 |
-| position_monitor.py | 每 10 秒 | 止损检测 + 止盈轮询 + 熔断检查 |
+| strategy_pipeline_scanner | 每 15 分钟 | 完整策略链：行情→指标→状态→决策→守卫→下单→发布事件 |
+| position_monitor_scanner | 每 10 秒 | 止损检测 + 止盈轮询 + 熔断检查 |
+| event_shuttle | 常驻 | 事件搬运（DB event_store ↔ Redis Pub/Sub） |
+
+> 注：旧的 `src/workers/` 业务逻辑已重组进 `src/schedulers/` + 各 `services/` 子域。
 
 ### REST API（`/api/...`）
 
@@ -98,6 +118,14 @@
 | `GET /api/reports` | 每日报告列表 |
 | `POST /api/reports/generate` | 手动触发今日日报 |
 | `GET /api/account` | 最新账户快照 |
+| `POST /api/auth/login` `register` | JWT 登录 / 注册 |
+| `/api/admin/...` | 管理后台：用户、审计日志、币种配置 |
+| `/api/commands` | 命令/异步任务入口（接 task_dispatcher） |
+| `/api/runtime-config` | 运行时配置读写 |
+| `/api/events/catchup` | WebSocket 断线事件补偿 |
+| `GET /api/health` | 健康检查 |
+
+> 控制器层位于 `src/controllers/api/v1/{execution,risk,strategy,system}/`；前端页面：`/login` `/register` `/admin/{users,audit-logs,currencies}` + 实时 Dashboard。
 
 ---
 
@@ -120,7 +148,12 @@ make init-db        # 初始化 Alembic 迁移（首次执行）
 make upgrade-db     # 运行数据库迁移
 make test           # 运行所有测试
 make test-unit      # 仅运行单元测试
+make test-integration # 集成测试（需 testcontainers + Docker）
+make lint           # ruff 检查
+make fmt            # ruff 格式化
 ```
+
+> 全新克隆的环境需先初始化：后端 `cd backend && uv venv --seed --python 3.12 && uv sync --extra dev`；前端 `cd frontend && npm install`。
 
 ---
 
@@ -178,12 +211,12 @@ MAX_SINGLE_RISK_PCT=0.01
 
 ---
 
-## 下一步（Phase 3 收口）
+## 下一步（v3.7 收口后剩余）
 
-1. **验证并维护数据库迁移链**：首个 Alembic 初始迁移已补齐，后续 schema 变更统一走 migration
-2. **继续稳固 WebSocket/子路径部署**：重点关注 `/api` 与 `/ws` 在 dev/test/prod 下的一致性
-3. **完善前端 Dashboard**：在现有实时面板基础上补空态/错误态、危险操作保护和环境提示
-4. **持续回归测试**：当前 backend 测试已跑通（53 passed），后续优先补前后端联调与更强的执行链路验证
+1. **打通 controller → 异步任务真实路径**：`task_dispatcher` 目前只在 scheduler 注册 handler，控制器尚未切到"提任务异步入队"，仍是同步实现 —— 这是最后一块闭环
+2. **dev 环境 24h 观察**：需老板亲自验证策略链/熔断/调度长时间稳定性
+3. **持续回归测试**：当前 **443 passed + 2 skipped**，后续优先补前后端联调与更强的执行链路验证
+4. **维护 alembic 迁移链**：配置已迁入 `src/db/alembic.ini`，后续 schema 变更统一走 migration（调用需带 `-c src/db/alembic.ini`）
 
 ---
 
@@ -211,9 +244,12 @@ MAX_SINGLE_RISK_PCT=0.01
 
 Claude 项目记忆存储在 `.claude/memory/`（已提交到 git）：
 
-- `MEMORY.md` — 记忆索引
+- `MEMORY.md` — 记忆索引（顶部链 `docs/project.md` 工程宪法）
 - `project_alphapilot.md` — 项目架构和全局概览
-- `project_phase2_services.md` — 实现进度追踪
+- `project_phase2_services.md` — 早期实现进度追踪（历史）
 - `feedback_auto_push.md` — 自动 push 规则
+- `feedback_no_coauthor.md` — commit 不加 Co-Authored-By 行
+
+> 工程性推进过程同步写入 `docs/worklog/`（最近主线：`20260502_0010_spec_gap_closure_全完成.md`）。
 
 新会话开始时，让 Claude 读取这些文件即可恢复完整上下文。
