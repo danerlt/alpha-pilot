@@ -220,6 +220,21 @@ MAX_SINGLE_RISK_PCT=0.01
 
 ---
 
+## 分支模型与 CI/CD（三环境）
+
+> 详见 [`docs/deploy-ci.md`](docs/deploy-ci.md)。
+
+```
+feat-xxx ──PR──► dev ──PR──► uat ──PR──► main
+                 │           │           │
+              自动部署 dev  自动部署 uat  部署 prod(审批门)
+              /ap-dev       /ap-uat       /ap
+```
+
+- `dev` / `uat` / `main` 三条长存分支，均从 `main` 切出；日常代码在 `feat-xxx`（从 dev 切）或 `dev`，**先合 dev**。
+- push 到 `dev`/`uat`/`main` 由 GitHub Actions（`.github/workflows/deploy-{dev,uat,prod}.yml`）SSH 进服务器自动跑 `scripts/deploy-{dev,uat,prod}.sh`。
+- prod 走 GitHub Environment 审批门（接 Binance mainnet，需人工 Approve）。
+
 ## 自动提交 & 推送规则
 
 **每次完成一个实现块后，必须依次执行：**
@@ -227,7 +242,7 @@ MAX_SINGLE_RISK_PCT=0.01
 1. 运行相关测试 / build 验收
 2. `git commit` — 提交代码
 3. `git push` — **立即推送到远程，无需询问用户**
-4. 测试验收通过后，自动执行 `bash scripts/deploy-dev.sh` 部署 dev server
+4. push 到对应环境分支后，CI 自动部署（无需手动执行 deploy 脚本）
 
 这确保代码在远程始终最新，换机器后直接 `git pull` 即可继续开发。
 

@@ -1,0 +1,19 @@
+name: Deploy Dev
+
+# push 到 dev 分支 → 自动部署 dev 环境 (https://www.danerlt.top/ap-dev)
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/_deploy.yml
+    with:
+      environment: dev
+      deploy_script: scripts/deploy-dev.sh
+    secrets: inherit

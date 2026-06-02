@@ -1,0 +1,19 @@
+name: Deploy UAT
+
+# push 到 uat 分支 → 自动部署 UAT 环境 (https://www.danerlt.top/ap-uat)
+on:
+  push:
+    branches: [uat]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-uat
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/_deploy.yml
+    with:
+      environment: uat
+      deploy_script: scripts/deploy-uat.sh
+    secrets: inherit

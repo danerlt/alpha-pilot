@@ -22,8 +22,8 @@ fi
 
 cd "$PROJECT_DIR"
 
-echo "[1/4] 拉取最新代码..."
-git pull origin main
+echo "[1/4] 拉取最新代码 (dev 分支)..."
+git pull origin dev
 
 echo "[2/4] 构建镜像并重启服务..."
 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --build
