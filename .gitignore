@@ -67,4 +67,5 @@ config/agent_runners.json
 memory/
 runs/
 skills/
-workflows/
+# 仅忽略根级 agent runtime 的 workflows/, 放行 .github/workflows/ (CI)
+/workflows/

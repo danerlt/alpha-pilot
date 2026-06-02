@@ -1,0 +1,71 @@
+name: _deploy
+
+# 可复用部署 workflow: SSH 进 dev 服务器, 在对应环境的 clone 目录执行 deploy 脚本。
+# 由 deploy-dev / deploy-uat / deploy-prod 通过 `uses:` 调用。
+#
+# 需在仓库 Settings → Secrets and variables → Actions 配置 (三环境共用同一台服务器):
+#   DEPLOY_SSH_HOST    服务器地址 (IP 或域名)
+#   DEPLOY_SSH_USER    SSH 登录用户名
+#   DEPLOY_SSH_KEY     SSH 私钥 (整段 PEM, 对应公钥已加入服务器 authorized_keys)
+#   DEPLOY_SSH_PORT    [可选] SSH 端口, 缺省 22
+#   DEPLOY_DIR_DEV     dev  分支 clone 在服务器上的绝对路径
+#   DEPLOY_DIR_UAT     uat  分支 clone 在服务器上的绝对路径
+#   DEPLOY_DIR_PROD    main 分支 clone 在服务器上的绝对路径
+#
+# 服务器约定: 三个环境各自独立 clone, 分别 checkout 在 dev / uat / main 分支。
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: dev | uat | prod
+        required: true
+        type: string
+      deploy_script:
+        description: 服务器上要执行的部署脚本相对路径
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.repository == 'danerlt/alpha-pilot'
+    # 绑定 GitHub Environment: 若该环境配了 required reviewer, 部署会暂停等待人工审批
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Deploy over SSH
+        env:
+          SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+          SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
+          SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DIR_DEV: ${{ secrets.DEPLOY_DIR_DEV }}
+          DIR_UAT: ${{ secrets.DEPLOY_DIR_UAT }}
+          DIR_PROD: ${{ secrets.DEPLOY_DIR_PROD }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          DEPLOY_SCRIPT: ${{ inputs.deploy_script }}
+        run: |
+          set -euo pipefail
+          PORT="${SSH_PORT:-22}"
+
+          case "$ENVIRONMENT" in
+            dev)  PROJECT_DIR="$DIR_DEV"  ;;
+            uat)  PROJECT_DIR="$DIR_UAT"  ;;
+            prod) PROJECT_DIR="$DIR_PROD" ;;
+            *)    echo "❌ 未知环境: $ENVIRONMENT"; exit 1 ;;
+          esac
+          if [ -z "${PROJECT_DIR:-}" ]; then
+            echo "❌ 未配置 $ENVIRONMENT 的部署目录 secret (DEPLOY_DIR_*)"; exit 1
+          fi
+
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -p "$PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+          echo "==> 部署 [$ENVIRONMENT]: ssh $SSH_USER@$SSH_HOST:$PORT -> $PROJECT_DIR ($DEPLOY_SCRIPT)"
+          ssh -i ~/.ssh/id_deploy -p "$PORT" \
+            -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=15 \
+            "$SSH_USER@$SSH_HOST" \
+            "cd '$PROJECT_DIR' && bash '$DEPLOY_SCRIPT'"

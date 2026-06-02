@@ -1,0 +1,21 @@
+name: Deploy Prod
+
+# push 到 main 分支 → 部署生产环境 (https://www.danerlt.top/ap)
+# 安全门: 在仓库 Settings → Environments → prod 配置 required reviewers,
+#         合并到 main 后部署会暂停等待人工 Approve 才真正执行 (接 Binance mainnet)。
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/_deploy.yml
+    with:
+      environment: prod
+      deploy_script: scripts/deploy-prod.sh
+    secrets: inherit
