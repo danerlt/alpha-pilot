@@ -13,8 +13,6 @@ COPY pyproject.toml .
 RUN uv pip install --system -e ".[dev]"
 
 COPY src/ ./src/
-COPY migrations/ ./migrations/
-COPY alembic.ini .
 COPY scripts/ ./scripts/
 RUN chmod +x scripts/start.sh
 

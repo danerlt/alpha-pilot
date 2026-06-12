@@ -7,6 +7,7 @@
         test test-unit test-integration lint fmt
 
 # ── Docker Compose 文件 ───────────────────────────────────────────────────────
+COMPOSE_DEPS    = docker compose -f docker/docker-compose.dev.yml
 COMPOSE_LOCAL   = docker compose -f docker/docker-compose.local.yml
 COMPOSE_DEV     = docker compose -f docker/docker-compose.dev-server.yml
 COMPOSE_TEST    = docker compose -f docker/docker-compose.test.yml
@@ -14,6 +15,10 @@ COMPOSE_PROD    = docker compose -f docker/docker-compose.prod.yml
 
 help:
 	@echo "AlphaPilot 开发命令"
+	@echo ""
+	@echo "── 本机开发依赖栈（pytest / dev-backend 前置）──"
+	@echo "  make deps-up        启动 PostgreSQL(5442) + Redis(6389)"
+	@echo "  make deps-down      停止依赖栈"
 	@echo ""
 	@echo "── 本地开发（Windows / Linux 本机，端口 8000/3000）──"
 	@echo "  make local-up       启动本地完整栈（含前后端）"
@@ -43,6 +48,13 @@ help:
 	@echo "  make test-integration 仅运行集成测试"
 	@echo "  make lint           运行 ruff linter"
 	@echo "  make fmt            运行 ruff formatter"
+
+# ── 本机开发依赖栈（仅 PostgreSQL 5442 + Redis 6389，pytest / dev-backend 依赖）──
+deps-up:
+	$(COMPOSE_DEPS) up -d
+
+deps-down:
+	$(COMPOSE_DEPS) down
 
 # ── 本地环境 ──────────────────────────────────────────────────────────────────
 local-up:
@@ -75,28 +87,28 @@ test-down:
 prod-deploy:
 	bash scripts/deploy-prod.sh
 
-# ── 后端开发（本地 venv）──────────────────────────────────────────────────────
+# ── 后端开发（本地 venv，uv run 跨平台：Windows .venv/Scripts 与 Linux .venv/bin 均可）──
 dev-backend:
-	cd backend && source .venv/bin/activate && uvicorn src.app:app --reload --host 0.0.0.0 --port 8000
+	cd backend && uv run uvicorn src.app:app --reload --host 0.0.0.0 --port 8000
 
 init-db:
-	cd backend && source .venv/bin/activate && python scripts/init_db.py
+	cd backend && uv run python scripts/init_db.py
 
 upgrade-db:
-	cd backend && source .venv/bin/activate && python scripts/upgrade_db.py
+	cd backend && uv run python scripts/upgrade_db.py
 
 # ── 测试 & 代码质量 ───────────────────────────────────────────────────────────
 test:
-	cd backend && source .venv/bin/activate && pytest tests/ -v --cov=src --cov-report=term-missing
+	cd backend && uv run pytest tests/ -v --cov=src --cov-report=term-missing
 
 test-unit:
-	cd backend && source .venv/bin/activate && pytest tests/unit/ -v
+	cd backend && uv run pytest tests/unit/ -v
 
 test-integration:
-	cd backend && source .venv/bin/activate && pytest tests/integration/ -v
+	cd backend && uv run pytest tests/integration/ -v
 
 lint:
-	cd backend && source .venv/bin/activate && ruff check src/ tests/
+	cd backend && uv run ruff check src/ tests/
 
 fmt:
-	cd backend && source .venv/bin/activate && ruff format src/ tests/
+	cd backend && uv run ruff format src/ tests/

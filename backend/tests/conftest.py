@@ -63,6 +63,8 @@ _TEST_ENGINE = None  # session-global，单 engine 服务所有 truncate
 def _ensure_test_database():
     """创建 alphapilot_test DB（如不存在）+ 应用 alembic upgrade head。"""
     import subprocess
+    import sys
+
     from sqlalchemy import create_engine, text
 
     # 1. 用 alphapilot 默认库连接，确保 test DB 存在
@@ -77,11 +79,12 @@ def _ensure_test_database():
     admin_eng.dispose()
 
     # 2. 应用 alembic 到 test DB
+    # 用 sys.executable -m alembic 复用 pytest 所在解释器/venv，不依赖 PATH 里有 uv
     env = os.environ.copy()
     env["DATABASE_URL"] = _TEST_DB_URL
     env["ALPHAPILOT_SKIP_SECRET_VALIDATION"] = "1"
     subprocess.run(
-        ["uv", "run", "alembic", "-c", "src/db/alembic.ini", "upgrade", "head"],
+        [sys.executable, "-m", "alembic", "-c", "src/db/alembic.ini", "upgrade", "head"],
         env=env,
         check=True,
         cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
