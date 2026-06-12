@@ -2,6 +2,8 @@
 
   POST /api/commands/close-position/{position_id}
   POST /api/commands/close-all              (body: {confirmation: "CLOSE ALL", reason})
+                                            → 异步入队, 返回 {task_id, status: "queued"},
+                                              结果查 GET /api/tasks/{task_id} (spec §4.9.1)
   POST /api/commands/resolve-breaker/{event_id}
   POST /api/commands/pause                  (body: {reason})
   POST /api/commands/resume                 (body: {reason})
@@ -28,6 +30,7 @@ from src.schemas.command import (
 from src.services.risk.kill_switch import KillSwitchService
 from src.services.manual_ops import ManualOpsService
 from src.services.events.outbox import OutboxWriter
+from src.services.task_dispatcher import get_task_dispatcher
 from src.db.session import get_db
 
 router = APIRouter(prefix="/api/commands", tags=["commands"])
@@ -68,15 +71,24 @@ def close_all(
     db: Session = Depends(get_db),
     current_admin=Depends(require_admin),
 ):
+    """一键全平 — HTTP 触发的耗时业务, 走 task_requests 异步入队 (project.md §8)。
+
+    立即返回 task_id; 执行结果通过 GET /api/tasks/{task_id} 查询,
+    或订阅 WS 的 task.status_changed 事件。
+    """
     if body.confirmation != "CLOSE ALL":
         raise ParamsException("must confirm with 'CLOSE ALL'")
-    svc = ManualOpsService(db, _adapter(), outbox=OutboxWriter())
-    closed = svc.manual_close_all(
-        account_id=body.account_id, trading_mode=body.trading_mode,
-        reason=body.reason, operator_user_id=current_admin.id,
+    task_id = get_task_dispatcher().enqueue(
+        "MANUAL_CLOSE_ALL",
+        {
+            "account_id": body.account_id,
+            "trading_mode": body.trading_mode,
+            "reason": body.reason,
+            "operator_user_id": current_admin.id,
+        },
+        trading_mode=body.trading_mode,
     )
-    db.commit()
-    return {"closed_position_ids": closed}
+    return {"task_id": task_id, "status": "queued"}
 
 
 @router.post("/resolve-breaker/{event_id}")

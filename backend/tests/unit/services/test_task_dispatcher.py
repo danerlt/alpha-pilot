@@ -128,6 +128,64 @@ def test_dispatch_loop_marks_failed_on_handler_exception(pg_session, db_factory,
         HANDLERS.pop("UNIT_TEST_FAIL", None)
 
 
+def test_success_records_task_status_changed_event(pg_session, db_factory, fake_redis):
+    """终态必须写 task.status_changed outbox 事件 (三层持久化的实时层)。"""
+    from sqlalchemy import select
+
+    from src.models.event_store import EventOutbox
+
+    @register_handler("UNIT_TEST_EVENT")
+    def _handler(session, payload):
+        pass
+
+    try:
+        dispatcher = TaskDispatcher(db_factory=db_factory, redis_client=fake_redis, queue_key="t:q")
+        task_id = dispatcher.enqueue("UNIT_TEST_EVENT", {})
+        dispatcher._handle_one(task_id)
+
+        pg_session.expire_all()
+        rows = pg_session.execute(
+            select(EventOutbox).where(EventOutbox.event_type == "task.status_changed")
+        ).scalars().all()
+        assert len(rows) == 1
+        payload = rows[0].payload_json["payload"]
+        assert payload["task_id"] == task_id
+        assert payload["status"] == "SUCCESS"
+    finally:
+        HANDLERS.pop("UNIT_TEST_EVENT", None)
+
+
+def test_recover_orphans_requeues_old_pending(pg_session, db_factory, fake_redis):
+    """PENDING 超时孤儿 (LPUSH 丢失场景) 重新入队, 状态保持 PENDING。"""
+    obj = TaskRequest(
+        task_type="UNIT_TEST_PENDING_ORPHAN",
+        payload={},
+        status="PENDING",
+        attempts=0,
+        trading_mode="testnet",
+    )
+    pg_session.add(obj)
+    pg_session.commit()
+    task_id = obj.id
+    # enqueued_at 是 server_default now(), 直接 UPDATE 把它推回 10 分钟前
+    from sqlalchemy import text
+    pg_session.execute(
+        text("UPDATE task_requests SET enqueued_at = now() - interval '600 seconds' WHERE id = :id"),
+        {"id": task_id},
+    )
+    pg_session.commit()
+
+    dispatcher = TaskDispatcher(db_factory=db_factory, redis_client=fake_redis, queue_key="t:q")
+    dispatcher.recover_orphans(threshold_seconds=300)
+
+    pg_session.expire_all()
+    refreshed = pg_session.get(TaskRequest, task_id)
+    assert refreshed.status == "PENDING"
+    assert fake_redis.lpush.call_count == 1
+    args, _ = fake_redis.lpush.call_args
+    assert f'"task_id": {task_id}' in args[1]
+
+
 def test_recover_orphans_marks_old_running_as_failed(pg_session, db_factory, fake_redis):
     # 直接插一条 RUNNING + started_at 远早于 now-300s
     obj = TaskRequest(

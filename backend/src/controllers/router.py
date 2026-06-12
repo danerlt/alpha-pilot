@@ -32,6 +32,7 @@ from src.controllers.api.v1.system.admin import router as _admin_router
 from src.controllers.api.v1.system.auth import router as _auth_router
 from src.controllers.api.v1.system.health import router as _health_router
 from src.controllers.api.v1.system.runtime_config import router as _runtime_config_router
+from src.controllers.api.v1.system.tasks import router as _tasks_router
 
 router = APIRouter()
 router.include_router(_health_router)
@@ -44,3 +45,4 @@ router.include_router(_risk_router)
 router.include_router(_reports_router)
 router.include_router(_account_router)
 router.include_router(_runtime_config_router)
+router.include_router(_tasks_router)

@@ -249,6 +249,18 @@ class ManualOverride(_Event):
 
 
 # ---------------------------------------------------------------------------
+# task.* — 异步任务状态流转 (task_requests 三层持久化的实时层, spec §4.9.1)
+# ---------------------------------------------------------------------------
+
+class TaskStatusChanged(_Event):
+    event_type: ClassVar[str] = "task.status_changed"
+    task_id: int
+    task_type: str
+    status: str  # RUNNING|SUCCESS|FAILED
+    error_message: str | None = None
+
+
+# ---------------------------------------------------------------------------
 # control.* — commands from Control Plane to Execution Core
 # ---------------------------------------------------------------------------
 
@@ -319,6 +331,7 @@ def _all_event_classes() -> list[type[_Event]]:
         PositionOpened, PositionUpdated, PositionClosed,
         TradeClosed,
         RiskEventTriggered, CircuitBreakerTriggered, ManualOverride,
+        TaskStatusChanged,
         ControlCommand,
         ParamsCandidateProposed, ParamsCandidateValidated,
         ParamsApplied, ParamsRolledBack,

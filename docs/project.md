@@ -367,6 +367,11 @@ pending → running → done
                  ↘ cancelled
 ```
 
+> **v1 实施偏差**：实际实现为大写 `PENDING → RUNNING → SUCCESS / FAILED`（无 `cancelled`，V1 不支持取消）。
+> HTTP 兜底查询端点为 `GET /api/tasks/{task_id}`（与其它路由一致无 `v1` 前缀）。
+> PENDING 超时孤儿（enqueue 写库成功但 LPUSH 丢失）由 `recover_orphans` 重新入队——任务从未执行过，不违反"不自动重试"；RUNNING 孤儿仍标 FAILED 留人工 review。
+> 终态（SUCCESS/FAILED）写 `task.status_changed` outbox 事件 → EventShuttle → WS 实时层。
+
 ### 不自动重试原则（交易系统）
 失败任务不自动重试。`recover_orphan_tasks` 启动时把 `running` 孤儿标 `failed`，要求人工 review。
 

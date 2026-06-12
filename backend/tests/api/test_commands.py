@@ -65,7 +65,26 @@ def client():
 
     commands_module._adapter = lambda: _StubAdapter()
 
+    # close-all 走异步入队: 注入绑定测试 engine 的 dispatcher + MagicMock redis
+    import contextlib
+    from unittest.mock import MagicMock
+    from src.services.task_dispatcher import TaskDispatcher
+
+    @contextlib.contextmanager
+    def _db_factory():
+        s = Session(engine)
+        try:
+            yield s
+        finally:
+            s.close()
+
+    fake_redis = MagicMock()
+    test_dispatcher = TaskDispatcher(db_factory=_db_factory, redis_client=fake_redis, queue_key="t:q")
+    _orig_get_dispatcher = commands_module.get_task_dispatcher
+    commands_module.get_task_dispatcher = lambda: test_dispatcher
+
     yield TestClient(app), engine
+    commands_module.get_task_dispatcher = _orig_get_dispatcher
     app.dependency_overrides.clear()
 
 
@@ -94,23 +113,31 @@ def test_close_all_requires_confirmation(client):
     assert r.status_code == 200; assert r.json()["success"] is False; assert r.json()["code"] == "400001"
 
 
-def test_close_all_returns_closed_ids(client):
-    cli, engine = client
-    with Session(engine) as s:
-        s.add(Position(
-            account_id=1, trading_mode="testnet",
-            symbol="BTCUSDT", status=PositionStatus.OPEN.value, side="LONG",
-            quantity=0.01, entry_price=50_000.0, stop_loss=49_000.0,
-            opened_at=datetime.now(tz=timezone.utc),
-        ))
-        s.commit()
+def test_close_all_enqueues_task_and_returns_task_id(client):
+    """close-all 切异步: 立即返回 task_id + queued, 写 PENDING 行并 LPUSH (spec §4.9.1)。"""
+    from src.controllers.api.v1.risk import commands as commands_module
+    from src.models.task_request import TaskRequest
 
+    cli, engine = client
     r = cli.post("/api/commands/close-all", json={
         "confirmation": "CLOSE ALL",
         "reason": "emergency",
     })
     assert r.status_code == 200
-    assert len(r.json()["data"]["closed_position_ids"]) == 1
+    data = r.json()["data"]
+    assert data["status"] == "queued"
+    task_id = data["task_id"]
+
+    with Session(engine) as s:
+        obj = s.get(TaskRequest, task_id)
+        assert obj is not None
+        assert obj.status == "PENDING"
+        assert obj.task_type == "MANUAL_CLOSE_ALL"
+        assert obj.payload["operator_user_id"] == 1
+        assert obj.payload["reason"] == "emergency"
+
+    fake_redis = commands_module.get_task_dispatcher()._redis
+    assert fake_redis.lpush.call_count == 1
 
 
 def test_close_position_not_found(client):
@@ -167,10 +194,12 @@ def test_resolve_breaker_emits_manual_override_event(client):
     assert "circuit_breaker" in payload["target"] or str(eid) in payload["target"]
 
 
-def test_close_all_emits_manual_override_event(client):
-    """同 above: close-all 也必须发 manual.override (一个或多个)."""
+def test_close_all_async_chain_emits_events(client, monkeypatch):
+    """close-all 全链路: 入队 → dispatcher 执行 → manual.override + task.status_changed 事件。"""
     from sqlalchemy import select
+    from src.controllers.api.v1.risk import commands as commands_module
     from src.models.event_store import EventOutbox
+    from src.models.task_request import TaskRequest
 
     cli, engine = client
     with Session(engine) as s:
@@ -182,13 +211,27 @@ def test_close_all_emits_manual_override_event(client):
         ))
         s.commit()
 
-    cli.post("/api/commands/close-all", json={
+    r = cli.post("/api/commands/close-all", json={
         "confirmation": "CLOSE ALL", "reason": "emergency",
     })
+    task_id = r.json()["data"]["task_id"]
+
+    # 模拟 scheduler 消费: handler 内部 import get_adapter, monkeypatch 指到 stub
+    import src.controllers.dependencies as deps_module
+    monkeypatch.setattr(deps_module, "get_adapter", commands_module._adapter)
+    dispatcher = commands_module.get_task_dispatcher()
+    dispatcher._handle_one(task_id)
 
     with Session(engine) as s:
-        rows = s.execute(
+        obj = s.get(TaskRequest, task_id)
+        assert obj.status == "SUCCESS"
+        override_rows = s.execute(
             select(EventOutbox).where(EventOutbox.event_type == "manual.override")
         ).scalars().all()
-    assert len(rows) >= 1
-    assert rows[0].payload_json["payload"]["operator_user_id"] == 1
+        status_rows = s.execute(
+            select(EventOutbox).where(EventOutbox.event_type == "task.status_changed")
+        ).scalars().all()
+    assert len(override_rows) >= 1
+    assert override_rows[0].payload_json["payload"]["operator_user_id"] == 1
+    assert len(status_rows) == 1
+    assert status_rows[0].payload_json["payload"]["status"] == "SUCCESS"
