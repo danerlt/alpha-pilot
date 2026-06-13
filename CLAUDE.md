@@ -63,10 +63,11 @@
 | 原型 Phase 1-3 | DB 模型、核心服务、Worker、REST API、WebSocket、Next.js 前端 | ✅ 完成 |
 | v3.7 重构 Stage 1-5 | 迁到分层模板：`controllers/services/cruds/schemas/models/core/db`，alembic 重建 | ✅ 完成 |
 | 认证 + 管理后台 | JWT 登录注册、`admin_bootstrap`、用户/审计日志/币种管理（前后端） | ✅ 完成 |
-| 异步任务调度（§4.9.1） | `task_dispatcher` + Redis BRPOP + 孤儿恢复 + `task_request` 状态机 | ✅ 已落地（控制器入队路径待接通） |
+| 异步任务调度（§4.9.1） | `task_dispatcher` + Redis BRPOP + 孤儿恢复 + `task_request` 状态机 | ✅ 已闭环（close-all 已切异步入队 + `GET /api/tasks/{id}` 兜底 + `task.status_changed` 实时事件） |
 | Spec Gap Closure | 11 个差距项全清，**100% 对齐 spec v3.7** | ✅ 完成 |
+| Windows 全流程差距收口 | OPS/前后端/文档 差距审计后逐项实现（见 worklog 2026-06-13） | ✅ 完成 |
 
-**测试基线：443 passed + 2 skipped（全绿）。后端 ~195 个源码文件、83 个测试文件、27 张数据表。**
+**测试基线：453 passed + 2 skipped（全绿）。前端 `next build` + `tsc --noEmit` 通过。**
 
 ---
 
@@ -142,18 +143,20 @@
 ## 开发命令
 
 ```bash
-make dev-up         # 启动 Docker（PostgreSQL + Redis）
-make dev-backend    # 启动 FastAPI 开发服务器（热重载）
+make deps-up        # 启动本机依赖栈：PostgreSQL(5442) + Redis(6389)（pytest / dev-backend 前置）
+make dev-backend    # 启动 FastAPI 开发服务器（热重载，uv run 跨平台）
 make init-db        # 初始化 Alembic 迁移（首次执行）
 make upgrade-db     # 运行数据库迁移
 make test           # 运行所有测试
 make test-unit      # 仅运行单元测试
-make test-integration # 集成测试（需 testcontainers + Docker）
+make test-integration # 集成测试（真 PG + Redis，依赖 make deps-up）
 make lint           # ruff 检查
 make fmt            # ruff 格式化
+# 注：make dev-up/local-up 是整栈 docker（含前后端镜像），本机跑测试只需 make deps-up
 ```
 
-> 全新克隆的环境需先初始化：后端 `cd backend && uv venv --seed --python 3.12 && uv sync --extra dev`；前端 `cd frontend && npm install`。
+> 全新克隆的环境需先初始化：后端 `cd backend && uv venv --seed --python 3.12 && uv sync --extra dev`；前端 `cd frontend && npm install`（会从 npmmirror 拉依赖并生成本地 lock）。
+> 测试/本地后端依赖 PG(5442)+Redis(6389)，先 `make deps-up`（或 `docker start alpha-pilot-postgres-1 alpha-pilot-redis-1`）。
 
 ---
 
@@ -207,16 +210,24 @@ MAX_POSITION_SIZE_PCT=0.20
 MAX_DAILY_LOSS_PCT=0.03
 MAX_CONSECUTIVE_LOSSES=3
 MAX_SINGLE_RISK_PCT=0.01
+# 安全密钥（非测试环境启动必填，否则 _validate_secrets 抛 InsecureSecretError）
+# 测试可设 ALPHAPILOT_SKIP_SECRET_VALIDATION=1 跳过；生产用 `python -c "import secrets;print(secrets.token_urlsafe(48))"` 生成
+APP_AUTH_SECRET_KEY=<JWT 签名密钥，随机长串>
+APP_CONFIG_MASTER_KEY=<Fernet 主密钥，runtime config 加密用>
+# 开发/测试可选：自动引导默认管理员（生产勿用固定密码）
+DEFAULT_ADMIN_EMAIL=admin@example.com
+DEFAULT_ADMIN_PASSWORD=<强密码>
 ```
 
 ---
 
 ## 下一步（v3.7 收口后剩余）
 
-1. **打通 controller → 异步任务真实路径**：`task_dispatcher` 目前只在 scheduler 注册 handler，控制器尚未切到"提任务异步入队"，仍是同步实现 —— 这是最后一块闭环
+1. ~~打通 controller → 异步任务真实路径~~ ✅ 已完成（close-all 切异步入队 + `GET /api/tasks/{id}` + `task.status_changed` 事件）
 2. **dev 环境 24h 观察**：需老板亲自验证策略链/熔断/调度长时间稳定性
-3. **持续回归测试**：当前 **443 passed + 2 skipped**，后续优先补前后端联调与更强的执行链路验证
+3. **持续回归测试**：当前 **453 passed + 2 skipped**，后续优先补前后端联调与更强的执行链路验证
 4. **维护 alembic 迁移链**：配置已迁入 `src/db/alembic.ini`，后续 schema 变更统一走 migration（调用需带 `-c src/db/alembic.ini`）
+5. **架构总览**：系统四平面划分/数据流/演进路线见 [`docs/总体架构.md`](docs/总体架构.md)
 
 ---
 
