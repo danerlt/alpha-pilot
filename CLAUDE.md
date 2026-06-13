@@ -67,7 +67,7 @@
 | Spec Gap Closure | 11 个差距项全清，**100% 对齐 spec v3.7** | ✅ 完成 |
 | Windows 全流程差距收口 | OPS/前后端/文档 差距审计后逐项实现（见 worklog 2026-06-13） | ✅ 完成 |
 
-**测试基线：453 passed + 2 skipped（全绿）。前端 `next build` + `tsc --noEmit` 通过。**
+**测试基线：474 passed + 2 skipped（全绿）。前端 `next build` + `tsc --noEmit` 通过。**
 
 ---
 
@@ -83,7 +83,7 @@
 | account_state | 账户余额/PnL 快照同步 |
 | indicators | EMA20/50/200, RSI(14), MACD(12,26,9), ATR(14), 布林带(20), 成交量MA, 波动率 |
 | regime | 市场状态识别：trending_up / trending_down / ranging / chaotic |
-| decision_engine | LLM Prompt 构建 + JSON 解析（失败兜底 HOLD）+ Claude/OpenAI 调用 |
+| strategy pipeline | prompt_composer → decision_solver（LLM 调用 + JSON 解析，失败兜底 HOLD）→ review_critic |
 | execution_guard | 风控校验 PASS/REJECT/DEGRADE（日亏损熔断、连续亏损、仓位上限、单笔风险） |
 | order_execution | 幂等开多/平多（trace_id = SHA256(decision_id:symbol:action)），写 Position+Order+Trade |
 | monitoring | 止损检测、止盈轮询、日亏损熔断触发 |
@@ -109,20 +109,24 @@
 
 | 接口 | 功能 |
 |------|------|
-| `GET /api/positions` | 当前开仓持仓 |
-| `POST /api/positions/{id}/close` | 手动平仓（绕过 AI） |
-| `POST /api/positions/close-all` | 一键全部平仓（紧急操作） |
-| `GET /api/trades` | 已平仓交易记录 |
-| `GET /api/decisions` | AI 决策日志 |
-| `GET /api/risk-events` | 风控事件日志 |
-| `POST /api/risk-events/{id}/resolve` | 手动解除熔断 |
-| `GET /api/reports` | 每日报告列表 |
-| `POST /api/reports/generate` | 手动触发今日日报 |
-| `GET /api/account` | 最新账户快照 |
-| `POST /api/auth/login` `register` | JWT 登录 / 注册 |
-| `/api/admin/...` | 管理后台：用户、审计日志、币种配置 |
-| `/api/commands` | 命令/异步任务入口（接 task_dispatcher） |
-| `/api/runtime-config` | 运行时配置读写 |
+| `GET /api/positions` | 当前开仓持仓（需登录） |
+| `POST /api/commands/close-position/{id}` | 手动平仓（admin，绕过 AI） |
+| `POST /api/commands/close-all` | 一键全平（admin，**异步入队** → `{task_id, status: queued}`） |
+| `POST /api/commands/resolve-breaker/{id}` | 手动解除熔断（admin） |
+| `POST /api/commands/pause` `resume` | KillSwitch 停机 / 恢复（admin） |
+| `GET /api/tasks/{id}` | 异步任务状态查询（admin，HTTP 兜底层） |
+| `GET /api/trades` | 已平仓交易记录（需登录） |
+| `GET /api/decisions` | AI 决策日志（需登录） |
+| `GET /api/risk-events` | 风控事件日志（需登录） |
+| `POST /api/risk-events/{id}/resolve` | 手动解除熔断（admin，与 commands/resolve-breaker 同走 ManualOps） |
+| `GET /api/reports` | 每日报告列表（需登录） |
+| `POST /api/reports/generate` | 手动触发今日日报（admin） |
+| `GET /api/account` | 最新账户快照（需登录） |
+| `POST /api/auth/login` | JWT 登录（`register` 已按 C5 禁用，建号走 admin） |
+| `GET /api/auth/me` | 当前登录用户 |
+| `POST /api/admin/users` `PATCH /api/admin/users/{id}` | admin 建号 / 改角色状态 |
+| `/api/admin/symbols` `/api/admin/audit-logs` | 币种配置 / 审计日志 |
+| `GET POST /api/config/runtime` | 运行时配置读写（admin，敏感值加密 + 写审计） |
 | `/api/events/catchup` | WebSocket 断线事件补偿 |
 | `GET /api/health` | 健康检查 |
 
@@ -225,7 +229,7 @@ DEFAULT_ADMIN_PASSWORD=<强密码>
 
 1. ~~打通 controller → 异步任务真实路径~~ ✅ 已完成（close-all 切异步入队 + `GET /api/tasks/{id}` + `task.status_changed` 事件）
 2. **dev 环境 24h 观察**：需老板亲自验证策略链/熔断/调度长时间稳定性
-3. **持续回归测试**：当前 **453 passed + 2 skipped**，后续优先补前后端联调与更强的执行链路验证
+3. **持续回归测试**：当前 **474 passed + 2 skipped**，后续优先补前后端联调与更强的执行链路验证
 4. **维护 alembic 迁移链**：配置已迁入 `src/db/alembic.ini`，后续 schema 变更统一走 migration（调用需带 `-c src/db/alembic.ini`）
 5. **架构总览**：系统四平面划分/数据流/演进路线见 [`docs/总体架构.md`](docs/总体架构.md)
 
