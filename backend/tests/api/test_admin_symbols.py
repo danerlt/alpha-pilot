@@ -48,6 +48,13 @@ async def test_admin_can_create_and_list_symbols(admin_db):
             data = list_resp.json()["data"]
             assert len(data) == 1
             assert data[0]["symbol"] == "BTCUSDT"
+
+        # spec 验收: create 必须写审计日志 (BE-3)
+        audit = admin_db.query(AuditLog).filter(
+            AuditLog.resource_type == "symbol_config", AuditLog.action == "create",
+        ).one()
+        assert audit.user_id == 1
+        assert audit.after_json["symbol"] == "BTCUSDT"
     finally:
         app.dependency_overrides.clear()
 
@@ -76,5 +83,14 @@ async def test_admin_can_update_symbol(admin_db):
             data = resp.json()["data"]
             assert data["enabled"] is False
             assert data["timeframe"] == "1h"
+
+        # spec 验收: update 必须写审计日志且含 before/after (BE-3)
+        audit = admin_db.query(AuditLog).filter(
+            AuditLog.resource_type == "symbol_config", AuditLog.action == "update",
+        ).one()
+        assert audit.user_id == 1
+        assert audit.before_json["enabled"] is True
+        assert audit.after_json["enabled"] is False
+        assert audit.after_json["timeframe"] == "1h"
     finally:
         app.dependency_overrides.clear()

@@ -5,7 +5,7 @@ require_admin / get_adapter, 不再各自重复实现。
 """
 from __future__ import annotations
 
-from fastapi import Depends, Header
+from fastapi import Depends, Header, Request
 from src.common.exception.errors import ServiceException
 from src.common.response.response_code import ErrorCode
 from sqlalchemy.orm import Session
@@ -33,6 +33,13 @@ def extract_bearer_token(authorization: str | None) -> str:
 
 # 兼容老调用 (router.py facade re-export 还指着这个名字)。新代码用 extract_bearer_token.
 _extract_bearer_token = extract_bearer_token
+
+
+def client_meta(request: Request) -> tuple[str | None, str | None]:
+    """取审计用的客户端 (ip, user_agent); nginx 反代时真实 IP 在 X-Forwarded-For 第一段。"""
+    ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() \
+        or (request.client.host if request.client else None)
+    return ip, request.headers.get("user-agent")
 
 
 def get_current_user(

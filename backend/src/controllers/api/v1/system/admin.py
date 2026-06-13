@@ -1,19 +1,20 @@
 ﻿"""Admin endpoints — /api/admin/symbols /users /audit-logs."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from src.common.api_response import api_response
 from src.common.exception.errors import DBException, ParamsException, ServiceException
 from src.common.response.response_code import ErrorCode
 from sqlalchemy.orm import Session
 
-from src.controllers.dependencies import require_admin
+from src.controllers.dependencies import client_meta, require_admin
 from src.db.session import get_db
 from src.models.audit_log import AuditLog
 from src.models.symbol_config import SymbolConfig
 from src.models.user import User
 from src.schemas.symbol_config import SymbolConfigCreate, SymbolConfigUpdate
-from src.schemas.user import UserUpdate
+from src.schemas.user import UserCreate, UserUpdate
+from src.services.auth import hash_password
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -44,6 +45,7 @@ def list_symbol_configs(db: Session = Depends(get_db), current_admin=Depends(req
 @api_response()
 def create_symbol_config(
     payload: SymbolConfigCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_admin=Depends(require_admin),
 ):
@@ -66,11 +68,13 @@ def create_symbol_config(
     )
     db.add(item)
     db.flush()
+    ip, user_agent = client_meta(request)
     db.add(AuditLog(
         user_id=current_admin.id,
         action="create", resource_type="symbol_config",
         resource_id=str(item.id),
         after_json={"symbol": item.symbol, "enabled": item.enabled, "timeframe": item.timeframe},
+        ip=ip, user_agent=user_agent,
     ))
     db.commit()
     db.refresh(item)
@@ -88,6 +92,7 @@ def create_symbol_config(
 @api_response()
 def update_symbol_config(
     symbol_id: int, payload: SymbolConfigUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     current_admin=Depends(require_admin),
 ):
@@ -108,6 +113,7 @@ def update_symbol_config(
         if value is not None:
             setattr(item, field, value.upper().strip() if field in {"base_asset", "quote_asset"} else value)
     item.updated_by = current_admin.id
+    ip, user_agent = client_meta(request)
     db.add(AuditLog(
         user_id=current_admin.id,
         action="update", resource_type="symbol_config",
@@ -119,6 +125,7 @@ def update_symbol_config(
             "priority": item.priority, "sort_order": item.sort_order,
             "notes": item.notes,
         },
+        ip=ip, user_agent=user_agent,
     ))
     db.commit()
     db.refresh(item)
@@ -151,10 +158,55 @@ def list_users(db: Session = Depends(get_db), current_admin=Depends(require_admi
     ]
 
 
+@router.post("/users")
+@api_response()
+def create_user(
+    payload: UserCreate,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_admin=Depends(require_admin),
+):
+    """admin 创建账号 — 公开注册按安全审计 C5 禁用, 这是唯一的运行时建号入口。"""
+    username = payload.username.strip()
+    email = payload.email.lower().strip()
+    if db.query(User).filter(User.email == email).first():
+        raise ServiceException("Email already exists", error_code=ErrorCode.CONFLICT)
+    if db.query(User).filter(User.username == username).first():
+        raise ServiceException("Username already exists", error_code=ErrorCode.CONFLICT)
+
+    user = User(
+        username=username,
+        email=email,
+        password_hash=hash_password(payload.password),
+        role=payload.role.value,
+        status=payload.status.value,
+    )
+    db.add(user)
+    db.flush()
+    ip, user_agent = client_meta(request)
+    db.add(AuditLog(
+        user_id=current_admin.id,
+        action="create", resource_type="user",
+        resource_id=str(user.id),
+        after_json={"username": user.username, "email": user.email, "role": user.role, "status": user.status},
+        ip=ip, user_agent=user_agent,
+    ))
+    db.commit()
+    db.refresh(user)
+    return {
+        "id": user.id, "username": user.username, "email": user.email,
+        "role": user.role, "status": user.status,
+        "last_login_at": user.last_login_at,
+        "created_at": user.created_at.isoformat() if user.created_at else None,
+        "updated_at": user.updated_at.isoformat() if user.updated_at else None,
+    }
+
+
 @router.patch("/users/{user_id}")
 @api_response()
 def update_user(
     user_id: int, payload: UserUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     current_admin=Depends(require_admin),
 ):
@@ -175,12 +227,14 @@ def update_user(
         raise ParamsException("No user fields provided")
 
     if changed:
+        ip, user_agent = client_meta(request)
         db.add(AuditLog(
             user_id=current_admin.id,
             action="update", resource_type="user",
             resource_id=str(user.id),
             before_json=before,
             after_json={"role": user.role, "status": user.status},
+            ip=ip, user_agent=user_agent,
         ))
         db.commit()
         db.refresh(user)
@@ -208,9 +262,16 @@ def list_audit_logs(
     items = db.query(AuditLog).order_by(
         AuditLog.created_at.desc(), AuditLog.id.desc()
     ).limit(safe_limit).all()
+    # 操作人用户名映射 (今晚计划 actor 字段; user_id 可能指向已删用户, 留 None)
+    actor_ids = {item.user_id for item in items if item.user_id is not None}
+    actor_map: dict[int, str] = {}
+    if actor_ids:
+        for uid, username in db.query(User.id, User.username).filter(User.id.in_(actor_ids)).all():
+            actor_map[uid] = username
     return [
         {
             "id": item.id, "user_id": item.user_id,
+            "actor": actor_map.get(item.user_id),
             "action": item.action, "resource_type": item.resource_type,
             "resource_id": item.resource_id,
             "before_json": item.before_json, "after_json": item.after_json,

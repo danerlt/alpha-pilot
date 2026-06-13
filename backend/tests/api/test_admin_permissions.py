@@ -11,6 +11,10 @@ from src.common.enums import TradingMode
 class DummyDB:
     def __init__(self):
         self.committed = False
+        self.added = []
+
+    def add(self, obj):
+        self.added.append(obj)
 
     def commit(self):
         self.committed = True

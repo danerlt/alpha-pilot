@@ -11,6 +11,10 @@ from src.common.enums import TradingMode
 class DummyDB:
     def __init__(self):
         self.committed = False
+        self.added = []
+
+    def add(self, obj):
+        self.added.append(obj)
 
     def commit(self):
         self.committed = True
@@ -174,6 +178,18 @@ async def test_update_runtime_config_persists_and_refreshes(monkeypatch):
     assert data["trading_mode"] == "mainnet"
     assert data["binance_mainnet_configured"] is True
     assert "new-main-secret" not in str(data)
+
+    # BE-2: runtime config 更新必须写审计日志, 敏感 key 值脱敏为 ***
+    from src.models.audit_log import AuditLog
+    audit_rows = [obj for obj in db.added if isinstance(obj, AuditLog)]
+    assert len(audit_rows) == 1
+    audit = audit_rows[0]
+    assert audit.resource_type == "runtime_config"
+    assert audit.user_id == 1
+    assert audit.after_json["runtime.trading_mode"] == "mainnet"
+    assert audit.after_json["binance.mainnet.api_key"] == "***"
+    assert audit.after_json["binance.mainnet.api_secret"] == "***"
+    assert "new-main-secret" not in str(audit.after_json)
 
 
 @pytest.mark.asyncio

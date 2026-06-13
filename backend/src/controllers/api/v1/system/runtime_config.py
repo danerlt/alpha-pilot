@@ -3,15 +3,16 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from src.common.api_response import api_response
 from src.common.exception.errors import ParamsException
 from sqlalchemy.orm import Session
 
-from src.controllers.dependencies import require_admin
+from src.controllers.dependencies import client_meta, require_admin
 from src.configs.app_configs import get_app_config as get_base_settings, get_settings
 from src.configs.app_configs import get_runtime_credential_status
 from src.db.session import get_db
+from src.models.audit_log import AuditLog
 from src.schemas.runtime_config import RuntimeConfigUpdate
 from src.services.system.runtime_config import (
     BINANCE_MAINNET_API_KEY,
@@ -26,6 +27,7 @@ from src.services.system.runtime_config import (
     MAX_POSITION_SIZE_PCT,
     MAX_SINGLE_RISK_PCT,
     RUNTIME_MODE_KEY,
+    SECRET_KEYS,
     apply_runtime_settings_refresh,
     build_fernet,
     get_runtime_config_manager,
@@ -71,6 +73,7 @@ def _build_runtime_config_payload(db: Session) -> dict:
 @api_response()
 def update_runtime_config(
     payload: RuntimeConfigUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     current_admin=Depends(require_admin),
 ):
@@ -110,6 +113,15 @@ def update_runtime_config(
     for key, value, description in update_map:
         upsert_system_setting(db, key=key, value=value, fernet=fernet, description=description)
 
+    # Admin 动作必须留痕 (spec Security Constraints #4); 敏感 key 只记 key 名, 值脱敏为 ***
+    ip, user_agent = client_meta(request)
+    db.add(AuditLog(
+        user_id=current_admin.id,
+        action="update", resource_type="runtime_config",
+        resource_id="runtime",
+        after_json={key: ("***" if key in SECRET_KEYS else value) for key, value, _ in update_map},
+        ip=ip, user_agent=user_agent,
+    ))
     db.commit()
     apply_runtime_settings_refresh(
         db,

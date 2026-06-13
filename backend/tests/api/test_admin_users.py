@@ -149,3 +149,75 @@ async def test_admin_update_user_requires_at_least_one_change(admin_users_db):
     assert response.status_code == 200; assert response.json()["success"] is False; assert response.json()["code"] == "400001"
     assert response.json()["message"] == "No user fields provided"
     assert admin_users_db.query(AuditLog).count() == 0
+
+
+@pytest.mark.asyncio
+async def test_admin_can_create_user_with_audit(admin_users_db):
+    """BE-1: admin 建号是运行时唯一入口 (公开注册已禁), 必须写审计。"""
+    from src.controllers import router as router_module
+
+    def override_db():
+        yield admin_users_db
+
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[router_module.require_admin] = lambda: type("Admin", (), {"id": 7})()
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.post("/api/admin/users", json={
+                "username": "dave",
+                "email": "Dave@Example.com",
+                "password": "strong-pass-123",
+            })
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["username"] == "dave"
+    assert data["email"] == "dave@example.com"  # email 落库前小写归一
+    assert data["role"] == UserRole.USER.value
+    assert data["status"] == UserStatus.ACTIVE.value
+    assert "password" not in str(data)
+
+    created = admin_users_db.query(User).filter(User.username == "dave").one()
+    assert created.password_hash != "strong-pass-123"  # 只存 hash
+
+    audit = admin_users_db.query(AuditLog).filter(
+        AuditLog.resource_type == "user", AuditLog.action == "create",
+    ).one()
+    assert audit.user_id == 7
+    assert audit.after_json["username"] == "dave"
+    assert "strong-pass-123" not in str(audit.after_json)
+
+
+@pytest.mark.asyncio
+async def test_admin_create_user_rejects_duplicate_email(admin_users_db):
+    from src.controllers import router as router_module
+
+    admin_users_db.add(User(
+        username="eve", email="eve@example.com", password_hash="x",
+        role=UserRole.USER.value, status=UserStatus.ACTIVE.value,
+    ))
+    admin_users_db.commit()
+
+    def override_db():
+        yield admin_users_db
+
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[router_module.require_admin] = lambda: type("Admin", (), {"id": 7})()
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.post("/api/admin/users", json={
+                "username": "eve2",
+                "email": "EVE@example.com",
+                "password": "strong-pass-123",
+            })
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is False
+    assert body["code"] == "400009"
+    # 冲突时不写审计
+    assert admin_users_db.query(AuditLog).count() == 0
