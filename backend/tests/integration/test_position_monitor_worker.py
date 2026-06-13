@@ -6,7 +6,6 @@ PositionMonitor 自身的逻辑覆盖在 unit/execution/test_position_monitor.py
 from __future__ import annotations
 
 import os
-
 from datetime import datetime, timezone
 from typing import Literal
 
@@ -14,10 +13,10 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from src.core.exchange.adapter import ExchangeAdapter
-from src.core.exchange.types import Kline, OrderRequest, OrderResult, Ticker
 from src.common.enums import PositionStatus
-from src.models import Base, Position, Trade
+from src.core.exchange.adapter import ExchangeAdapter
+from src.core.exchange.types import OrderResult, Ticker
+from src.models import Base, Position
 from src.workers.position_monitor_worker import run_position_monitor_once
 
 

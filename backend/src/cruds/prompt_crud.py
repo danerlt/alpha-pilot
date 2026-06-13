@@ -1,8 +1,8 @@
 """CRUD for src.models.prompt."""
 from __future__ import annotations
 
-from src.models.prompt import PromptTemplate, ProposalDraft
 from src.cruds.base_crud import BaseCrud
+from src.models.prompt import PromptTemplate, ProposalDraft
 
 
 class PromptTemplateCrud(BaseCrud[PromptTemplate]):

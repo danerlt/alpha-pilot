@@ -22,8 +22,8 @@ from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from src.common.constants import MAX_POSITION_SIZE_PCT_HARD_CAP
-from src.models.decision import AIDecision
 from src.core.llm.client import LLMClient, LLMResult, LLMTimeout
+from src.models.decision import AIDecision
 from src.services.strategy.prompt_composer import PromptBundle
 from src.services.strategy.proposal import DecisionProposal
 

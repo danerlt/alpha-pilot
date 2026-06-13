@@ -2,21 +2,19 @@
 from __future__ import annotations
 
 import os
-
-from datetime import datetime, timezone
 from typing import Literal
 
 import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from src.services.events.outbox import OutboxWriter
+from src.common.enums import OrderStatus, PositionStatus
 from src.core.exchange.adapter import ExchangeAdapter
 from src.core.exchange.retry import ExchangeTemporarilyUnavailable
-from src.core.exchange.types import Kline, OrderRequest, OrderResult, Ticker
+from src.core.exchange.types import OrderRequest, OrderResult
+from src.models import Base, EventOutbox, Order, Position
+from src.services.events.outbox import OutboxWriter
 from src.services.execution.order_executor import OrderExecutor, make_trace_id
-from src.common.enums import OrderStatus, PositionStatus
-from src.models import Base, EventOutbox, Order, Position, Trade
 from src.services.strategy.proposal import DecisionProposal
 
 

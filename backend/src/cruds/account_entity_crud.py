@@ -1,8 +1,8 @@
 """CRUD for src.models.account_entity."""
 from __future__ import annotations
 
-from src.models.account_entity import Account, RiskProfile, ParameterVersion
 from src.cruds.base_crud import BaseCrud
+from src.models.account_entity import Account, ParameterVersion, RiskProfile
 
 
 class AccountCrud(BaseCrud[Account]):

@@ -4,13 +4,13 @@ post-Plan5 安全审计 C1+C2: 防止默认/弱密钥被部到生产.
 """
 from __future__ import annotations
 
-import os
-
 import pytest
 
 from src.configs.app_configs import (
-    InsecureSecretError,
     AppConfig as Settings,
+)
+from src.configs.app_configs import (
+    InsecureSecretError,
     _looks_insecure,
     _validate_secrets,
 )

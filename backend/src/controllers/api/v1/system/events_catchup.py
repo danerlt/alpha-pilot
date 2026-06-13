@@ -15,8 +15,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.common.api_response import api_response
-from src.controllers.dependencies import get_current_user
 from src.common.constants import CATCHUP_LIMIT_HARD_CAP
+from src.controllers.dependencies import get_current_user
 from src.db.session import get_db
 from src.models.event_store import EventOutbox
 

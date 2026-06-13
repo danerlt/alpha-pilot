@@ -41,14 +41,18 @@ def _admin_override():
 async def test_audit_logs_ordered_desc_with_actor(audit_db):
     from src.controllers import router as router_module
 
-    admin_user = User(username="admin", email="admin@example.com", password_hash="x", role="admin", status="active")
+    admin_user = User(
+        username="admin", email="admin@example.com",
+        password_hash="x", role="admin", status="active",
+    )
     audit_db.add(admin_user)
     audit_db.flush()
+    aid = admin_user.id
     # PG 测试库序列跨测试不重置, 不能假设 id=1
     audit_db.add_all([
-        AuditLog(user_id=admin_user.id, action="create", resource_type="symbol_config", resource_id="1"),
-        AuditLog(user_id=admin_user.id, action="update", resource_type="user", resource_id="2"),
-        AuditLog(user_id=admin_user.id + 999_999, action="update", resource_type="user", resource_id="3"),
+        AuditLog(user_id=aid, action="create", resource_type="symbol_config", resource_id="1"),
+        AuditLog(user_id=aid, action="update", resource_type="user", resource_id="2"),
+        AuditLog(user_id=aid + 999_999, action="update", resource_type="user", resource_id="3"),
     ])
     audit_db.commit()
 

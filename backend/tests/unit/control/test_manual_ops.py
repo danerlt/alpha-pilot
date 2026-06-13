@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import os
-
 from datetime import datetime, timezone
 from typing import Literal
 
@@ -10,11 +9,11 @@ import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from src.services.manual_ops import ManualOpsService
+from src.common.enums import PositionStatus
 from src.core.exchange.adapter import ExchangeAdapter
 from src.core.exchange.types import OrderRequest, OrderResult, Ticker
-from src.common.enums import PositionStatus
-from src.models import AuditLog, Base, Position, RiskEvent, Trade
+from src.models import AuditLog, Base, Position, RiskEvent
+from src.services.manual_ops import ManualOpsService
 
 
 class _StubAdapter(ExchangeAdapter):

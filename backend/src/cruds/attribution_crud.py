@@ -1,8 +1,8 @@
 """CRUD for src.models.attribution."""
 from __future__ import annotations
 
-from src.models.attribution import StrategyScore, TradeAttribution
 from src.cruds.base_crud import BaseCrud
+from src.models.attribution import StrategyScore, TradeAttribution
 
 
 class StrategyScoreCrud(BaseCrud[StrategyScore]):

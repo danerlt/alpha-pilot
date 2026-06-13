@@ -6,7 +6,6 @@ backend/tests/unit/execution/test_position_monitor.py 覆盖.
 from __future__ import annotations
 
 import os
-
 from datetime import datetime, timezone
 from typing import Literal
 
@@ -14,9 +13,9 @@ import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
+from src.common.enums import PositionStatus
 from src.core.exchange.adapter import ExchangeAdapter
 from src.core.exchange.types import OrderRequest, OrderResult, Ticker
-from src.common.enums import PositionStatus
 from src.models import Base, Position
 from src.workers.position_monitor_worker import run_position_monitor_once
 

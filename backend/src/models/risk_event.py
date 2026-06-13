@@ -1,8 +1,10 @@
 ﻿from datetime import datetime
-from sqlalchemy import BigInteger, String, DateTime, Text, Boolean
+
+from sqlalchemy import BigInteger, Boolean, DateTime, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
-from src.models.base import Base
+
 from src.common.enums import TradingMode
+from src.models.base import Base
 
 
 class RiskEvent(Base):

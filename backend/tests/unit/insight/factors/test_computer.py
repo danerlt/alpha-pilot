@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import os
-
 from datetime import datetime, timezone
 
 import pandas as pd
@@ -10,11 +9,10 @@ import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from src.services.insight.factors.computer import FactorComputer
-from src.services.insight.factors.context import FactorContext
-from src.services.insight.factors.registry import DEFAULT_REGISTRY, FactorRegistry
-from src.services.insight.indicators.computer import IndicatorValues
 from src.models import Base, FactorSnapshot
+from src.services.insight.factors.computer import FactorComputer
+from src.services.insight.factors.registry import FactorRegistry
+from src.services.insight.indicators.computer import IndicatorValues
 
 
 @pytest.fixture

@@ -13,29 +13,31 @@ from __future__ import annotations
 
 import json
 import os
-import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Literal
 
 import pytest
+from alembic import command
+from alembic.config import Config
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 from testcontainers.postgres import PostgresContainer
 from testcontainers.redis import RedisContainer
 
-from alembic import command
-from alembic.config import Config
-
-from src.services.event_bus import RedisStreamsBus
-from src.services.events.outbox import OutboxWriter
 from src.core.exchange.adapter import ExchangeAdapter
-from src.core.exchange.types import Kline, OrderRequest, OrderResult, Ticker
+from src.core.exchange.types import Kline, OrderResult, Ticker
+from src.core.llm.client import MockLLMClient
 from src.models import (
-    AIDecision, EventOutbox, Order, Position, PromptTemplate,
+    AIDecision,
+    EventOutbox,
+    Order,
+    Position,
+    PromptTemplate,
 )
 from src.models.account_entity import RiskProfile
-from src.core.llm.client import MockLLMClient
+from src.services.event_bus import RedisStreamsBus
+from src.services.events.outbox import OutboxWriter
 from src.workers.strategy_pipeline import run_strategy_pipeline_once
 
 

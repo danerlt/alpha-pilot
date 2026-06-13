@@ -4,10 +4,10 @@ import logging
 
 from sqlalchemy.orm import Session
 
-from src.services.auth import hash_password, verify_password
-from src.configs.app_configs import AppConfig as Settings
 from src.common.enums import UserRole, UserStatus
+from src.configs.app_configs import AppConfig as Settings
 from src.models.user import User
+from src.services.auth import hash_password, verify_password
 
 logger = logging.getLogger(__name__)
 

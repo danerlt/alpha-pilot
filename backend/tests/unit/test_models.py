@@ -1,9 +1,20 @@
 ﻿from src.models import (
-    Candle, AccountSnapshot, IndicatorSnapshot,
-    RegimeSnapshot, Position, AIDecision,
-    Order, Trade, RiskEvent, ExperienceRecord, DailyReport, SystemSetting, User, SymbolConfig, AuditLog
+    AccountSnapshot,
+    AIDecision,
+    AuditLog,
+    Candle,
+    DailyReport,
+    ExperienceRecord,
+    IndicatorSnapshot,
+    Order,
+    Position,
+    RegimeSnapshot,
+    RiskEvent,
+    SymbolConfig,
+    SystemSetting,
+    Trade,
+    User,
 )
-from src.common.enums import TradingMode
 
 
 def test_all_models_importable():

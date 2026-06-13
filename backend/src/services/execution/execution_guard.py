@@ -29,13 +29,13 @@ from typing import Literal, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.services.events.contracts import DecisionDegraded, DecisionRejected
-from src.services.events.outbox import OutboxWriter
 from src.common.enums import PositionStatus
 from src.models.account_entity import RiskProfile
 from src.models.position import Position
 from src.models.risk_event import RiskEvent
 from src.models.trade import Trade
+from src.services.events.contracts import DecisionDegraded, DecisionRejected
+from src.services.events.outbox import OutboxWriter
 from src.services.strategy.proposal import DecisionProposal
 
 logger = logging.getLogger(__name__)

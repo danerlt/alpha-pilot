@@ -9,16 +9,44 @@ from sqlalchemy import engine_from_config, pool
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from src.configs.app_configs import get_settings
+
 # 从 src.models 导入所有模型类，确保 Base.metadata 包含全部表（必须显式 import 触发注册）
 from src.models import (  # noqa: F401
-    Account, AccountSnapshot, AgentInvocation, AIDecision, AuditLog,
-    Base, Candle, DailyReport, DecisionReview, EventInbox, EventOutbox,
-    ExperienceRecord, ExperienceSummary, ExperienceV2,
-    FactorCandidate, FactorDefinition, FactorSnapshot,
-    IndicatorSnapshot, OpsDiagnosis, Order, ParameterVersion, Position,
-    PromptTemplate, ProposalDraft, RegimeSnapshot, RiskEvent, RiskProfile,
-    ShadowDecision, ShadowEvaluation, StrategyScore,
-    SymbolConfig, SystemSetting, Trade, TradeAttribution, User,
+    Account,
+    AccountSnapshot,
+    AgentInvocation,
+    AIDecision,
+    AuditLog,
+    Base,
+    Candle,
+    DailyReport,
+    DecisionReview,
+    EventInbox,
+    EventOutbox,
+    ExperienceRecord,
+    ExperienceSummary,
+    ExperienceV2,
+    FactorCandidate,
+    FactorDefinition,
+    FactorSnapshot,
+    IndicatorSnapshot,
+    OpsDiagnosis,
+    Order,
+    ParameterVersion,
+    Position,
+    PromptTemplate,
+    ProposalDraft,
+    RegimeSnapshot,
+    RiskEvent,
+    RiskProfile,
+    ShadowDecision,
+    ShadowEvaluation,
+    StrategyScore,
+    SymbolConfig,
+    SystemSetting,
+    Trade,
+    TradeAttribution,
+    User,
 )
 
 config = context.config

@@ -13,18 +13,18 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.controllers.dependencies import get_adapter
-from src.services.risk.kill_switch import KillSwitchService
-from src.services.events.outbox import OutboxWriter
-from src.core.exchange.binance_adapter import BinanceAdapter
 from src.configs.app_configs import get_settings
-from src.db.engines import get_session_factory
-from src.models.account_entity import RiskProfile
+from src.controllers.dependencies import get_adapter
+from src.core.exchange.binance_adapter import BinanceAdapter
 from src.core.llm.client import (
     LLMClient,
     MockLLMClient,
     OpenAIClient,
 )
+from src.db.engines import get_session_factory
+from src.models.account_entity import RiskProfile
+from src.services.events.outbox import OutboxWriter
+from src.services.risk.kill_switch import KillSwitchService
 from src.workers.position_monitor_worker import run_position_monitor_once
 from src.workers.strategy_pipeline import run_strategy_pipeline_once
 

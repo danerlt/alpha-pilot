@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import os
-
 from datetime import datetime, timezone
 from typing import Literal
 
@@ -10,13 +9,13 @@ import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from src.services.execution.account_state import AccountStateService
-from src.core.exchange.adapter import ExchangeAdapter
-from src.core.exchange.types import Kline, OrderRequest, OrderResult, Ticker
-from src.services.execution.position_monitor import PositionMonitor
-from src.services.execution.order_executor import OrderExecutor
 from src.common.enums import PositionStatus
+from src.core.exchange.adapter import ExchangeAdapter
+from src.core.exchange.types import OrderRequest, OrderResult, Ticker
 from src.models import Base, Position, RiskEvent, Trade
+from src.services.execution.account_state import AccountStateService
+from src.services.execution.order_executor import OrderExecutor
+from src.services.execution.position_monitor import PositionMonitor
 
 
 @pytest.fixture

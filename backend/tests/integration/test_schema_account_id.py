@@ -7,11 +7,10 @@ from __future__ import annotations
 import os
 
 import pytest
-from sqlalchemy import create_engine, inspect
-from testcontainers.postgres import PostgresContainer
-
 from alembic import command
 from alembic.config import Config
+from sqlalchemy import create_engine, inspect
+from testcontainers.postgres import PostgresContainer
 
 REQUIRED_TABLES = [
     "accounts",

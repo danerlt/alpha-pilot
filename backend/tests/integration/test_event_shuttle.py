@@ -5,13 +5,12 @@ import os
 from datetime import datetime, timezone
 
 import pytest
+from alembic import command
+from alembic.config import Config
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from testcontainers.postgres import PostgresContainer
 from testcontainers.redis import RedisContainer
-
-from alembic import command
-from alembic.config import Config
 
 from src.services.event_bus import RedisStreamsBus
 from src.services.events.contracts import CandleClosed

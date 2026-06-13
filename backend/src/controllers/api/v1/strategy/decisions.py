@@ -5,8 +5,8 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from src.common.api_response import api_response
-from src.controllers.dependencies import get_current_user
 from src.configs.app_configs import get_settings
+from src.controllers.dependencies import get_current_user
 from src.db.session import get_db
 from src.models.decision import AIDecision
 

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import os
-
 from datetime import datetime, timezone
 
 import pytest
@@ -12,7 +11,6 @@ from sqlalchemy.orm import Session
 
 from src.app import app
 from src.configs.app_configs import get_app_config as get_base_settings
-from src.db.engines import get_session_factory
 from src.db.session import get_db
 from src.models import Base, EventOutbox
 
@@ -29,8 +27,8 @@ def engine():
 def _seed_user(engine, *, user_id=1, status="active"):
     """post-Plan5 安全审计 H1: WebSocket 鉴权后会查 user 表确认 active.
     所有 WS 测试都需要 seed 一个 user."""
-    from src.services.auth import hash_password
     from src.models.user import User
+    from src.services.auth import hash_password
 
     with Session(engine) as s:
         u = User(

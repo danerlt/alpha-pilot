@@ -10,13 +10,12 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-from src.utils.time import TimeUtils
-
 # Re-export 既有事件契约（保留实质代码在 services/events/contracts.py，避免破坏）
 from src.services.events.contracts import (  # noqa: F401
     EVENT_TYPE_REGISTRY,
     EventEnvelope,
 )
+from src.utils.time import TimeUtils
 
 
 class BaseEvent(BaseModel):

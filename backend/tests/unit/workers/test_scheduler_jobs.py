@@ -6,12 +6,11 @@
 from __future__ import annotations
 
 import os
-
 from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import sessionmaker
 
 from src.models import Base
 from src.workers import scheduler_jobs

@@ -1,8 +1,10 @@
 ﻿from datetime import datetime
-from sqlalchemy import BigInteger, String, Numeric, DateTime, Integer, JSON, Text, Boolean
+
+from sqlalchemy import JSON, BigInteger, Boolean, DateTime, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
-from src.models.base import Base
+
 from src.common.enums import TradingMode
+from src.models.base import Base
 
 
 class AIDecision(Base):

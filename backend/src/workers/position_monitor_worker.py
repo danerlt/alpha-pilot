@@ -11,11 +11,11 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from src.core.exchange.adapter import ExchangeAdapter
 from src.services.events.outbox import OutboxWriter
 from src.services.execution.account_state import AccountStateService
-from src.core.exchange.adapter import ExchangeAdapter
-from src.services.execution.position_monitor import MonitorResult, PositionMonitor
 from src.services.execution.order_executor import OrderExecutor
+from src.services.execution.position_monitor import MonitorResult, PositionMonitor
 
 logger = logging.getLogger(__name__)
 

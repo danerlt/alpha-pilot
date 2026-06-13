@@ -1,8 +1,8 @@
 """CRUD for src.models.factor."""
 from __future__ import annotations
 
-from src.models.factor import FactorDefinition, FactorSnapshot, FactorCandidate
 from src.cruds.base_crud import BaseCrud
+from src.models.factor import FactorCandidate, FactorDefinition, FactorSnapshot
 
 
 class FactorDefinitionCrud(BaseCrud[FactorDefinition]):

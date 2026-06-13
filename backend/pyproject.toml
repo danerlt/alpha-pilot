@@ -51,6 +51,13 @@ packages = ["src"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 pythonpath = ["."]
+# 治理已知第三方 DeprecationWarning（项目自身代码不得触发；如未来本项目代码触发将照常显示）
+filterwarnings = [
+    "ignore:websockets.WebSocketClientProtocol is deprecated:DeprecationWarning",
+    "ignore:websockets.legacy is deprecated:DeprecationWarning",
+    "ignore:The @wait_container_is_ready decorator is deprecated:DeprecationWarning",
+    "ignore:The 'mode.copy_on_write' option is deprecated:",
+]
 
 [tool.ruff]
 line-length = 100

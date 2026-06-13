@@ -23,13 +23,13 @@ import logging
 from datetime import datetime
 
 import pandas as pd
-from sqlalchemy import delete, select
+from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
+from src.models.factor import FactorSnapshot
 from src.services.insight.factors.context import FactorContext
 from src.services.insight.factors.registry import DEFAULT_REGISTRY, FactorRegistry
 from src.services.insight.indicators.computer import IndicatorValues
-from src.models.factor import FactorSnapshot
 
 logger = logging.getLogger(__name__)
 

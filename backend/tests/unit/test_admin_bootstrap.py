@@ -1,12 +1,13 @@
 ﻿import os
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.services.admin_bootstrap import ensure_default_admin
-from src.configs.app_configs import AppConfig as Settings
 from src.common.enums import UserRole, UserStatus
+from src.configs.app_configs import AppConfig as Settings
 from src.models.base import Base
 from src.models.user import User
+from src.services.admin_bootstrap import ensure_default_admin
 from src.services.auth import hash_password
 
 

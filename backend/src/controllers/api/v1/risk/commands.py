@@ -21,17 +21,17 @@ from src.common.api_response import api_response
 from src.common.exception.errors import DBException, ParamsException
 from src.common.response.response_code import ErrorCode
 from src.controllers.dependencies import get_adapter, require_admin
+from src.db.session import get_db
 from src.schemas.command import (
     CloseAllCreate,
     ClosePositionCreate,
     PauseCreate,
     ResolveBreakerCreate,
 )
-from src.services.risk.kill_switch import KillSwitchService
-from src.services.manual_ops import ManualOpsService
 from src.services.events.outbox import OutboxWriter
+from src.services.manual_ops import ManualOpsService
+from src.services.risk.kill_switch import KillSwitchService
 from src.services.task_dispatcher import get_task_dispatcher
-from src.db.session import get_db
 
 router = APIRouter(prefix="/api/commands", tags=["commands"])
 

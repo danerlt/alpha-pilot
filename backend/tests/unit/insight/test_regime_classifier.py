@@ -2,16 +2,14 @@
 from __future__ import annotations
 
 import os
-
 from datetime import datetime, timezone
 
 import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from src.services.insight.regime.classifier import RegimeClassifier
 from src.models import Base, RegimeSnapshot
-
+from src.services.insight.regime.classifier import RegimeClassifier
 
 # ---------------------------------------------------------------------------
 # Pure classify() tests — no DB

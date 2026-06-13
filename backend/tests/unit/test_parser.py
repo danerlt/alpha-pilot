@@ -3,9 +3,8 @@ import json
 
 import pytest
 
-from src.services.strategy.decision_parser import DecisionPayload, parse_llm_output
 from src.common.enums import Action
-
+from src.services.strategy.decision_parser import DecisionPayload, parse_llm_output
 
 # ─── 兜底（Fallback）场景 ──────────────────────────────────────────────────────
 

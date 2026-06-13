@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from src.models import (
-    ExperienceSummary, ExperienceV2, StrategyScore, TradeAttribution,
+    ExperienceSummary,
+    ExperienceV2,
+    StrategyScore,
+    TradeAttribution,
 )
 
 

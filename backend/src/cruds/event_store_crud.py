@@ -1,8 +1,8 @@
 """CRUD for src.models.event_store."""
 from __future__ import annotations
 
-from src.models.event_store import EventInbox, EventOutbox
 from src.cruds.base_crud import BaseCrud
+from src.models.event_store import EventInbox, EventOutbox
 
 
 class EventInboxCrud(BaseCrud[EventInbox]):

@@ -1,9 +1,10 @@
+import os
+
 import pytest
+from alembic import command
+from alembic.config import Config
 from sqlalchemy import create_engine, inspect
 from testcontainers.postgres import PostgresContainer
-from alembic.config import Config
-from alembic import command
-import os
 
 
 @pytest.fixture(scope="module")

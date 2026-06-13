@@ -1,8 +1,8 @@
 """CRUD for src.models.experience_v2."""
 from __future__ import annotations
 
-from src.models.experience_v2 import ExperienceV2, ExperienceSummary
 from src.cruds.base_crud import BaseCrud
+from src.models.experience_v2 import ExperienceSummary, ExperienceV2
 
 
 class ExperienceV2Crud(BaseCrud[ExperienceV2]):

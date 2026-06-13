@@ -45,7 +45,9 @@ class TaskDispatcher:
         self._queue_key = queue_key
         self._outbox = OutboxWriter()
 
-    def _record_status_event(self, session, task, status: str, error_message: str | None = None) -> None:
+    def _record_status_event(
+        self, session, task, status: str, error_message: str | None = None,
+    ) -> None:
         """终态写 task.status_changed outbox 事件 (与状态变更同事务, 失败不阻断主流程)。"""
         try:
             self._outbox.record(
@@ -151,14 +153,14 @@ class TaskDispatcher:
         count = 0
         requeue_ids: list[int] = []
         with self._db_factory() as session:
+            orphan_msg = "orphaned (scheduler restart)"
             orphans = task_request_crud.find_orphan_running(session, threshold_seconds)
             for obj in orphans:
-                failed = task_request_crud.mark_failed(
-                    session, obj.id, error_message="orphaned (scheduler restart)",
-                )
-                self._record_status_event(session, failed, "FAILED", "orphaned (scheduler restart)")
+                failed = task_request_crud.mark_failed(session, obj.id, error_message=orphan_msg)
+                self._record_status_event(session, failed, "FAILED", orphan_msg)
                 count += 1
-            requeue_ids = [obj.id for obj in task_request_crud.find_orphan_pending(session, threshold_seconds)]
+            pending = task_request_crud.find_orphan_pending(session, threshold_seconds)
+            requeue_ids = [obj.id for obj in pending]
             session.commit()
         for task_id in requeue_ids:
             self._redis.lpush(self._queue_key, json.dumps({"task_id": task_id}))

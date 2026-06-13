@@ -4,8 +4,8 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from src.app import app
-from src.db.session import get_db
 from src.common.enums import TradingMode
+from src.db.session import get_db
 
 
 class DummyDB:

@@ -13,19 +13,18 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.services.risk.kill_switch import KillSwitchService
+from src.common.enums import PositionStatus
+from src.core.exchange.adapter import ExchangeAdapter
+from src.models.position import Position
+from src.models.risk_event import RiskEvent
 from src.services.events.contracts import (
     CircuitBreakerTriggered,
     PositionUpdated,
-    RiskEventTriggered,
 )
 from src.services.events.outbox import OutboxWriter
 from src.services.execution.account_state import AccountStateService
-from src.core.exchange.adapter import ExchangeAdapter
 from src.services.execution.order_executor import OrderExecutor
-from src.common.enums import PositionStatus
-from src.models.position import Position
-from src.models.risk_event import RiskEvent
+from src.services.risk.kill_switch import KillSwitchService
 
 logger = logging.getLogger(__name__)
 

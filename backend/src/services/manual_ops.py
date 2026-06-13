@@ -18,15 +18,15 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.services.events.contracts import ManualOverride
-from src.services.events.outbox import OutboxWriter
-from src.core.exchange.adapter import ExchangeAdapter
-from src.services.execution.order_executor import OrderExecutor
 from src.common.enums import PositionStatus
+from src.core.exchange.adapter import ExchangeAdapter
 from src.models.audit_log import AuditLog
 from src.models.position import Position
 from src.models.risk_event import RiskEvent
 from src.models.trade import Trade
+from src.services.events.contracts import ManualOverride
+from src.services.events.outbox import OutboxWriter
+from src.services.execution.order_executor import OrderExecutor
 
 logger = logging.getLogger(__name__)
 

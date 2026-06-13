@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import os
-
 from datetime import datetime, timedelta, timezone
 from typing import Literal
 
@@ -10,11 +9,11 @@ import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from src.services.events.outbox import OutboxWriter
 from src.core.exchange.adapter import ExchangeAdapter
 from src.core.exchange.types import Kline, OrderRequest, OrderResult, Ticker
-from src.services.execution.market_data import MarketDataService
 from src.models import Base, Candle, EventOutbox
+from src.services.events.outbox import OutboxWriter
+from src.services.execution.market_data import MarketDataService
 
 
 @pytest.fixture

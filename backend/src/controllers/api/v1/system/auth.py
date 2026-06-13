@@ -4,13 +4,16 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Request
+from sqlalchemy.orm import Session
+
 from src.common.api_response import api_response
 from src.common.exception.errors import ServiceException
 from src.common.response.response_code import ErrorCode
-from sqlalchemy.orm import Session
-
+from src.configs.app_configs import get_app_config as get_base_settings
 from src.controllers.dependencies import get_current_user
 from src.controllers.rate_limit import login_email_limiter, login_ip_limiter
+from src.db.session import get_db
+from src.models.user import User
 from src.schemas.auth import AuthLoginCreate, UserRegisterCreate
 from src.services.auth import (
     create_access_token,
@@ -18,9 +21,6 @@ from src.services.auth import (
     hash_password,
     verify_password,
 )
-from src.configs.app_configs import get_app_config as get_base_settings
-from src.db.session import get_db
-from src.models.user import User
 
 # 用于 timing-equal: user 不存在时也跑一次 verify_password 让响应时延一致,
 # 防止 attacker 通过响应时延差推断 email 是否注册.

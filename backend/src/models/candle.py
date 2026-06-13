@@ -1,8 +1,10 @@
 ﻿from datetime import datetime
-from sqlalchemy import BigInteger, String, Numeric, DateTime, Index
+
+from sqlalchemy import BigInteger, DateTime, Index, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
-from src.models.base import Base
+
 from src.common.enums import TradingMode
+from src.models.base import Base
 
 
 class Candle(Base):

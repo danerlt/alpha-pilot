@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import os
-
 from datetime import datetime, timedelta, timezone
 
 import pandas as pd
@@ -10,13 +9,11 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
+from src.models import Base, Candle
 from src.services.insight.indicators.computer import (
     IndicatorComputer,
-    IndicatorValues,
     _compute_from_df,
 )
-from src.models import Base, Candle
-
 
 # ---------------------------------------------------------------------------
 # Pure-function tests — no DB required

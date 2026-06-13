@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import logging
 import threading
-import time
 
 from src.configs import get_app_config
 from src.db.engines import get_engine

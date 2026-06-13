@@ -2,19 +2,18 @@
 from __future__ import annotations
 
 import os
-
 from datetime import datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
+from src.models import AuditLog, Base, RiskEvent
 from src.services.risk.kill_switch import (
     ACTIVE,
-    KillSwitchService,
     PAUSED,
+    KillSwitchService,
 )
-from src.models import AuditLog, Base, RiskEvent
 
 
 @pytest.fixture

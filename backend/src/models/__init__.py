@@ -1,10 +1,10 @@
 """ORM models 集中导出（alembic metadata 收集 + IDE 跳转友好）。"""
-from src.models.base import Base, TradingModeMixin
 from src.models.account import AccountSnapshot
 from src.models.account_entity import Account, ParameterVersion, RiskProfile
 from src.models.agent_invocation import AgentInvocation
 from src.models.attribution import StrategyScore, TradeAttribution
 from src.models.audit_log import AuditLog
+from src.models.base import Base, TradingModeMixin
 from src.models.candle import Candle
 from src.models.decision import AIDecision
 from src.models.decision_review import DecisionReview

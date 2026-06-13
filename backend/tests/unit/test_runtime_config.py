@@ -1,5 +1,11 @@
 ﻿import os
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
 from src.common.enums import TradingMode
+from src.models.base import Base
+from src.models.system_setting import SystemSetting
 from src.services.system.runtime_config import (
     BINANCE_MAINNET_API_KEY,
     BINANCE_MAINNET_API_SECRET,
@@ -10,10 +16,6 @@ from src.services.system.runtime_config import (
     get_runtime_config_manager,
     upsert_system_setting,
 )
-from src.models.base import Base
-from src.models.system_setting import SystemSetting
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 
 def test_upsert_secret_setting_encrypts_value():
@@ -39,7 +41,6 @@ def test_upsert_secret_setting_encrypts_value():
 
 
 
-import pytest
 
 
 def test_refresh_applies_active_mode_credentials_and_risk_overrides():

@@ -1,8 +1,8 @@
 """CRUD for src.models.system_setting."""
 from __future__ import annotations
 
-from src.models.system_setting import SystemSetting
 from src.cruds.base_crud import BaseCrud
+from src.models.system_setting import SystemSetting
 
 
 class SystemSettingCrud(BaseCrud[SystemSetting]):

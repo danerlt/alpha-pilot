@@ -6,18 +6,19 @@ require_admin / get_adapter, 不再各自重复实现。
 from __future__ import annotations
 
 from fastapi import Depends, Header, Request
-from src.common.exception.errors import ServiceException
-from src.common.response.response_code import ErrorCode
 from sqlalchemy.orm import Session
 
+from src.common.enums import TradingMode
+from src.common.exception.errors import ServiceException
+from src.common.response.response_code import ErrorCode
+from src.configs.app_configs import get_app_config as get_base_settings
+from src.configs.app_configs import get_settings
 from src.core.exchange.binance_adapter import BinanceAdapter
+from src.db.session import get_db
 from src.services.auth import (
     decode_access_token,
     ensure_user_is_active,
 )
-from src.configs.app_configs import get_app_config as get_base_settings, get_settings
-from src.db.session import get_db
-from src.common.enums import TradingMode
 
 
 def extract_bearer_token(authorization: str | None) -> str:

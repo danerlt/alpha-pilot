@@ -15,10 +15,10 @@ from typing import Optional
 from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
-from src.services.events.contracts import CandleClosed
-from src.services.events.outbox import OutboxWriter
 from src.core.exchange.adapter import ExchangeAdapter
 from src.models.candle import Candle
+from src.services.events.contracts import CandleClosed
+from src.services.events.outbox import OutboxWriter
 
 logger = logging.getLogger(__name__)
 

@@ -1,18 +1,17 @@
 """Tests for AITraderPipeline — end-to-end orchestration with mock LLM."""
 from __future__ import annotations
 
-import os
-
 import json
+import os
 
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from src.services.insight.experience.retriever import ExperienceRetriever
-from src.models import AIDecision, Base, DecisionReview, PromptTemplate
-from src.services.strategy.decision_solver import DecisionSolver
 from src.core.llm.client import MockLLMClient
+from src.models import AIDecision, Base, DecisionReview, PromptTemplate
+from src.services.insight.experience.retriever import ExperienceRetriever
+from src.services.strategy.decision_solver import DecisionSolver
 from src.services.strategy.pipeline import AITraderPipeline, PipelineInput
 from src.services.strategy.prompt_composer import PromptComposer
 from src.services.strategy.review_critic import ReviewCritic

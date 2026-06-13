@@ -20,7 +20,6 @@ from dataclasses import dataclass
 import pandas as pd
 import pandas_ta as ta
 
-
 # EMA200 至少要 200 行; +10 缓冲做 indicator warm-up
 MIN_CANDLES_FOR_FULL_INDICATORS = 210
 

@@ -5,8 +5,7 @@ from fastapi import APIRouter
 from fastapi.responses import RedirectResponse
 
 from src.common.api_response import api_response
-from src.configs.app_configs import get_settings
-from src.configs.app_configs import get_runtime_credential_status
+from src.configs.app_configs import get_runtime_credential_status, get_settings
 
 router = APIRouter()
 

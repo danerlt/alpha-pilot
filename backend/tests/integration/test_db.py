@@ -1,5 +1,5 @@
 import pytest
-from sqlalchemy import text, create_engine
+from sqlalchemy import create_engine, text
 from testcontainers.postgres import PostgresContainer
 
 

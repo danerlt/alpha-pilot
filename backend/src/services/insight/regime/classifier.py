@@ -34,7 +34,6 @@ from sqlalchemy.orm import Session
 
 from src.models.regime import RegimeSnapshot
 
-
 RegimeType = Literal["trending_up", "trending_down", "ranging", "chaotic"]
 
 

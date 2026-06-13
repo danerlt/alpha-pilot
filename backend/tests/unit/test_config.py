@@ -1,6 +1,5 @@
-﻿import pytest
+﻿from src.common.enums import Action, GuardResult, RegimeType, TradingMode
 from src.configs.app_configs import AppConfig as Settings
-from src.common.enums import TradingMode, Action, EntryType, StrategyMode, RegimeType, GuardResult
 
 
 def test_settings_defaults():

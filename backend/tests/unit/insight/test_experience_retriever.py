@@ -2,15 +2,14 @@
 from __future__ import annotations
 
 import os
-
 from datetime import datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from src.services.insight.experience.retriever import ExperienceRetriever, ExperienceSummary
 from src.models import Base, ExperienceV2
+from src.services.insight.experience.retriever import ExperienceRetriever, ExperienceSummary
 
 
 @pytest.fixture

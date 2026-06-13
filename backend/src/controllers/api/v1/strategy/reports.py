@@ -8,11 +8,11 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from src.common.api_response import api_response
-from src.controllers.dependencies import get_current_user, require_admin
-from src.services.reporting.reporter import generate_daily_report
 from src.configs.app_configs import get_settings
+from src.controllers.dependencies import get_current_user, require_admin
 from src.db.session import get_db
 from src.models.report import DailyReport
+from src.services.reporting.reporter import generate_daily_report
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 

@@ -15,6 +15,16 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.common.enums import OrderStatus, PositionStatus
+from src.core.exchange.adapter import ExchangeAdapter
+from src.core.exchange.retry import (
+    ExchangeTemporarilyUnavailable,
+    PermanentExchangeError,
+)
+from src.core.exchange.types import OrderRequest
+from src.models.order import Order
+from src.models.position import Position
+from src.models.trade import Trade
 from src.services.events.contracts import (
     OrderFailed,
     OrderFilled,
@@ -24,23 +34,14 @@ from src.services.events.contracts import (
     TradeClosed,
 )
 from src.services.events.outbox import OutboxWriter
-from src.core.exchange.adapter import ExchangeAdapter
-from src.utils.datetime import ensure_aware
-from src.core.exchange.retry import (
-    ExchangeTemporarilyUnavailable,
-    PermanentExchangeError,
-)
-from src.core.exchange.types import OrderRequest
-from src.common.enums import OrderStatus, PositionStatus
-from src.models.order import Order
-from src.models.position import Position
-from src.models.trade import Trade
 from src.services.strategy.proposal import DecisionProposal
+from src.utils.datetime import ensure_aware
 
 logger = logging.getLogger(__name__)
 
 
 from src.core.trace.trace_id import generate_trace_id as make_trace_id  # noqa: E402, F401
+
 # (保留 make_trace_id 名作为向后兼容别名; 新代码直接 from src.core.trace.trace_id import generate_trace_id)
 
 

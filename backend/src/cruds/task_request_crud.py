@@ -61,7 +61,9 @@ class TaskRequestCrud(BaseCrud[TaskRequest]):
         session.flush()
         return obj
 
-    def find_orphan_running(self, session: Session, threshold_seconds: int = 300) -> list[TaskRequest]:
+    def find_orphan_running(
+        self, session: Session, threshold_seconds: int = 300,
+    ) -> list[TaskRequest]:
         cutoff = datetime.now(timezone.utc) - timedelta(seconds=threshold_seconds)
         return list(
             session.execute(
@@ -72,7 +74,9 @@ class TaskRequestCrud(BaseCrud[TaskRequest]):
             ).scalars()
         )
 
-    def find_orphan_pending(self, session: Session, threshold_seconds: int = 300) -> list[TaskRequest]:
+    def find_orphan_pending(
+        self, session: Session, threshold_seconds: int = 300,
+    ) -> list[TaskRequest]:
         """入队超过 threshold 仍 PENDING 的任务 (enqueue 写库成功但 LPUSH 丢失的场景)。"""
         cutoff = datetime.now(timezone.utc) - timedelta(seconds=threshold_seconds)
         return list(

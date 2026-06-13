@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import os
-
 from datetime import datetime, timezone
 
 import pytest
@@ -66,14 +65,15 @@ def test_catchup_requires_authentication():
 
 def _seed(session, n: int = 5):
     """种子 n 条已 published 的 outbox 行, event_id 用 UUIDv7 时间序。"""
-    from src.services.events.ids import new_event_id
     import time
+
+    from src.services.events.ids import new_event_id
     rows = []
     for i in range(n):
         eid = new_event_id()
         rows.append(EventOutbox(
             aggregate_type="position", aggregate_id=i + 1,
-            event_type=f"position.opened",
+            event_type="position.opened",
             event_id=eid,
             payload_json={"event_id": eid, "test_index": i},
             published_at=datetime.now(tz=timezone.utc),

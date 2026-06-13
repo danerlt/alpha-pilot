@@ -1,12 +1,13 @@
 from __future__ import annotations
+
 import os
 
 import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from src.services.events.inbox import InboxGuard
 from src.models import Base, EventInbox
+from src.services.events.inbox import InboxGuard
 
 
 @pytest.fixture

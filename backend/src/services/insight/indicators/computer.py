@@ -29,6 +29,8 @@ from sqlalchemy.orm import Session
 from src.core.indicators.calculators import (
     MIN_CANDLES_FOR_FULL_INDICATORS,
     IndicatorValues,
+)
+from src.core.indicators.calculators import (
     compute_indicators as _compute_from_df,
 )
 from src.models.candle import Candle

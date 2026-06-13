@@ -7,10 +7,10 @@ import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from src.services.insight.experience.retriever import ExperienceSummary
 from src.models import AIDecision, Base, DecisionReview
-from src.services.strategy.review_critic import ReviewCritic
+from src.services.insight.experience.retriever import ExperienceSummary
 from src.services.strategy.proposal import DecisionProposal
+from src.services.strategy.review_critic import ReviewCritic
 
 
 @pytest.fixture

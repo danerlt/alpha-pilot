@@ -1,17 +1,16 @@
 """Tests for DecisionSolver — parse + validate + persist + fallback HOLD."""
 from __future__ import annotations
 
+import json
 import os
 
-import json
-
 import pytest
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
+from src.core.llm.client import MockLLMClient
 from src.models import AIDecision, Base
 from src.services.strategy.decision_solver import DecisionSolver
-from src.core.llm.client import MockLLMClient
 from src.services.strategy.prompt_composer import PromptBundle
 
 

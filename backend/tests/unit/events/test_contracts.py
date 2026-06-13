@@ -7,20 +7,8 @@ import pytest
 from src.services.events.contracts import (
     EVENT_TYPE_REGISTRY,
     CandleClosed,
-    CircuitBreakerTriggered,
     DecisionProposed,
-    DecisionRejected,
-    DecisionReviewed,
     EventEnvelope,
-    IndicatorsComputed,
-    OrderFailed,
-    OrderFilled,
-    OrderSubmitted,
-    PositionClosed,
-    PositionOpened,
-    PositionUpdated,
-    RegimeClassified,
-    RiskEventTriggered,
     TradeClosed,
 )
 from src.services.events.ids import new_event_id

@@ -1,8 +1,8 @@
 """CRUD for src.models.position."""
 from __future__ import annotations
 
-from src.models.position import Position
 from src.cruds.base_crud import BaseCrud
+from src.models.position import Position
 
 
 class PositionCrud(BaseCrud[Position]):

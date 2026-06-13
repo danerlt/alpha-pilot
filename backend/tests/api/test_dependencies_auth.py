@@ -74,8 +74,8 @@ def test_jwt_with_wrong_signature_returns_401(client):
 
 def test_jwt_with_non_int_sub_returns_401(client):
     """sub 不是数字串时 int(user_id) 会抛 ValueError, 必须 401 不能 500."""
-    from src.services.auth import create_access_token
     from src.configs.app_configs import get_app_config as get_base_settings
+    from src.services.auth import create_access_token
     bad_sub_token = create_access_token(
         subject="not-a-number", role="user",
         secret_key=get_base_settings().APP_AUTH_SECRET_KEY,

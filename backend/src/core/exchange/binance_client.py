@@ -6,9 +6,9 @@ from functools import lru_cache
 from typing import Any
 
 from binance.client import Client
-from src.configs.app_configs import get_settings
-from src.configs.app_configs import can_call_binance, get_runtime_credential_status
+
 from src.common.enums import TradingMode
+from src.configs.app_configs import can_call_binance, get_runtime_credential_status, get_settings
 
 logger = logging.getLogger(__name__)
 

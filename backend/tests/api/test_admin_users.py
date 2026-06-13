@@ -1,12 +1,13 @@
 ﻿import os
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.app import app
-from src.db.session import get_db
 from src.common.enums import UserRole, UserStatus
+from src.db.session import get_db
 from src.models.audit_log import AuditLog
 from src.models.base import Base
 from src.models.user import User

@@ -30,7 +30,12 @@ import pandas as pd
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.services.risk.kill_switch import KillSwitchService
+from src.common.enums import PositionStatus
+from src.core.exchange.adapter import ExchangeAdapter
+from src.core.llm.client import LLMClient
+from src.models.account_entity import RiskProfile
+from src.models.candle import Candle
+from src.models.position import Position
 from src.services.events.contracts import (
     DecisionProposed,
     FactorsUpdated,
@@ -39,7 +44,6 @@ from src.services.events.contracts import (
 )
 from src.services.events.outbox import OutboxWriter
 from src.services.execution.account_state import AccountStateService
-from src.core.exchange.adapter import ExchangeAdapter
 from src.services.execution.execution_guard import ExecutionGuard
 from src.services.execution.market_data import MarketDataService
 from src.services.execution.order_executor import OrderExecutor
@@ -47,12 +51,8 @@ from src.services.insight.experience.retriever import ExperienceRetriever
 from src.services.insight.factors.computer import FactorComputer
 from src.services.insight.indicators.computer import IndicatorComputer
 from src.services.insight.regime.classifier import RegimeClassifier
-from src.common.enums import PositionStatus
-from src.models.account_entity import RiskProfile
-from src.models.candle import Candle
-from src.models.position import Position
+from src.services.risk.kill_switch import KillSwitchService
 from src.services.strategy.decision_solver import DecisionSolver
-from src.core.llm.client import LLMClient
 from src.services.strategy.pipeline import AITraderPipeline, PipelineInput
 from src.services.strategy.prompt_composer import PromptComposer
 from src.services.strategy.review_critic import ReviewCritic

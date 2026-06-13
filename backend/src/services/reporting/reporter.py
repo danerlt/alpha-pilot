@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, timezone
+from datetime import date
 
-from sqlalchemy import cast, Date, func
+from sqlalchemy import Date, cast, func
 from sqlalchemy.orm import Session
 
 from src.configs.app_configs import get_settings

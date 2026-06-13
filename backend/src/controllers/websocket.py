@@ -12,14 +12,14 @@ import json
 import logging
 
 import redis.asyncio as aioredis
-from fastapi import WebSocket, WebSocketDisconnect, WebSocketException, status
+from fastapi import WebSocket, WebSocketDisconnect, WebSocketException
 from sqlalchemy import select
 
-from src.services.auth import decode_access_token, ensure_user_is_active
-from src.services.ws_manager import ws_manager as manager
 from src.configs.app_configs import get_app_config as get_base_settings
 from src.db.engines import get_session_factory
 from src.models.event_store import EventOutbox
+from src.services.auth import decode_access_token
+from src.services.ws_manager import ws_manager as manager
 
 logger = logging.getLogger(__name__)
 

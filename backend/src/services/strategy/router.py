@@ -7,7 +7,6 @@ particular input went to a particular adapter.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
 from typing import Protocol
 
 from sqlalchemy.orm import Session

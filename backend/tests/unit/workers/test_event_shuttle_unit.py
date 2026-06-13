@@ -6,16 +6,15 @@
 from __future__ import annotations
 
 import os
-
 from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
+from src.models import Base, EventOutbox
 from src.services.events.contracts import EventEnvelope
 from src.services.events.ids import new_event_id
-from src.models import Base, EventOutbox
 from src.workers.event_shuttle import DEFAULT_MAX_FAILED_ATTEMPTS, EventShuttle
 
 

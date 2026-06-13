@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import os
-
 from datetime import datetime, timezone
 from decimal import Decimal
 
@@ -10,10 +9,10 @@ import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from src.services.execution.execution_guard import ExecutionGuard, GuardDecision
 from src.common.enums import PositionStatus
 from src.models import Base, Position, RiskEvent, Trade
 from src.models.account_entity import RiskProfile
+from src.services.execution.execution_guard import ExecutionGuard
 from src.services.strategy.proposal import DecisionProposal
 
 

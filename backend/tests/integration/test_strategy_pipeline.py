@@ -6,9 +6,8 @@ ai_decisions / orders / positions / decision_reviews / proposal_drafts 均有
 """
 from __future__ import annotations
 
-import os
-
 import json
+import os
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Literal
@@ -19,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from src.core.exchange.adapter import ExchangeAdapter
 from src.core.exchange.types import Kline, OrderRequest, OrderResult, Ticker
+from src.core.llm.client import MockLLMClient
 from src.models import (
     AIDecision,
     Base,
@@ -27,12 +27,11 @@ from src.models import (
     IndicatorSnapshot,
     Order,
     Position,
-    ProposalDraft,
     PromptTemplate,
+    ProposalDraft,
     RegimeSnapshot,
 )
 from src.models.account_entity import RiskProfile
-from src.core.llm.client import MockLLMClient
 from src.workers.strategy_pipeline import run_strategy_pipeline_once
 
 
@@ -150,8 +149,8 @@ def test_pipeline_skips_decision_proposed_for_review_fallback(session, profile):
     """post-Plan5 codereview Risk #2: review reject → fallback HOLD 时, 不应 publish
     DecisionProposed (event.action=HOLD vs ai_decisions.action=OPEN_LONG 会矛盾).
     review fail 信号通过 Guard 的 decision.rejected 已经覆盖."""
-    from src.services.events.outbox import OutboxWriter
     from src.models.event_store import EventOutbox
+    from src.services.events.outbox import OutboxWriter
 
     adapter = _PipelineAdapter()
     # OPEN_LONG + chaotic regime (但这里 regime_classifier 自动算; 我们用
@@ -184,8 +183,8 @@ def test_pipeline_skips_decision_proposed_for_review_fallback(session, profile):
 def test_pipeline_records_outbox_events_when_outbox_present(session, profile):
     """传 OutboxWriter 后, 关键阶段应该 publish:
     indicators.computed / factors.updated / regime.classified / decision.proposed."""
-    from src.services.events.outbox import OutboxWriter
     from src.models.event_store import EventOutbox
+    from src.services.events.outbox import OutboxWriter
 
     adapter = _PipelineAdapter(ticker_price=50_000.0, fill_price=50_000.0)
     llm = MockLLMClient(canned_response=VALID_OPEN_LONG)

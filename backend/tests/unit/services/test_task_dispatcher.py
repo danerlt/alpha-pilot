@@ -8,7 +8,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from src.cruds.task_request_crud import task_request_crud
 from src.models.task_request import TaskRequest
 from src.services.task_dispatcher import HANDLERS, TaskDispatcher, register_handler
 

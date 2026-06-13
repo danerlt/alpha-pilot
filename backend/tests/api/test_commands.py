@@ -2,25 +2,22 @@
 from __future__ import annotations
 
 import os
-
 from datetime import datetime, timezone
 
 import pytest
 from fastapi.testclient import TestClient
-
-from src.app import app
-from src.db.engines import get_session_factory
-from src.db.session import get_db
-from src.common.enums import PositionStatus
-from src.models import Base, Position, RiskEvent
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
+
+from src.app import app
+from src.common.enums import PositionStatus
+from src.db.session import get_db
+from src.models import Base, Position, RiskEvent
 
 
 @pytest.fixture
 def client():
     # SQLite in-memory + StaticPool 让多 session 共享同一个连接 (否则 :memory: 各自隔离)
-    from sqlalchemy.pool import StaticPool
     engine = create_engine(
         os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:"),
     )
@@ -36,6 +33,7 @@ def client():
 
     # 鉴权 mock: 测试中绕过 JWT 解码, 注入 admin user.
     from types import SimpleNamespace
+
     from src.controllers.dependencies import require_admin
     app.dependency_overrides[require_admin] = lambda: SimpleNamespace(
         id=1, username="admin_test", role="admin", status="active",
@@ -68,6 +66,7 @@ def client():
     # close-all 走异步入队: 注入绑定测试 engine 的 dispatcher + MagicMock redis
     import contextlib
     from unittest.mock import MagicMock
+
     from src.services.task_dispatcher import TaskDispatcher
 
     @contextlib.contextmanager
@@ -168,6 +167,7 @@ def test_resolve_breaker_emits_manual_override_event(client):
     """Critical fix (post Plan5 minor): commands router 必须传 outbox 给
     ManualOpsService, 否则 manual.override 事件丢失."""
     from sqlalchemy import select
+
     from src.models.event_store import EventOutbox
 
     cli, engine = client
@@ -197,6 +197,7 @@ def test_resolve_breaker_emits_manual_override_event(client):
 def test_close_all_async_chain_emits_events(client, monkeypatch):
     """close-all 全链路: 入队 → dispatcher 执行 → manual.override + task.status_changed 事件。"""
     from sqlalchemy import select
+
     from src.controllers.api.v1.risk import commands as commands_module
     from src.models.event_store import EventOutbox
     from src.models.task_request import TaskRequest

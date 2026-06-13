@@ -7,12 +7,12 @@ import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
+from src.models import Base, PromptTemplate, ProposalDraft
 from src.services.strategy.prompt_composer import (
     PromptComposer,
     PromptContext,
     PromptTemplateNotFound,
 )
-from src.models import Base, ProposalDraft, PromptTemplate
 
 
 @pytest.fixture

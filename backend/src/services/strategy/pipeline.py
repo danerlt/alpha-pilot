@@ -21,7 +21,7 @@ Stage summary:
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
@@ -32,8 +32,8 @@ from src.services.strategy.prompt_composer import (
     PromptContext,
     PromptTemplateNotFound,
 )
-from src.services.strategy.review_critic import ReviewCritic
 from src.services.strategy.proposal import DecisionProposal
+from src.services.strategy.review_critic import ReviewCritic
 
 logger = logging.getLogger(__name__)
 

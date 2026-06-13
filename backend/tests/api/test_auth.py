@@ -3,17 +3,18 @@ post-Plan5 安全审计 C5: 公开 register 已禁用, 改为预先在 DB seed a
 然后测 login + me. register 端点测试改为验证它返 403.
 """
 import os
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.app import app
-from src.services.auth import hash_password
-from src.db.session import get_db
 from src.common.enums import UserRole, UserStatus
+from src.db.session import get_db
 from src.models.base import Base
 from src.models.user import User
+from src.services.auth import hash_password
 
 
 @pytest.fixture

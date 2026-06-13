@@ -1,15 +1,15 @@
 from __future__ import annotations
-import os
 
+import os
 from datetime import datetime, timezone
 
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
+from src.models import Base, EventOutbox
 from src.services.events.contracts import CandleClosed
 from src.services.events.outbox import OutboxWriter
-from src.models import Base, EventOutbox
 
 
 @pytest.fixture
