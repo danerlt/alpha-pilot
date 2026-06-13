@@ -9,6 +9,7 @@ import { apiRequest, buildAuthHeaders } from '@/lib/api'
 interface AuditLogItem {
   id: number
   user_id: number | null
+  actor: string | null
   action: string
   resource_type: string
   resource_id: string | null
@@ -17,6 +18,12 @@ interface AuditLogItem {
   ip: string | null
   user_agent: string | null
   created_at: string | null
+}
+
+function actorLabel(item: AuditLogItem) {
+  if (item.actor) return item.actor
+  if (item.user_id != null) return `#${item.user_id}`
+  return '—'
 }
 
 function fmtTime(iso: string | null) {
@@ -64,7 +71,7 @@ export default function AdminAuditLogsPage() {
   const filteredItems = useMemo(() => {
     const keyword = query.trim().toLowerCase()
     return items.filter((item) => {
-      const matchesKeyword = !keyword || [item.action, item.resource_type, item.resource_id || '', item.user_id || '', summarizeChange(item)]
+      const matchesKeyword = !keyword || [item.action, item.resource_type, item.resource_id || '', item.actor || '', item.user_id || '', summarizeChange(item)]
         .join(' ')
         .toLowerCase()
         .includes(keyword)
@@ -146,7 +153,7 @@ export default function AdminAuditLogsPage() {
                       <strong>{item.resource_type}</strong>
                       <div className="currencyMeta">ID: {item.resource_id || '—'}</div>
                     </td>
-                    <td>#{item.user_id ?? '—'}</td>
+                    <td>{actorLabel(item)}</td>
                     <td>{summarizeChange(item)}</td>
                     <td>{item.ip || 'system'}</td>
                   </tr>
@@ -167,7 +174,7 @@ export default function AdminAuditLogsPage() {
                 </div>
                 <div className="adminMobileMeta">
                   <span>资源 ID：{item.resource_id || '—'}</span>
-                  <span>操作人：#{item.user_id ?? '—'}</span>
+                  <span>操作人：{actorLabel(item)}</span>
                   <span>字段摘要：{summarizeChange(item)}</span>
                   <span>来源：{item.ip || 'system'}</span>
                 </div>

@@ -3,6 +3,13 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from '@/components/auth-provider'
+import {
+  apiRequest,
+  buildAuthHeaders,
+  manualCloseAll,
+  manualClosePosition,
+  resolveBreaker,
+} from '@/lib/api'
 import styles from './page.module.css'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -108,23 +115,6 @@ interface RuntimeConfigForm {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || '/api'
 
-async function fetchJson<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, { cache: 'no-store' })
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  return res.json()
-}
-
-async function postJson<T>(path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: 'POST',
-    cache: 'no-store',
-    headers: body ? { 'Content-Type': 'application/json' } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
-  })
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  return res.json()
-}
-
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleString('zh-CN', { hour12: false })
 }
@@ -178,18 +168,31 @@ export default function Home() {
   const [resolvingId, setResolvingId] = useState<number | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
 
+  const token = session?.token
+  const isAdmin = session?.user.role === 'admin'
+
   const loadData = useCallback(async () => {
+    // 所有数据端点都要 JWT (get_current_user); 未登录时不发请求, 由下方 !session 分支引导登录
+    if (!token) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
     setError(null)
+    const authHeaders = buildAuthHeaders(token, false)
     try {
+      // health 无需鉴权但统一走 envelope; 其余端点带 token
       const [h, a, p, t, d, r, c] = await Promise.all([
-        fetchJson<HealthData>('/health'),
-        fetchJson<AccountData>('/account').catch(() => null),
-        fetchJson<Position[]>('/positions').catch(() => []),
-        fetchJson<Trade[]>('/trades?limit=20').catch(() => []),
-        fetchJson<Decision[]>('/decisions?limit=20').catch(() => []),
-        fetchJson<RiskEvent[]>('/risk-events?limit=20').catch(() => []),
-        fetchJson<RuntimeConfig>('/config/runtime').catch(() => null),
+        apiRequest<HealthData>('/health', { skipAuthRedirect: true }),
+        apiRequest<AccountData>('/account', { headers: authHeaders }).catch(() => null),
+        apiRequest<Position[]>('/positions', { headers: authHeaders }).catch(() => []),
+        apiRequest<Trade[]>('/trades?limit=20', { headers: authHeaders }).catch(() => []),
+        apiRequest<Decision[]>('/decisions?limit=20', { headers: authHeaders }).catch(() => []),
+        apiRequest<RiskEvent[]>('/risk-events?limit=20', { headers: authHeaders }).catch(() => []),
+        // runtime config 仅 admin 可读; 普通用户 403, 吞成 null
+        isAdmin
+          ? apiRequest<RuntimeConfig>('/config/runtime', { headers: authHeaders }).catch(() => null)
+          : Promise.resolve(null),
       ])
       setHealth(h)
       setAccount(a)
@@ -210,7 +213,7 @@ export default function Home() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [token, isAdmin])
 
   // WebSocket setup
   useEffect(() => {
@@ -265,9 +268,10 @@ export default function Home() {
   const envBasePath = process.env.NEXT_PUBLIC_BASE_PATH || 'local'
   const env = getEnvLabel(envBasePath)
   const prodLike = isProductionEnv(envBasePath, health?.trading_mode)
-  const isAdmin = session?.user.role === 'admin'
+  const tradingMode = health?.trading_mode || 'testnet'
 
   const handleClosePosition = async (id: number, symbol: string) => {
+    if (!token) return
     const confirmed = confirm(
       prodLike
         ? `⚠️ 当前为高风险环境（${health?.trading_mode?.toUpperCase() || env.toUpperCase()}）。确认手动平仓 ${symbol}？`
@@ -277,7 +281,7 @@ export default function Home() {
 
     setClosingId(id)
     try {
-      await postJson(`/positions/${id}/close`)
+      await manualClosePosition(token, id, 'ui_manual_close')
       await loadData()
     } catch (e) {
       alert(`平仓失败: ${e instanceof Error ? e.message : e}`)
@@ -287,6 +291,7 @@ export default function Home() {
   }
 
   const handleCloseAll = async () => {
+    if (!token) return
     const firstConfirm = confirm(
       prodLike
         ? '⚠️ 当前为高风险环境。确认一键平仓所有持仓？此操作不可撤销。'
@@ -304,17 +309,20 @@ export default function Home() {
 
     setClosingAll(true)
     try {
-      const result = await postJson<{ count: number }>('/positions/close-all')
-      alert(`已平仓 ${result.count} 个持仓`)
-      await loadData()
+      // close-all 已切异步: 立即返回 task_id, 实际平仓由 scheduler 执行, 结果走 WS / 刷新可见
+      const result = await manualCloseAll(token, 'ui_close_all', 1, tradingMode)
+      alert(`一键平仓任务已提交（#${result.task_id}）。执行结果将通过实时事件与下次刷新显示。`)
+      // 稍后刷新一次, 给 scheduler 消费留时间; WS 的 position_closed / task.status_changed 也会触发刷新
+      setTimeout(() => { void loadData() }, 2000)
     } catch (e) {
-      alert(`平仓失败: ${e instanceof Error ? e.message : e}`)
+      alert(`提交一键平仓失败: ${e instanceof Error ? e.message : e}`)
     } finally {
       setClosingAll(false)
     }
   }
 
   const handleResolveRisk = async (id: number, description: string) => {
+    if (!token) return
     const confirmed = confirm(
       prodLike
         ? `⚠️ 当前为高风险环境。确认解除该风控事件？\n${description}`
@@ -324,7 +332,7 @@ export default function Home() {
 
     setResolvingId(id)
     try {
-      await postJson(`/risk-events/${id}/resolve`)
+      await resolveBreaker(token, id, 'ui_resolve')
       await loadData()
     } catch (e) {
       alert(`解除失败: ${e instanceof Error ? e.message : e}`)
@@ -338,6 +346,7 @@ export default function Home() {
   }
 
   const handleSaveRuntimeConfig = async () => {
+    if (!token) return
     const switchingToMainnet = configForm.trading_mode === 'mainnet' && runtimeConfig?.trading_mode !== 'mainnet'
     if (switchingToMainnet) {
       const confirmed = confirm('⚠️ 你正在切换到 MAINNET。请确认主网 API Key 已正确配置，并了解这可能影响真实交易。')
@@ -355,7 +364,11 @@ export default function Home() {
       if (configForm.binance_mainnet_api_key.trim()) payload.binance_mainnet_api_key = configForm.binance_mainnet_api_key.trim()
       if (configForm.binance_mainnet_api_secret.trim()) payload.binance_mainnet_api_secret = configForm.binance_mainnet_api_secret.trim()
 
-      const updated = await postJson<RuntimeConfig>('/config/runtime', payload)
+      const updated = await apiRequest<RuntimeConfig>('/config/runtime', {
+        method: 'POST',
+        headers: buildAuthHeaders(token, true),
+        body: JSON.stringify(payload),
+      })
       setRuntimeConfig(updated)
       setConfigForm((prev) => ({
         ...prev,
@@ -396,8 +409,8 @@ export default function Home() {
           <p>这一版先把用户能看见、能点击、能记住登录态的页面体验搭起来，交易高风险逻辑保持不动。</p>
           <div className="adminHeroActions">
             <Link href="/login" className="shellPrimaryButton">去登录</Link>
-            <Link href="/register" className="shellGhostButton">注册新账号</Link>
           </div>
+          <p className="authHint">AlphaPilot 暂不开放公开注册，账号请联系系统管理员在后台创建。</p>
         </section>
       </main>
     )
@@ -623,9 +636,9 @@ export default function Home() {
             <h2 className={styles.cardTitle}>
               当前持仓 <span className={styles.badge}>{positions.length}</span>
             </h2>
-            {positions.length > 0 && (
+            {positions.length > 0 && isAdmin && (
               <button className={styles.dangerBtn} onClick={handleCloseAll} disabled={closingAll}>
-                {closingAll ? '平仓中…' : '一键平仓'}
+                {closingAll ? '提交中…' : '一键平仓'}
               </button>
             )}
           </div>
@@ -638,7 +651,7 @@ export default function Home() {
                 <thead>
                   <tr>
                     <th>币种</th><th>数量</th><th>开仓价</th><th>现价</th>
-                    <th>止损</th><th>止盈</th><th>未实现盈亏</th><th>操作</th>
+                    <th>止损</th><th>止盈</th><th>未实现盈亏</th>{isAdmin && <th>操作</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -655,15 +668,17 @@ export default function Home() {
                         {p.unrealized_pnl.toFixed(4)}
                         <small> ({(p.unrealized_pnl_pct * 100).toFixed(2)}%)</small>
                       </td>
-                      <td>
-                        <button
-                          className={styles.smallDangerBtn}
-                          onClick={() => handleClosePosition(p.id, p.symbol)}
-                          disabled={closingId === p.id}
-                        >
-                          {closingId === p.id ? '…' : '平仓'}
-                        </button>
-                      </td>
+                      {isAdmin && (
+                        <td>
+                          <button
+                            className={styles.smallDangerBtn}
+                            onClick={() => handleClosePosition(p.id, p.symbol)}
+                            disabled={closingId === p.id}
+                          >
+                            {closingId === p.id ? '…' : '平仓'}
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -674,13 +689,15 @@ export default function Home() {
                 <article key={`mobile-${p.id}`} className={styles.mobileDataCard}>
                   <div className={styles.mobileCardHeader}>
                     <strong>{p.symbol}</strong>
-                    <button
-                      className={styles.smallDangerBtn}
-                      onClick={() => handleClosePosition(p.id, p.symbol)}
-                      disabled={closingId === p.id}
-                    >
-                      {closingId === p.id ? '…' : '平仓'}
-                    </button>
+                    {isAdmin && (
+                      <button
+                        className={styles.smallDangerBtn}
+                        onClick={() => handleClosePosition(p.id, p.symbol)}
+                        disabled={closingId === p.id}
+                      >
+                        {closingId === p.id ? '…' : '平仓'}
+                      </button>
+                    )}
                   </div>
                   <div className={styles.mobileDataGrid}>
                     <span><label>数量</label><b>{p.quantity.toFixed(6)}</b></span>
@@ -725,7 +742,7 @@ export default function Home() {
                         </span>
                       </td>
                       <td>
-                        {!r.resolved && (
+                        {!r.resolved && isAdmin && (
                           <button
                             className={styles.smallBtn}
                             onClick={() => handleResolveRisk(r.id, r.description)}
@@ -751,7 +768,7 @@ export default function Home() {
                   </div>
                   <p className={styles.mobileTextBlock}>{r.description}</p>
                   <div className={styles.mobileMetaRow}>触发：{fmtTime(r.triggered_at)}</div>
-                  {!r.resolved && (
+                  {!r.resolved && isAdmin && (
                     <button
                       className={styles.smallBtn}
                       onClick={() => handleResolveRisk(r.id, r.description)}
@@ -773,6 +790,7 @@ export default function Home() {
             {decisions.length === 0 ? (
               <p className={styles.empty}>暂无决策记录</p>
             ) : (
+              <>
               <div className={styles.tableWrap}>
                 <table className={styles.table}>
                   <thead>
@@ -795,6 +813,22 @@ export default function Home() {
                   </tbody>
                 </table>
               </div>
+              <div className={styles.mobileCardList}>
+                {decisions.map((d) => (
+                  <article key={`decision-mobile-${d.id}`} className={styles.mobileDataCard}>
+                    <div className={styles.mobileCardHeader}>
+                      <span className={styles.actionTag} data-action={d.action}>{d.action}</span>
+                      <span className={styles.mobileMetaRow}>{fmtTime(d.decided_at)}</span>
+                    </div>
+                    <div className={styles.mobileDataGrid}>
+                      <span><label>币种</label><b>{d.symbol}</b></span>
+                      <span><label>置信度</label><b>{d.confidence != null ? `${(d.confidence * 100).toFixed(0)}%` : '—'}</b></span>
+                      <span><label>是否兜底</label><b>{d.is_fallback ? '兜底' : '—'}</b></span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+              </>
             )}
           </section>
 

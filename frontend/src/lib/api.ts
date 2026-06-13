@@ -159,7 +159,8 @@ export async function manualClosePosition(
 export async function manualCloseAll(
   token: string, reason: string,
   accountId: number = 1, tradingMode: string = 'testnet',
-): Promise<{ closed_position_ids: number[] }> {
+): Promise<{ task_id: number; status: string }> {
+  // close-all 已切异步入队 (spec §4.9.1): 立即返回 task_id, 结果走 GET /api/tasks/{id} 或 WS task.status_changed
   return apiRequest('/commands/close-all', {
     method: 'POST',
     headers: buildAuthHeaders(token, true),
@@ -167,6 +168,24 @@ export async function manualCloseAll(
       confirmation: 'CLOSE ALL',
       reason, account_id: accountId, trading_mode: tradingMode,
     }),
+  })
+}
+
+export interface TaskStatus {
+  id: number
+  task_type: string
+  status: string
+  attempts: number
+  enqueued_at: string | null
+  started_at: string | null
+  finished_at: string | null
+  error_message: string | null
+  trading_mode: string
+}
+
+export async function getTask(token: string, taskId: number): Promise<TaskStatus> {
+  return apiRequest<TaskStatus>('/tasks/' + taskId, {
+    headers: buildAuthHeaders(token, false),
   })
 }
 
