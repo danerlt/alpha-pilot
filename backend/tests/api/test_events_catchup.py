@@ -87,7 +87,7 @@ def _seed(session, n: int = 5):
 def test_catchup_returns_all_published_events(client):
     cli, engine = client
     with Session(engine) as s:
-        rows = _seed(s, n=3)
+        _seed(s, n=3)
     r = cli.get("/api/events/catchup")
     assert r.status_code == 200
     body = r.json()["data"]

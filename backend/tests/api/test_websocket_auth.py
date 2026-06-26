@@ -94,7 +94,7 @@ def test_ws_rejects_invalid_token(client):
 def test_ws_accepts_valid_token(client):
     """合法 token → 成功握手 (服务端接受连接)."""
     token = _make_token()
-    with client.websocket_connect(f"/ws?token={token}") as ws:
+    with client.websocket_connect(f"/ws?token={token}"):
         # 握手成功本身就是验证 (没有 catchup, 直接进入接收循环)
         # 服务端不主动发欢迎消息, 这里立即关闭即可
         pass

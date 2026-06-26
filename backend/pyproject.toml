@@ -65,3 +65,12 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
+# E501(line-too-long) 不作为 lint 错误: 行宽由 `ruff format` (line-length=100) 负责;
+# 且 project.md §4 强制 model 字段单行 mapped_column, 与硬性 100 列上限本质冲突,
+# 故按 Ruff 官方建议在启用 formatter 时关闭 E501 lint, 保留 F/I 与其余 E 规则抓真实问题.
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# 测试沿用紧凑断言风格: `assert a; assert b` (E702) 与 `if cond: stmt` (E701),
+# 是本仓库既有约定, 不作为错误.
+"tests/*" = ["E701", "E702"]

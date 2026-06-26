@@ -36,7 +36,6 @@ from src.models import (
     PromptTemplate,
 )
 from src.models.account_entity import RiskProfile
-from src.services.event_bus import RedisStreamsBus
 from src.services.events.outbox import OutboxWriter
 from src.workers.strategy_pipeline import run_strategy_pipeline_once
 
@@ -136,7 +135,6 @@ VALID_LLM_RESPONSE = json.dumps({
 
 def test_e2e_full_pipeline_writes_chain_and_outbox(pg_url, redis_url):
     engine = create_engine(pg_url)
-    bus = RedisStreamsBus(redis_url)
     outbox = OutboxWriter()
 
     with Session(engine) as session:
