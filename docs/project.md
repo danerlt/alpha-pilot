@@ -127,7 +127,7 @@ backend/
 ## 3. 配置体系
 
 ### 多继承聚合
-`src/configs/app_configs.py` 按功能域拆 8 个子配置类，`AppConfig` 多继承聚合：
+`src/configs/app_configs.py` 按功能域拆 10 个子配置类，`AppConfig` 多继承聚合：
 
 | 子配置类 | 字段 |
 |---|---|
@@ -140,6 +140,7 @@ backend/
 | LLMConfig | LLM_BASE_URL / LLM_API_KEY / LLM_MODEL / LLM_TIMEOUT_SECONDS |
 | RiskConfig | MAX_POSITION_SIZE_PCT / MAX_DAILY_LOSS_PCT / MAX_CONSECUTIVE_LOSSES / MAX_SINGLE_RISK_PCT |
 | SecurityConfig | APP_CONFIG_MASTER_KEY / APP_AUTH_SECRET_KEY / DEFAULT_ADMIN_* |
+| NotificationConfig | NOTIFY_ENABLED / NOTIFY_MIN_SEVERITY / NOTIFY_TELEGRAM_* / NOTIFY_EMAIL_* |
 
 业务代码通过 `from src.configs import get_app_config` 访问，**禁止直接 import 子类**。
 

@@ -66,8 +66,9 @@
 | 异步任务调度（§4.9.1） | `task_dispatcher` + Redis BRPOP + 孤儿恢复 + `task_request` 状态机 | ✅ 已闭环（close-all 已切异步入队 + `GET /api/tasks/{id}` 兜底 + `task.status_changed` 实时事件） |
 | Spec Gap Closure | 11 个差距项全清，**100% 对齐 spec v3.7** | ✅ 完成 |
 | Windows 全流程差距收口 | OPS/前后端/文档 差距审计后逐项实现（见 worklog 2026-06-13） | ✅ 完成 |
+| 通知系统（PRD P1） | event→告警映射 + Telegram/Email/Log channel + Streams `notifier` consumer 接入 scheduler | ✅ 完成 |
 
-**测试基线：474 passed + 2 skipped（全绿）。前端 `next build` + `tsc --noEmit` 通过。**
+**测试基线：499 passed + 2 skipped（全绿）。前端 `next build` + `tsc --noEmit` 通过。ruff 全仓 0 警告。**
 
 ---
 

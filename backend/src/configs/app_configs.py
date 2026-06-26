@@ -145,6 +145,21 @@ class SecurityConfig(BaseSettings):
     DEFAULT_ADMIN_USERNAME: str = Field(default="")
 
 
+class NotificationConfig(BaseSettings):
+    """通知系统配置 (PRD P1 告警推送)。LogChannel 始终启用; Telegram/Email 按字段是否填写自动启用。"""
+    NOTIFY_ENABLED: bool = Field(default=True, description="通知总开关 (关则只走 LogChannel)")
+    NOTIFY_MIN_SEVERITY: str = Field(default="warn", description="最低告警级别: info|warn|critical")
+    NOTIFY_TELEGRAM_BOT_TOKEN: str = Field(default="", description="Telegram Bot Token (空则不启用 telegram)")
+    NOTIFY_TELEGRAM_CHAT_ID: str = Field(default="", description="Telegram chat_id")
+    NOTIFY_EMAIL_SMTP_HOST: str = Field(default="", description="SMTP 主机 (空则不启用 email)")
+    NOTIFY_EMAIL_SMTP_PORT: int = Field(default=587)
+    NOTIFY_EMAIL_USERNAME: str = Field(default="")
+    NOTIFY_EMAIL_PASSWORD: str = Field(default="")
+    NOTIFY_EMAIL_FROM: str = Field(default="")
+    NOTIFY_EMAIL_TO: list[str] = Field(default_factory=list, description="收件人列表")
+    NOTIFY_EMAIL_USE_TLS: bool = Field(default=True)
+
+
 # ── 主配置（多继承聚合）─────────────────────────────────────────────────────
 class AppConfig(
     ServiceConfig,
@@ -156,6 +171,7 @@ class AppConfig(
     LLMConfig,
     RiskConfig,
     SecurityConfig,
+    NotificationConfig,
 ):
     """全局应用配置。业务代码通过 ``get_app_config().FIELD`` 访问。"""
 

@@ -80,6 +80,31 @@ def _start_event_shuttle() -> threading.Thread:
     return t
 
 
+def _start_notification_dispatcher() -> threading.Thread | None:
+    """启动通知 daemon thread（Redis Streams "notifier" group → 告警推送）。
+
+    NOTIFY_ENABLED=False 时不启动（仅 LogChannel 通过事件链路其它途径留痕）。
+    """
+    cfg = get_app_config()
+    if not cfg.NOTIFY_ENABLED:
+        logger.info("Notification disabled (NOTIFY_ENABLED=False), dispatcher not started")
+        return None
+
+    from src.services.event_bus import RedisStreamsBus
+    from src.services.notification.dispatcher import NotificationDispatcher
+    from src.services.notification.service import build_notification_service
+
+    def _loop():
+        bus = RedisStreamsBus(url=cfg.REDIS_URL)
+        service = build_notification_service(cfg)
+        NotificationDispatcher(bus, service).loop(_stop_flag)
+
+    t = threading.Thread(target=_loop, name="notification-dispatcher", daemon=True)
+    t.start()
+    logger.info("NotificationDispatcher daemon thread started")
+    return t
+
+
 def _consume_task_queue() -> None:
     """主线程阻塞消费 Redis 异步任务队列（task_requests 表 + alphapilot:tasks 队列）。
 
@@ -118,6 +143,7 @@ def main() -> None:
 
     scheduler = _setup_scheduler()
     shuttle = _start_event_shuttle()
+    notifier = _start_notification_dispatcher()
 
     try:
         _consume_task_queue()  # 主线程阻塞
@@ -125,10 +151,12 @@ def main() -> None:
         # SIGTERM 后：
         # 1. 主循环退出（不再取新任务）
         # 2. APScheduler shutdown(wait=True): 等待运行中 job 完成（避免策略循环半完成）
-        # 3. EventShuttle daemon: daemon=True 自然 kill；join(timeout=5) 给优雅窗口
+        # 3. EventShuttle / NotificationDispatcher daemon: daemon=True 自然 kill；join(timeout=5) 给优雅窗口
         # 60s docker stop_grace_period 内完成；超时 SIGKILL，下次 recover_orphan_tasks 兜底
         scheduler.shutdown(wait=True)
         shuttle.join(timeout=5)
+        if notifier is not None:
+            notifier.join(timeout=5)
         logger.info("Scheduler container exiting")
 
 

@@ -114,6 +114,36 @@ class RedisStreamsBus:
                     continue
                 yield msg_id, env
 
+    def consume_multi(
+        self,
+        streams: list[str],
+        group: str,
+        consumer: str,
+        *,
+        count: int = 10,
+        block_ms: int = 2000,
+    ) -> Iterator[tuple[str, str, EventEnvelope]]:
+        """一次 XREADGROUP 读多个 stream; yield (stream, message_id, envelope) 三元组。
+
+        用于 notifier 等需要订阅多个告警 stream 的消费者; caller 必须 ack(stream, group, msg_id)。
+        """
+        stream_map = {s: ">" for s in streams}
+        response = self._r.xreadgroup(group, consumer, stream_map, count=count, block=block_ms)
+        if not response:
+            return
+        for stream_name, messages in response:
+            for msg_id, fields in messages:
+                raw = fields.get("envelope")
+                if raw is None:
+                    logger.warning("stream %s msg %s has no envelope field", stream_name, msg_id)
+                    continue
+                try:
+                    env = EventEnvelope.model_validate_json(raw)
+                except Exception:
+                    logger.exception("failed to parse envelope on %s %s", stream_name, msg_id)
+                    continue
+                yield stream_name, msg_id, env
+
     def ack(self, stream: str, group: str, message_id: str) -> int:
         return self._r.xack(stream, group, message_id)
 
