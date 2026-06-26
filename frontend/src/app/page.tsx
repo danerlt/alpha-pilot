@@ -81,6 +81,20 @@ interface RiskEvent {
   resolved_at: string | null
 }
 
+interface StrategyScore {
+  id: number
+  strategy_mode: string
+  symbol: string
+  regime: string
+  window: string
+  win_rate: number | null
+  pnl_sum: number | null
+  max_drawdown: number | null
+  sharpe: number | null
+  false_breakout_rate: number | null
+  sample_count: number
+}
+
 interface LiveEvent {
   type: string
   symbol?: string
@@ -147,6 +161,7 @@ export default function Home() {
   const [trades, setTrades] = useState<Trade[]>([])
   const [decisions, setDecisions] = useState<Decision[]>([])
   const [riskEvents, setRiskEvents] = useState<RiskEvent[]>([])
+  const [strategyScores, setStrategyScores] = useState<StrategyScore[]>([])
   const [liveEvents, setLiveEvents] = useState<LiveEvent[]>([])
   const [runtimeConfig, setRuntimeConfig] = useState<RuntimeConfig | null>(null)
   const [configForm, setConfigForm] = useState<RuntimeConfigForm>({
@@ -182,7 +197,7 @@ export default function Home() {
     const authHeaders = buildAuthHeaders(token, false)
     try {
       // health 无需鉴权但统一走 envelope; 其余端点带 token
-      const [h, a, p, t, d, r, c] = await Promise.all([
+      const [h, a, p, t, d, r, c, sc] = await Promise.all([
         apiRequest<HealthData>('/health', { skipAuthRedirect: true }),
         apiRequest<AccountData>('/account', { headers: authHeaders }).catch(() => null),
         apiRequest<Position[]>('/positions', { headers: authHeaders }).catch(() => []),
@@ -193,6 +208,7 @@ export default function Home() {
         isAdmin
           ? apiRequest<RuntimeConfig>('/config/runtime', { headers: authHeaders }).catch(() => null)
           : Promise.resolve(null),
+        apiRequest<StrategyScore[]>('/strategy-scores?window=30d', { headers: authHeaders }).catch(() => []),
       ])
       setHealth(h)
       setAccount(a)
@@ -201,6 +217,7 @@ export default function Home() {
       setDecisions(d)
       setRiskEvents(r)
       setRuntimeConfig(c)
+      setStrategyScores(sc)
       if (c) {
         setConfigForm((prev) => ({
           ...prev,
@@ -905,6 +922,67 @@ export default function Home() {
                   <div className={styles.mobilePnl} data-sign={t.pnl >= 0 ? 'pos' : 'neg'}>
                     {t.pnl >= 0 ? '+' : ''}{t.pnl.toFixed(4)}
                     <small> ({(t.pnl_pct * 100).toFixed(2)}%)</small>
+                  </div>
+                </article>
+              ))}
+            </div>
+            </>
+          )}
+        </section>
+
+        {/* 策略评分 (PRD 8.2.5) */}
+        <section className={styles.card}>
+          <h2 className={styles.cardTitle}>
+            策略评分 <span className={styles.badge}>{strategyScores.length}</span>
+            <small className={styles.sectionDescription}> · 近 30 天按 策略×币种×regime</small>
+          </h2>
+          {strategyScores.length === 0 ? (
+            <p className={styles.empty}>暂无评分数据（评分 job 每 24 小时聚合已平仓交易）</p>
+          ) : (
+            <>
+            <div className={styles.tableWrap}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>策略</th><th>币种</th><th>市场状态</th><th>样本</th>
+                    <th>胜率</th><th>累计盈亏</th><th>最大回撤</th><th>夏普</th><th>止损退出率</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {strategyScores.map((s) => (
+                    <tr key={s.id}>
+                      <td><code className={styles.code}>{s.strategy_mode}</code></td>
+                      <td><strong>{s.symbol}</strong></td>
+                      <td>{s.regime}</td>
+                      <td>{s.sample_count}</td>
+                      <td>{s.win_rate != null ? `${(s.win_rate * 100).toFixed(0)}%` : '—'}</td>
+                      <td data-sign={(s.pnl_sum ?? 0) >= 0 ? 'pos' : 'neg'}>
+                        {s.pnl_sum != null ? `${s.pnl_sum >= 0 ? '+' : ''}${s.pnl_sum.toFixed(2)}` : '—'}
+                      </td>
+                      <td>{s.max_drawdown != null ? s.max_drawdown.toFixed(2) : '—'}</td>
+                      <td>{s.sharpe != null ? s.sharpe.toFixed(2) : '—'}</td>
+                      <td>{s.false_breakout_rate != null ? `${(s.false_breakout_rate * 100).toFixed(0)}%` : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className={styles.mobileCardList}>
+              {strategyScores.map((s) => (
+                <article key={`score-mobile-${s.id}`} className={styles.mobileDataCard}>
+                  <div className={styles.mobileCardHeader}>
+                    <strong>{s.symbol}</strong>
+                    <code className={styles.code}>{s.strategy_mode}</code>
+                  </div>
+                  <div className={styles.mobileDataGrid}>
+                    <span><label>市场状态</label><b>{s.regime}</b></span>
+                    <span><label>样本数</label><b>{s.sample_count}</b></span>
+                    <span><label>胜率</label><b>{s.win_rate != null ? `${(s.win_rate * 100).toFixed(0)}%` : '—'}</b></span>
+                    <span><label>夏普</label><b>{s.sharpe != null ? s.sharpe.toFixed(2) : '—'}</b></span>
+                    <span><label>止损退出率</label><b>{s.false_breakout_rate != null ? `${(s.false_breakout_rate * 100).toFixed(0)}%` : '—'}</b></span>
+                  </div>
+                  <div className={styles.mobilePnl} data-sign={(s.pnl_sum ?? 0) >= 0 ? 'pos' : 'neg'}>
+                    {s.pnl_sum != null ? `${s.pnl_sum >= 0 ? '+' : ''}${s.pnl_sum.toFixed(2)}` : '—'}
                   </div>
                 </article>
               ))}

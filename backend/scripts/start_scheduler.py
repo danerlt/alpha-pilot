@@ -44,6 +44,7 @@ def _setup_scheduler() -> BackgroundScheduler:
 
     from src.schedulers.position_monitor_scanner import position_monitor_job
     from src.schedulers.strategy_pipeline_scanner import strategy_pipeline_job
+    from src.schedulers.strategy_scoring_scanner import strategy_scoring_job
 
     scheduler.add_job(
         strategy_pipeline_job, "interval",
@@ -55,11 +56,17 @@ def _setup_scheduler() -> BackgroundScheduler:
         seconds=cfg.POSITION_MONITOR_INTERVAL_SECONDS,
         id="position_monitor", replace_existing=True,
     )
+    scheduler.add_job(
+        strategy_scoring_job, "interval",
+        hours=cfg.STRATEGY_SCORING_INTERVAL_HOURS,
+        id="strategy_scoring", replace_existing=True,
+    )
     scheduler.start()
     logger.info(
-        "APScheduler started: strategy_loop=%dm position_monitor=%ds (PG JobStore: %s)",
+        "APScheduler started: strategy_loop=%dm position_monitor=%ds scoring=%dh (PG JobStore: %s)",
         cfg.STRATEGY_LOOP_INTERVAL_MINUTES,
         cfg.POSITION_MONITOR_INTERVAL_SECONDS,
+        cfg.STRATEGY_SCORING_INTERVAL_HOURS,
         cfg.APSCHEDULER_JOBS_TABLE,
     )
     return scheduler

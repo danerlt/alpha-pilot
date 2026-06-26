@@ -112,6 +112,7 @@ class SchedulerConfig(BaseSettings):
     EVENT_SHUTTLE_IDLE_SLEEP_SECONDS: float = Field(default=0.5)
     EVENT_SHUTTLE_MAX_FAILED_ATTEMPTS: int = Field(default=3)
     SCHEDULER_GRACEFUL_SHUTDOWN_SECONDS: int = Field(default=60)
+    STRATEGY_SCORING_INTERVAL_HOURS: int = Field(default=24, description="策略评分 job 间隔(小时); 低频聚合历史交易")
 
     PIPELINE_SYMBOLS: str = Field(default="BTCUSDT,ETHUSDT")
     PIPELINE_TIMEFRAMES: str = Field(default="1h")

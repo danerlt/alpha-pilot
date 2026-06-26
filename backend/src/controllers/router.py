@@ -18,6 +18,7 @@ from src.controllers.api.v1.risk.risk_events import router as _risk_router
 # ── strategy 域 ────────────────────────────────────────────────────────
 from src.controllers.api.v1.strategy.decisions import router as _decisions_router
 from src.controllers.api.v1.strategy.reports import router as _reports_router
+from src.controllers.api.v1.strategy.strategy_scores import router as _strategy_scores_router
 
 # ── system 域 ──────────────────────────────────────────────────────────
 from src.controllers.api.v1.system.admin import router as _admin_router
@@ -43,6 +44,7 @@ router.include_router(_trades_router)
 router.include_router(_decisions_router)
 router.include_router(_risk_router)
 router.include_router(_reports_router)
+router.include_router(_strategy_scores_router)
 router.include_router(_account_router)
 router.include_router(_runtime_config_router)
 router.include_router(_tasks_router)
