@@ -131,10 +131,22 @@ run_deploy() {
         fi
         sleep 2
     done
-    if ! IMAGE_TAG="$IMAGE_TAG" FRONTEND_TAG="$FRONTEND_TAG" "${dc[@]}" logs scheduler --tail=30 2>/dev/null | grep -q "APScheduler started"; then
-        echo "⚠️  scheduler 未见 'APScheduler started'"
-        IMAGE_TAG="$IMAGE_TAG" FRONTEND_TAG="$FRONTEND_TAG" "${dc[@]}" logs scheduler --tail=30
+    # scheduler 健康：以「容器 running 且非 crash-loop」为准。
+    # （启动标记 'APScheduler started' 会因容器长跑滚出 tail，不能作为硬判据）
+    sleep 5
+    local scid; scid="$(IMAGE_TAG="$IMAGE_TAG" FRONTEND_TAG="$FRONTEND_TAG" "${dc[@]}" ps -q scheduler 2>/dev/null)"
+    local sstate srestart
+    sstate="$(docker inspect -f '{{.State.Status}}' "$scid" 2>/dev/null || echo missing)"
+    srestart="$(docker inspect -f '{{.State.Restarting}}' "$scid" 2>/dev/null || echo true)"
+    if [ "$sstate" != "running" ] || [ "$srestart" = "true" ]; then
+        echo "❌ scheduler 状态异常: status=$sstate restarting=$srestart"
+        IMAGE_TAG="$IMAGE_TAG" FRONTEND_TAG="$FRONTEND_TAG" "${dc[@]}" logs scheduler --tail=50
         _rollback
+    fi
+    if IMAGE_TAG="$IMAGE_TAG" FRONTEND_TAG="$FRONTEND_TAG" "${dc[@]}" logs scheduler 2>/dev/null | grep -q "APScheduler started"; then
+        echo "    scheduler 启动标记确认 ✓"
+    else
+        echo "    （未找到启动标记，但容器 running 且非重启，视为正常）"
     fi
 
     echo ""
