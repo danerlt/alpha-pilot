@@ -1,15 +1,17 @@
 # dev 应用栈（/ap-dev，api 8001 / 前端 3001）
 # 不含 pg/redis：连共享中间件 docker-compose.middleware.yml（ap-postgres / ap-redis）
-# database=alphapilot_dev，Redis db=0。
-# 端口仅绑 127.0.0.1，由 nginx 经 https 反代（post-Plan5 M1）。
+# database=alphapilot_dev，Redis db=0。端口仅绑 127.0.0.1，由 nginx 经 https 反代。
+#
+# build-once / deploy-many（见 docs/superpowers/specs/2026-06-28-build-once-deploy-many-design.md）：
+#   本文件不再 build，引用预构建镜像。tag 由 scripts/deploy-dev.sh 注入：
+#     backend/scheduler  → alphapilot-backend:${IMAGE_TAG}     （跨环境同一镜像，ROOT_PATH 运行时区分）
+#     frontend           → alphapilot-frontend:${FRONTEND_TAG} （basePath 构建期烘焙，按环境构建 = <sha>-dev）
 
 name: ap-dev
 
 services:
   backend:
-    build:
-      context: ../backend
-      dockerfile: ../docker/Dockerfile.backend
+    image: alphapilot-backend:${IMAGE_TAG:?IMAGE_TAG required}
     env_file:
       - ../envs/dev.env
     environment:
@@ -23,9 +25,7 @@ services:
       - ap-shared
 
   scheduler:
-    build:
-      context: ../backend
-      dockerfile: ../docker/Dockerfile.backend
+    image: alphapilot-backend:${IMAGE_TAG:?IMAGE_TAG required}
     env_file:
       - ../envs/dev.env
     environment:
@@ -34,19 +34,14 @@ services:
     # 覆盖镜像默认 API CMD：跑 scheduler 进程（APScheduler + 任务队列 + EventShuttle + notifier）
     command: ["python", "scripts/start_scheduler.py"]
     depends_on:
-      - backend          # 让 backend 先跑迁移（start.sh），scheduler 再起
+      - backend          # 让 backend 先跑迁移，scheduler 再起
     restart: unless-stopped
     stop_grace_period: 60s   # 与 start_scheduler graceful shutdown 对齐
     networks:
       - ap-shared
 
   frontend:
-    build:
-      context: ../frontend
-      dockerfile: ../docker/Dockerfile.frontend
-      args:
-        BASE_PATH: /ap-dev
-        NEXT_PUBLIC_API_BASE: /ap-dev/api
+    image: alphapilot-frontend:${FRONTEND_TAG:?FRONTEND_TAG required}
     ports:
       - "127.0.0.1:3001:3000"
     depends_on:

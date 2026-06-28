@@ -1,15 +1,16 @@
 # test 应用栈（/ap-test，api 8002 / 前端 3002）
 # 不含 pg/redis：连共享中间件（ap-postgres / ap-redis）
-# database=alphapilot_test，Redis db=1。
-# 端口仅绑 127.0.0.1，由 nginx 反代。
+# database=alphapilot_test，Redis db=1。端口仅绑 127.0.0.1，由 nginx 反代。
+#
+# build-once / deploy-many：引用预构建镜像，tag 由 scripts/deploy-test.sh 注入。
+#   backend/scheduler 复用 alphapilot-backend:${IMAGE_TAG}（与 dev/prod 同一 SHA 镜像）
+#   frontend 按环境构建 alphapilot-frontend:${FRONTEND_TAG}（= <sha>-test）
 
 name: ap-test
 
 services:
   backend:
-    build:
-      context: ../backend
-      dockerfile: ../docker/Dockerfile.backend
+    image: alphapilot-backend:${IMAGE_TAG:?IMAGE_TAG required}
     env_file:
       - ../envs/test.env
     environment:
@@ -23,9 +24,7 @@ services:
       - ap-shared
 
   scheduler:
-    build:
-      context: ../backend
-      dockerfile: ../docker/Dockerfile.backend
+    image: alphapilot-backend:${IMAGE_TAG:?IMAGE_TAG required}
     env_file:
       - ../envs/test.env
     environment:
@@ -40,12 +39,7 @@ services:
       - ap-shared
 
   frontend:
-    build:
-      context: ../frontend
-      dockerfile: ../docker/Dockerfile.frontend
-      args:
-        BASE_PATH: /ap-test
-        NEXT_PUBLIC_API_BASE: /ap-test/api
+    image: alphapilot-frontend:${FRONTEND_TAG:?FRONTEND_TAG required}
     ports:
       - "127.0.0.1:3002:3000"
     depends_on:
