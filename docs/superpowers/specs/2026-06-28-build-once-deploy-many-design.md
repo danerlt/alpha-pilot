@@ -64,15 +64,18 @@ compose 用两个变量：后端/scheduler `image: alphapilot-backend:${IMAGE_TA
 
 ## 5. 与 GitHub 的结合（分支流晋升）
 
+> **更新（后续决定）**：CI **不再跑测试门禁**——单测/构建在本地提交前完成（`make test` + 前端 build）。
+> workflow 现在 push 即直接 SSH 部署；下方流程图中的"CI 测试门禁"步骤已移除。prod 仍由 GitHub Environment 审批门把关。
+
 ```
-push dev   → CI 测试门禁 → SSH → deploy-dev.sh   : 构建目录 build :<sha>(若无) → 部署到 dev
-push test  → CI 测试门禁 → SSH → deploy-test.sh  : :<sha> 已存在 → 复用 → 部署到 test     (不重复 build)
-push main  → CI 测试门禁 → SSH → deploy-prod.sh  : 复用 → 部署到 prod（GitHub Environment 审批门）
+push dev   → SSH → deploy-dev.sh   : 构建目录 build :<sha>(若无) → 部署到 dev
+push test  → SSH → deploy-test.sh  : :<sha> 已存在 → 复用 → 部署到 test     (不重复 build)
+push main  → SSH → deploy-prod.sh  : 复用 → 部署到 prod（GitHub Environment 审批门）
 ```
 
 - 同一 commit 沿 `dev → test → main` 推进，**SHA 不变、镜像复用一次构建**。
 - "dev 比 test/prod 新"自然成立：dev 已部署较新的 SHA，test/prod 仍跑此前验证过的 SHA，直到对应分支被推进。
-- workflow 文件（`deploy-{dev,test,prod}.yml` / `_deploy.yml`）**逻辑不变**：仍是测试门禁 + SSH 执行 deploy 脚本；改动都在 deploy 脚本内部。
+- workflow 文件（`deploy-{dev,test,prod}.yml`）只保留 `deploy` job（`uses: _deploy.yml`），不再有 `test` job。
 - GitHub Secret：`DEPLOY_DIR_DEV = /workspace/alpha-pilot-deploy/dev`（test/prod 同理）。构建目录路径作为 deploy 脚本内部常量（不需 secret）。
 
 ## 6. compose 改造

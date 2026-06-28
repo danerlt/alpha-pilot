@@ -182,7 +182,8 @@ su - deployer -c 'GIT_SSH_COMMAND="ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=ye
 | `DEPLOY_DIR_TEST` | 同构建目录路径 |
 | `DEPLOY_DIR_PROD` | 同构建目录路径 |
 
-配好后，`git push origin dev` → GitHub Actions 跑测试门禁 → SSH（`deployer@HOST`）进服务器 → 构建目录 `git fetch origin` + build-once + 部署 dev。
+配好后，`git push origin dev` → GitHub Actions 直接 SSH（`deployer@HOST`）进服务器 → 构建目录 `git fetch origin` + build-once + 部署 dev。
+（CI 不跑测试门禁——单测/构建在本地提交前完成；`make test` + 前端 build 自查后再 push。）
 
 ---
 
@@ -204,7 +205,7 @@ su - deployer -c 'GIT_SSH_COMMAND="ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=ye
 - [ ] `https://<DOMAIN>/ap-dev/api/health` 返回正常 envelope。
 - [ ] `deployer` 用户建好（仅 docker 组）；`DOCKER_OK` + 能 `git ls-remote` GitHub。
 - [ ] GitHub **Deploy key**（deployer 公钥）已加；**Secrets** 配齐（`DEPLOY_SSH_USER=deployer`、`DEPLOY_DIR_*`=构建目录）。
-- [ ] `git push origin dev` 触发 Actions 自动测试 + 部署，CI 绿。
+- [ ] `git push origin dev` 触发 Actions 直接部署（无测试门禁），CI 绿。
 - [ ] 全程无真实凭据进 git；env 真实值只在服务器 `envs/`、私钥只在服务器与 GitHub Secrets。
 
 ## 出问题时

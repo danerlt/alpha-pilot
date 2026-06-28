@@ -1,6 +1,7 @@
 name: Deploy Test
 
-# push 到 test 分支 → 先在 CI 跑测试门禁 → 绿灯才 SSH 部署到服务器 test 环境
+# push 到 test 分支 → 直接 SSH 部署到服务器 test 环境。
+# 注：CI 不再跑测试门禁——单测/构建在本地提交前完成。
 on:
   push:
     branches: [test]
@@ -11,57 +12,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: alphapilot
-          POSTGRES_PASSWORD: alphapilot
-          POSTGRES_DB: alphapilot
-        ports:
-          - 5442:5432
-        options: >-
-          --health-cmd "pg_isready -U alphapilot"
-          --health-interval 5s --health-timeout 5s --health-retries 5
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6389:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s --health-timeout 5s --health-retries 5
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Install uv
-        run: pip install uv
-      - name: Backend deps
-        working-directory: backend
-        run: uv sync --extra dev
-      - name: Backend tests
-        working-directory: backend
-        env:
-          ALPHAPILOT_SKIP_SECRET_VALIDATION: '1'
-        run: uv run pytest -q
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-      - name: Frontend deps
-        working-directory: frontend
-        run: npm ci
-      - name: Frontend typecheck + test + build
-        working-directory: frontend
-        run: |
-          npm run typecheck
-          npm run test
-          npm run build
-
   deploy:
-    needs: test
     uses: ./.github/workflows/_deploy.yml
     with:
       environment: test
