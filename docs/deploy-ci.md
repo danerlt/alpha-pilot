@@ -18,9 +18,15 @@ feat-xxx ──PR──► dev ──PR──► test ──PR──► main
 
 ## 2. 环境与端口（共享中间件 + 库隔离）
 
-> 架构详见 [spec](superpowers/specs/2026-06-27-server-deployment-completion-design.md)：
+> 架构详见 [中间件 spec](superpowers/specs/2026-06-27-server-deployment-completion-design.md) 与
+> [**build-once / deploy-many** spec](superpowers/specs/2026-06-28-build-once-deploy-many-design.md)：
 > **一套中间件**（`ap-postgres` / `ap-redis`，常驻）被 dev/test/prod **共用**，靠不同 database + Redis db 隔离。
 > 应用 compose 不含 pg/redis，加入共享 network `ap-shared`。
+>
+> **构建一次·多环境部署**：compose 不再 `build:`，改 `image:` 引用预构建镜像。镜像在**独立构建目录**
+> 按 git SHA 构建一次（`alphapilot-backend:<sha>` backend/scheduler 共用；`alphapilot-frontend:<sha>-<env>`
+> 因 basePath 构建期烘焙按环境构建），同一 commit 沿 `dev→test→main` **复用同一镜像晋升**，环境差异只在 env。
+> 三类目录分离：**开发工作区**（CI 不碰）/ **构建目录**（CI fetch+build）/ **部署目录**（仅 compose+env，无源码）。
 
 | 环境 | 触发分支 | nginx 路径 | api/前端口(127.0.0.1) | 应用 compose | env 文件 | database | Redis db |
 |------|---------|-----------|----------------------|-------------|---------|----------|----------|
@@ -35,24 +41,22 @@ feat-xxx ──PR──► dev ──PR──► test ──PR──► main
 
 ### 3.1 Secrets（Settings → Secrets and variables → Actions）
 
-三环境共用同一台服务器，因此 SSH 凭证只配一组：
+三环境共用同一台服务器,因此 SSH 凭证只配一组。**`DEPLOY_DIR_*` 一律填【构建目录】**——
+CI 执行 `cd $DEPLOY_DIR_<ENV> && bash scripts/deploy-<env>.sh`,脚本在构建目录里、内部部署到 `deploy/<env>`。
 
 | Secret | 说明 |
 |--------|------|
-| `DEPLOY_SSH_HOST` | 服务器 IP 或域名 |
-| `DEPLOY_SSH_USER` | SSH 登录用户名 |
-| `DEPLOY_SSH_KEY`  | SSH **私钥**整段（PEM），对应公钥加入服务器 `~/.ssh/authorized_keys` |
-| `DEPLOY_SSH_PORT` | [可选] SSH 端口，缺省 22 |
-| `DEPLOY_DIR_DEV`  | dev 分支 clone 在服务器上的绝对路径 |
-| `DEPLOY_DIR_TEST`  | test 分支 clone 在服务器上的绝对路径 |
-| `DEPLOY_DIR_PROD` | main 分支 clone 在服务器上的绝对路径 |
+| `DEPLOY_SSH_HOST` | 服务器公网 IP 或域名 |
+| `DEPLOY_SSH_USER` | 专用部署用户(建议 `deployer`,仅 docker 组,非 root) |
+| `DEPLOY_SSH_KEY`  | 部署私钥整段(PEM),公钥加入 `deployer` 的 `~/.ssh/authorized_keys` |
+| `DEPLOY_SSH_PORT` | [可选] SSH 端口,缺省 22 |
+| `DEPLOY_DIR_DEV`  | **构建目录**绝对路径(如 `/workspace/alpha-pilot-build`) |
+| `DEPLOY_DIR_TEST`  | 同构建目录(三环境共用一个构建目录) |
+| `DEPLOY_DIR_PROD` | 同构建目录 |
 
-生成专用部署密钥：
-```bash
-ssh-keygen -t ed25519 -C "alphapilot-deploy" -f deploy_key
-# deploy_key.pub  → 服务器 authorized_keys
-# deploy_key      → 粘贴进 DEPLOY_SSH_KEY secret
-```
+**两把方向相反的 key**(详细步骤见 [runbook §5](runbook-server-bootstrap.md)):
+- 部署 key(GitHub Actions→服务器):公钥进 `deployer` authorized_keys,私钥进 Secret `DEPLOY_SSH_KEY`。
+- deployer 的 GitHub key(服务器→GitHub 拉代码):公钥加到仓库 **Deploy keys**(只读)。**漏这把 CI 会卡在 `git fetch origin` 报 `Permission denied (publickey)`。**
 
 ### 3.2 生产审批门（推荐，接 Binance mainnet）
 
@@ -64,27 +68,32 @@ Settings → Environments → 新建 `prod` → 勾选 **Required reviewers** �
 
 ## 4. 服务器准备（一次性）
 
+> 完整 SOP（含 deployer 用户、两把 key、逐步验证）见 [runbook-server-bootstrap.md](runbook-server-bootstrap.md)。下面是要点。
+
 ```bash
-# 1) 起共享中间件（仅一次，常驻；后续应用重部署不动它）
-cd <某个 clone>/docker && docker compose -f docker-compose.middleware.yml up -d
-#    首次启动（数据卷为空）自动建 alphapilot_dev / alphapilot_test / alphapilot_prod 三库
-#    并创建共享 docker network: ap-shared
+# 1) 部署用户（一次性）：仅 docker 组，非 root
+useradd -m -s /bin/bash deployer && usermod -aG docker deployer
+#    两把 key 见 runbook §5：部署 key(公钥→deployer authorized_keys)、deployer GitHub key(公钥→仓库 Deploy keys)
 
-# 2) 三个独立 clone（各自 checkout 对应分支）
-git clone <repo> <DEPLOY_DIR_DEV>  && (cd <DEPLOY_DIR_DEV>  && git checkout dev)
-git clone <repo> <DEPLOY_DIR_TEST> && (cd <DEPLOY_DIR_TEST> && git checkout test)
-git clone <repo> <DEPLOY_DIR_PROD> && (cd <DEPLOY_DIR_PROD> && git checkout main)
-# 上述三个路径分别填进 DEPLOY_DIR_DEV / _TEST / _PROD secret
+# 2) 构建目录（唯一，CI 在此 fetch+build）
+git clone <repo> /workspace/alpha-pilot-build && (cd /workspace/alpha-pilot-build && git checkout dev)
+#    其 origin 指向 GitHub；DEPLOY_DIR_DEV/TEST/PROD 都填这个路径
 
-# 3) 各 clone 放好 env 文件（从 example.env 拷贝填真实密钥, 不进 git）
-#    <DEPLOY_DIR_DEV>/envs/dev.env   等；必填 APP_AUTH_SECRET_KEY / APP_CONFIG_MASTER_KEY
-#    DATABASE_URL/REDIS_URL 已由各 compose 指向共享中间件，env 里无需再设
+# 3) 部署目录（仅 compose+env，无源码；compose 由 deploy 脚本从构建目录同步）
+mkdir -p /workspace/alpha-pilot-deploy/{dev,test,prod,middleware}
+#    各放 envs/<env>.env（从 example.env 拷贝填真实密钥，不进 git；必填 APP_AUTH_SECRET_KEY/APP_CONFIG_MASTER_KEY）
+#    DATABASE_URL/REDIS_URL 由 compose 指向共享中间件，无需设
+chown -R deployer:deployer /workspace/alpha-pilot-build /workspace/alpha-pilot-deploy
 
-# 4) nginx: 把 docker/nginx/alpha-pilot.conf 的 location 块并入 HTTPS server{}
-#    （/ap、/ap-test、/ap-dev 三段 + http{} 顶层 limit_req_zone / log_format）
-#    reload: nginx -t && systemctl reload nginx
+# 4) 起共享中间件（常驻；首次自动建三库 + 创建 network ap-shared）
+cd /workspace/alpha-pilot-deploy/middleware   # 放一份 docker-compose.middleware.yml
+docker compose -f docker-compose.middleware.yml up -d
 
-# 5) Docker + docker compose 已装；DNS <PUBLIC_DOMAIN> → 本服务器
+# 5) nginx: 把 docker/nginx/alpha-pilot.conf 的 location 块并入 HTTPS server{}
+#    （/ap、/ap-test、/ap-dev 三段 + http{} 顶层 limit_req_zone / log_format）；nginx -t && systemctl reload nginx
+#    证书自动续期务必配（cron 或 certbot.timer），否则会过期
+
+# 6) Docker + docker compose 已装；DNS <PUBLIC_DOMAIN> → 本服务器
 ```
 
 ## 5. 工作流程速查
