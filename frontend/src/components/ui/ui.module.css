@@ -1,0 +1,163 @@
+/* AlphaPilot UI 组件库 — 方向 A 专业交易终端，全部基于 --ap-* 设计令牌 */
+
+/* ---------- Badge / Pill ---------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  padding: 2px 8px;
+  border-radius: var(--ap-r-pill);
+  font-weight: 600;
+  font-family: var(--ap-font-mono);
+  letter-spacing: 0.04em;
+  background: var(--ap-bg-3);
+  color: var(--ap-fg-2);
+  white-space: nowrap;
+}
+.badge[data-tone="mint"]   { background: var(--ap-mint-soft);   color: var(--ap-mint); }
+.badge[data-tone="rose"]   { background: var(--ap-rose-soft);   color: var(--ap-rose); }
+.badge[data-tone="amber"]  { background: var(--ap-amber-soft);  color: var(--ap-amber); }
+.badge[data-tone="violet"] { background: var(--ap-violet-soft); color: var(--ap-violet); }
+.badge[data-tone="cyan"]   { background: var(--ap-cyan-soft);   color: var(--ap-cyan); }
+
+/* ---------- Button ---------- */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: var(--ap-r-sm);
+  padding: 8px 14px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--ap-line);
+  background: var(--ap-bg-3);
+  color: var(--ap-fg-1);
+  transition: background 0.15s, border-color 0.15s, transform 0.08s;
+}
+.button:hover:not(:disabled) { background: var(--ap-bg-4); }
+.button:active:not(:disabled) { transform: scale(0.98); }
+.button:disabled { opacity: 0.4; cursor: not-allowed; }
+.button[data-variant="primary"] { background: var(--ap-mint); border-color: var(--ap-mint); color: var(--ap-bg-0); }
+.button[data-variant="primary"]:hover:not(:disabled) { background: #00e6a3; }
+.button[data-variant="ghost"] { background: transparent; }
+.button[data-variant="ghost"]:hover:not(:disabled) { background: var(--ap-bg-3); }
+.button[data-variant="danger"] { background: var(--ap-rose-soft); border-color: var(--ap-rose); color: var(--ap-rose); }
+.button[data-variant="danger"]:hover:not(:disabled) { background: rgba(255, 77, 109, 0.22); }
+.button[data-size="sm"] { padding: 4px 10px; font-size: 11px; }
+.button[data-size="lg"] { padding: 11px 18px; font-size: 14px; }
+.buttonFull { width: 100%; }
+
+/* ---------- Card ---------- */
+.card {
+  background: var(--ap-bg-2);
+  border: 1px solid var(--ap-line-soft);
+  border-radius: var(--ap-r-md);
+  overflow: hidden;
+}
+.card[data-glow="true"] { box-shadow: 0 0 0 1px var(--ap-violet), 0 0 40px rgba(124, 92, 255, 0.12); }
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--ap-line-soft);
+}
+.cardTitle {
+  font-size: 11px;
+  color: var(--ap-fg-3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.cardBody { padding: 16px 18px; }
+.card[data-dense="true"] .cardHeader { padding: 10px 14px; }
+.card[data-dense="true"] .cardBody { padding: 12px 14px; }
+
+/* ---------- StatCard ---------- */
+.stat { display: flex; flex-direction: column; gap: 4px; }
+.statLabel {
+  font-size: 10.5px;
+  color: var(--ap-fg-3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.statValue {
+  font-family: var(--ap-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ap-fg-1);
+  line-height: 1.1;
+}
+.statValue[data-tone="pos"] { color: var(--ap-mint); }
+.statValue[data-tone="neg"] { color: var(--ap-rose); }
+.statValue[data-tone="ai"]  { color: var(--ap-violet); }
+.statValue[data-size="lg"]  { font-size: 28px; }
+.statValue[data-size="sm"]  { font-size: 16px; }
+.statSub { font-size: 11.5px; color: var(--ap-fg-3); font-family: var(--ap-font-mono); }
+
+/* ---------- RiskBanner ---------- */
+.riskBanner {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: var(--ap-r-sm);
+  font-size: 12px;
+  line-height: 1.5;
+  border: 1px solid var(--ap-line);
+  background: var(--ap-bg-3);
+  color: var(--ap-fg-2);
+}
+.riskBanner[data-tone="pass"]    { background: var(--ap-mint-soft);  border-color: rgba(0, 211, 149, 0.3); }
+.riskBanner[data-tone="degrade"] { background: var(--ap-amber-soft); border-color: rgba(240, 185, 11, 0.3); }
+.riskBanner[data-tone="reject"]  { background: var(--ap-rose-soft);  border-color: var(--ap-rose); }
+
+/* ---------- Table ---------- */
+.tableWrap { overflow-x: auto; }
+.table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.table thead th {
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 10px;
+  color: var(--ap-fg-3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 500;
+  border-bottom: 1px solid var(--ap-line);
+  white-space: nowrap;
+}
+.table tbody td { padding: 12px; border-bottom: 1px solid var(--ap-line-soft); vertical-align: middle; }
+.table tbody tr:last-child td { border-bottom: none; }
+.table tbody tr:hover { background: var(--ap-bg-3); }
+.num { font-family: var(--ap-font-mono); font-variant-numeric: tabular-nums; }
+
+/* ---------- Modal ---------- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+.modal {
+  background: var(--ap-bg-2);
+  border: 1px solid var(--ap-line);
+  border-radius: var(--ap-r-lg);
+  width: min(480px, 100%);
+  box-shadow: var(--ap-shadow-3);
+}
+.modalHeader { padding: 18px 20px; border-bottom: 1px solid var(--ap-line-soft); font-size: 15px; font-weight: 600; color: var(--ap-fg-1); }
+.modalBody { padding: 20px; color: var(--ap-fg-2); font-size: 14px; line-height: 1.6; }
+.modalField { width: 100%; min-height: 40px; margin-top: 12px; border-radius: var(--ap-r-sm); border: 1px solid var(--ap-line); background: var(--ap-bg-1); color: var(--ap-fg-1); padding: 9px 12px; font-family: var(--ap-font-mono); }
+.modalFooter { padding: 14px 20px; border-top: 1px solid var(--ap-line-soft); display: flex; justify-content: flex-end; gap: 10px; }
