@@ -127,30 +127,62 @@ curl -sS https://<DOMAIN>/ap-dev/api/health
 
 ---
 
-## 阶段 5：GitHub 自动部署（老板在 GitHub 网页操作，非服务器）
+## 阶段 5：部署用户 + GitHub 自动部署
 
-> 这部分**执行者只需提醒老板**，不在服务器上做：
+> **架构已切换为 build-once / deploy-many**（见 [spec](superpowers/specs/2026-06-28-build-once-deploy-many-design.md)）：
+> 镜像在【构建目录】`alpha-pilot-build` 按 git SHA 构建一次，部署目录只放 compose+env。
+> CI 执行 `cd $DEPLOY_DIR_<ENV> && bash scripts/deploy-<env>.sh`，脚本在构建目录里、内部部署到 `deploy/<env>`。
+> 因此 **`DEPLOY_DIR_*` 一律填【构建目录】路径**（三环境共用一个构建目录）。
 
-在 GitHub → Settings → Secrets and variables → Actions 配：
+### 5A. 服务器侧：建专用部署用户 + 两把 key（执行者在服务器做）
+
+用专用非 root 用户 `deployer` 跑部署（最小权限：只需 docker 组）。涉及**两把方向相反的 key**，别混：
+
+| key | 方向 | 公钥放哪 | 私钥放哪 |
+|-----|------|---------|---------|
+| 部署 key | GitHub Actions → 服务器 | `deployer` 的 `~/.ssh/authorized_keys` | GitHub Secret `DEPLOY_SSH_KEY` |
+| deployer 的 GitHub key | 服务器 → GitHub（拉代码） | GitHub 仓库 **Deploy keys**（只读） | 服务器 `/home/deployer/.ssh/id_ed25519` |
+
+```bash
+# 1) 建用户 + 加 docker 组（跑部署只需 docker 组，勿加 root/sudo）
+useradd -m -s /bin/bash deployer
+usermod -aG docker deployer
+# 2) 部署 key（GitHub Actions → 服务器）：在服务器或自己机器生成，公钥进 deployer
+ssh-keygen -t ed25519 -C "alphapilot-deploy" -f ~/.ssh/alphapilot_deploy_key -N ""
+install -d -m700 -o deployer -g deployer /home/deployer/.ssh
+cp ~/.ssh/alphapilot_deploy_key.pub /home/deployer/.ssh/authorized_keys
+chmod 600 /home/deployer/.ssh/authorized_keys && chown -R deployer:deployer /home/deployer/.ssh
+#   私钥 ~/.ssh/alphapilot_deploy_key → 贴到 GitHub Secret DEPLOY_SSH_KEY（不要回显/进 git）
+# 3) deployer 的 GitHub key（服务器 → GitHub 拉代码）
+sudo -u deployer ssh-keygen -t ed25519 -C "alphapilot-deployer-github" -f /home/deployer/.ssh/id_ed25519 -N ""
+ssh-keyscan -t ed25519 github.com >> /home/deployer/.ssh/known_hosts
+#   公钥 /home/deployer/.ssh/id_ed25519.pub → 加到 GitHub 仓库 Deploy keys（见 5B，不勾 write）
+# 4) 构建/部署目录归属 deployer
+chown -R deployer:deployer <构建目录> <部署目录根>   # 如 /workspace/alpha-pilot-build /workspace/alpha-pilot-deploy
+# 5) 自检
+id deployer                                          # 应含 docker 组
+su - deployer -c 'docker ps >/dev/null && echo DOCKER_OK'
+su - deployer -c 'GIT_SSH_COMMAND="ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes" git ls-remote <构建目录的 origin> -h refs/heads/dev'  # 加完 Deploy key 后应返回 SHA
+```
+
+### 5B. GitHub 网页侧（老板操作）
+
+**① Deploy keys**（仓库 → Settings → Deploy keys → Add deploy key，**不勾** Allow write）：
+贴 `deployer` 的公钥 `/home/deployer/.ssh/id_ed25519.pub`。没这把，CI 部署会卡在 `git fetch origin`（`Permission denied (publickey)`）。
+
+**② Secrets**（仓库 → Settings → Secrets and variables → Actions）：
 
 | Secret | 值 |
 |--------|----|
-| `DEPLOY_SSH_HOST` | 服务器 IP |
-| `DEPLOY_SSH_PORT` | SSH 端口 |
-| `DEPLOY_SSH_USER` | SSH 用户名 |
-| `DEPLOY_SSH_KEY`  | 专用部署私钥 PEM（公钥已加服务器 `~/.ssh/authorized_keys`） |
-| `DEPLOY_DIR_DEV`  | `<DEV_DIR>` |
-| `DEPLOY_DIR_TEST` | test 应用 clone 路径 |
-| `DEPLOY_DIR_PROD` | prod 应用 clone 路径 |
+| `DEPLOY_SSH_HOST` | 服务器公网 IP / 域名 |
+| `DEPLOY_SSH_PORT` | SSH 端口（默认 22 可不建） |
+| `DEPLOY_SSH_USER` | `deployer` |
+| `DEPLOY_SSH_KEY`  | 部署私钥全文（`~/.ssh/alphapilot_deploy_key`） |
+| `DEPLOY_DIR_DEV`  | **构建目录**路径（如 `/workspace/alpha-pilot-build`） |
+| `DEPLOY_DIR_TEST` | 同构建目录路径 |
+| `DEPLOY_DIR_PROD` | 同构建目录路径 |
 
-配好后，老板每次 `git push origin dev` → GitHub Actions 自动跑测试门禁 + SSH 部署 dev。
-
-生成部署专用密钥（在老板自己的机器上）：
-```bash
-ssh-keygen -t ed25519 -C "alphapilot-deploy" -f deploy_key
-# deploy_key.pub → 服务器 ~/.ssh/authorized_keys
-# deploy_key     → GitHub Secret DEPLOY_SSH_KEY
-```
+配好后，`git push origin dev` → GitHub Actions 跑测试门禁 → SSH（`deployer@HOST`）进服务器 → 构建目录 `git fetch origin` + build-once + 部署 dev。
 
 ---
 
@@ -170,11 +202,17 @@ ssh-keygen -t ed25519 -C "alphapilot-deploy" -f deploy_key
 - [ ] 中间件 `ap-postgres`/`ap-redis` 健康，三库已建，`ap-shared` 网络在。
 - [ ] dev：backend + scheduler + frontend 三 service Up；scheduler 日志见 `APScheduler started`。
 - [ ] `https://<DOMAIN>/ap-dev/api/health` 返回正常 envelope。
-- [ ] GitHub Secrets 配齐；`git push origin dev` 触发 Actions 自动测试 + 部署。
-- [ ] 全程无真实凭据进 git；env 真实值只在服务器 `envs/`、SSH 只在 GitHub Secrets。
+- [ ] `deployer` 用户建好（仅 docker 组）；`DOCKER_OK` + 能 `git ls-remote` GitHub。
+- [ ] GitHub **Deploy key**（deployer 公钥）已加；**Secrets** 配齐（`DEPLOY_SSH_USER=deployer`、`DEPLOY_DIR_*`=构建目录）。
+- [ ] `git push origin dev` 触发 Actions 自动测试 + 部署，CI 绿。
+- [ ] 全程无真实凭据进 git；env 真实值只在服务器 `envs/`、私钥只在服务器与 GitHub Secrets。
 
 ## 出问题时
 
+- CI 部署卡在 `git fetch origin` 报 `Permission denied (publickey)` → deployer 的公钥没加到 GitHub **Deploy keys**（注意是 Deploy keys 区，不是 Secrets）。
+- CI SSH 连不上 → 检查 `DEPLOY_SSH_HOST/PORT/USER`、`DEPLOY_SSH_KEY` 私钥全文、服务器放通公网 SSH、`deployer` 的 `authorized_keys` 有部署公钥。
+- `dubious ownership in repository` → 构建/部署目录属主不是运行用户；`chown -R deployer:deployer` 或 `git config --global --add safe.directory <repo>`。
+- scheduler crash-loop（`No module named src`）→ 后端镜像须有 `ENV PYTHONPATH=/app`（见 Dockerfile.backend）。
 - scheduler 没 `APScheduler started` → 看 `logs scheduler`，多半是 env 缺 `APP_AUTH_SECRET_KEY`/`APP_CONFIG_MASTER_KEY`（`_validate_secrets` 拒绝启动）。
 - backend 连不上 DB → 确认中间件在跑、`ap-shared` 网络、env 没覆盖掉 compose 的 DATABASE_URL。
 - 迁移失败 → `docker compose ... exec -T backend python scripts/upgrade_db.py` 单独跑看报错。
