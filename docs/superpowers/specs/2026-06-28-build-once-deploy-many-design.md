@@ -45,11 +45,22 @@
 
 ## 4. 镜像与 tag 策略
 
-- 镜像：`alphapilot-backend:<sha>`、`alphapilot-frontend:<sha>`。**scheduler 复用 backend 同一镜像**（仅启动命令不同）。
-- `<sha>` = 目标 commit 的 `git rev-parse --short=12 HEAD`（纯 hex，合法 docker tag）。
-- **inspect-or-build**：部署任一环境前 `docker image inspect alphapilot-backend:<sha> >/dev/null 2>&1 || (在构建目录 build)`。
-  - 代码总是先过 dev：到 test/prod 时该 SHA 镜像已存在 → 直接复用，**自动满足"只构建一次"**。
-  - dev 是唯一通常触发真正 build 的环境。
+`<sha>` = 目标 commit 的 `git rev-parse --short=12 HEAD`（纯 hex，合法 docker tag）。
+
+**后端（真 build-once，跨环境复用）：**
+
+- 镜像 `alphapilot-backend:<sha>`，**scheduler 复用同一镜像**（仅启动命令不同）。
+- 后端的环境前缀 `ROOT_PATH=/ap-dev` 是 **运行时 env**（FastAPI `root_path`），所以同一个 `:<sha>` 镜像 dev/test/prod 直接复用。
+- **inspect-or-build**：`docker image inspect alphapilot-backend:<sha> || (构建目录 build)`。代码总是先过 dev → test/prod 时镜像已存在 → 复用，**自动满足"只构建一次"**。
+
+**前端（按环境构建，例外）：**
+
+- 镜像 `alphapilot-frontend:<sha>-<env>`（如 `:a1b2c3d-dev`）。
+- 原因：前端 `basePath`（`/ap-dev` vs `/ap-test` vs `/ap`）由 `Dockerfile.frontend` 的 build-arg `BASE_PATH` 在 `npm run build` **构建期烘焙**进 Next.js standalone 产物，运行时改不了（核实自 `next.config.js: basePath: process.env.NEXT_PUBLIC_BASE_PATH`）。因此前端镜像**无法跨环境复用**，每环境各构建一次，build-arg 由 deploy 脚本按环境注入。
+- 前端是无状态静态产物，按环境 build 风险低；SHA 仍保留在 tag 中以可追溯/可回滚。
+- 若将来要让前端也 build-once：改用子域名（`dev.域名`）替代子路径并去掉 basePath（需 nginx 子域名 + 多证书，本设计不做）。
+
+compose 用两个变量：后端/scheduler `image: alphapilot-backend:${IMAGE_TAG}`，前端 `image: alphapilot-frontend:${FRONTEND_TAG}`（`FRONTEND_TAG=<sha>-<env>`）。
 
 ## 5. 与 GitHub 的结合（分支流晋升）
 
@@ -68,10 +79,10 @@ push main  → CI 测试门禁 → SSH → deploy-prod.sh  : 复用 → 部署�
 
 各环境 compose（`docker-compose.{dev-server,test,prod}.yml`）：
 
-- `build: {context, dockerfile}` → `image: alphapilot-backend:${IMAGE_TAG}` / `alphapilot-frontend:${IMAGE_TAG}`。
-- 删除 build context 依赖 → compose 文件可独立于源码存在于部署目录。
-- 其余不变：scheduler 仍 `image: backend:${IMAGE_TAG}` + `command: python scripts/start_scheduler.py`；环境变量、`ap-shared` 外部网络、端口映射（dev 8001/3001）保持。
-- `${IMAGE_TAG}` 由 deploy 脚本通过 shell 环境注入（`IMAGE_TAG=<sha> docker compose ... up -d`）。
+- `build: {context, dockerfile}` → `image: alphapilot-backend:${IMAGE_TAG}`（backend/scheduler）；frontend → `image: alphapilot-frontend:${FRONTEND_TAG}`。
+- 删除 build context / build-args 依赖 → compose 文件可独立于源码存在于部署目录。
+- 其余不变：scheduler 仍 `image: alphapilot-backend:${IMAGE_TAG}` + `command: python scripts/start_scheduler.py`；环境变量、`ap-shared` 外部网络、端口映射（dev 8001/3001）保持。
+- `${IMAGE_TAG}` / `${FRONTEND_TAG}` 由 deploy 脚本通过 shell 环境注入（`IMAGE_TAG=<sha> FRONTEND_TAG=<sha>-dev docker compose ... up -d`）。
 
 ## 7. 部署脚本改造（以 deploy-dev.sh 为例）
 
