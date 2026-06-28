@@ -45,16 +45,20 @@ run_deploy() {
         [ "$ans" = "yes" ] || { echo "已取消"; exit 1; }
     fi
 
-    # ── [1/7] 共享中间件 ──────────────────────────────────────
+    # ── [1/7] 共享中间件（已健康则不动，避免每次部署重建共享中间件）──
     echo "[1/7] 确保共享中间件运行..."
-    docker compose -f "$MIDDLEWARE_DIR/docker-compose.middleware.yml" up -d
-    local R=30
-    until docker exec ap-postgres pg_isready -U alphapilot >/dev/null 2>&1; do
+    if ! docker ps --filter name=ap-postgres --filter health=healthy -q | grep -q .; then
+        docker compose -f "$MIDDLEWARE_DIR/docker-compose.middleware.yml" up -d
+    fi
+    # 等 postgres 真正可接受查询（pg_isready 通过后仍有窗口）
+    local R=60
+    until docker exec ap-postgres psql -U alphapilot -tAc "SELECT 1" >/dev/null 2>&1; do
         R=$((R-1)); [ $R -le 0 ] && { echo "❌ 中间件 postgres 未就绪"; exit 1; }; sleep 2
     done
-    docker exec ap-postgres psql -U alphapilot -tc \
+    # 幂等建库（卷已存在时 init 脚本不跑）；容错 already-exists / 并发
+    docker exec ap-postgres psql -U alphapilot -tAc \
         "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1 || \
-        docker exec ap-postgres psql -U alphapilot -c "CREATE DATABASE $DB_NAME"
+        docker exec ap-postgres createdb -U alphapilot "$DB_NAME" 2>/dev/null || true
 
     # ── [2/7] 构建目录 checkout 目标 commit ──────────────────
     echo "[2/7] 同步源码到目标 commit..."
