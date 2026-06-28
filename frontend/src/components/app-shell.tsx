@@ -1,92 +1,135 @@
 'use client'
 
-import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useMemo } from 'react'
-import { useAuth } from '@/components/auth-provider'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AdminSubnav } from '@/components/admin-subnav'
+import { useAuth } from '@/components/auth-provider'
+import { fmtPct } from '@/components/ui'
+import { apiRequest, buildAuthHeaders, getKillSwitch } from '@/lib/api'
+import { Sidebar, type AccountSummary, type NavItem } from '@/components/shell/Sidebar'
+import { Topbar, type RiskChip } from '@/components/shell/Topbar'
+import styles from '@/components/shell/shell.module.css'
 
-const BASE_NAV_ITEMS = [
-  { href: '/', label: '控制台' },
+const BASE_NAV: NavItem[] = [
+  { href: '/', label: '主控制台', icon: 'dashboard' },
+  { href: '/decisions', label: 'AI 决策流', icon: 'brain', soon: true },
+  { href: '/positions', label: '持仓与订单', icon: 'layers', soon: true },
+  { href: '/performance', label: '交易与绩效', icon: 'chart', soon: true },
+  { href: '/strategy', label: '策略与风控', icon: 'shield', soon: true },
+  { href: '/insights', label: '归因与审计', icon: 'scroll-text', soon: true },
 ]
+const SETTINGS_NAV: NavItem = { href: '/settings', label: '设置', icon: 'settings', soon: true }
+const ADMIN_NAV: NavItem = { href: '/admin', label: '管理后台', icon: 'shield-alert' }
+
+function pageMeta(pathname: string): { title: string; sub: string } {
+  if (pathname === '/') return { title: '主控制台', sub: 'COCKPIT' }
+  if (pathname.startsWith('/admin/users')) return { title: '用户管理', sub: 'ADMIN' }
+  if (pathname.startsWith('/admin/audit-logs')) return { title: '审计日志', sub: 'ADMIN' }
+  if (pathname.startsWith('/admin/currencies')) return { title: '交易对管理', sub: 'ADMIN' }
+  if (pathname.startsWith('/admin')) return { title: '管理后台', sub: 'ADMIN' }
+  return { title: 'AlphaPilot', sub: '' }
+}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { ready, session, logout } = useAuth()
+  const { session, logout } = useAuth()
+  const [open, setOpen] = useState(false)
+  const [account, setAccount] = useState<AccountSummary | null>(null)
+  const [engine, setEngine] = useState<'active' | 'paused' | null>(null)
+  const [unresolved, setUnresolved] = useState(0)
 
-  const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/register')
+  const token = session?.token
   const isAdmin = session?.user.role === 'admin'
+  const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/register')
+
+  useEffect(() => {
+    if (!token) {
+      setAccount(null)
+      setEngine(null)
+      setUnresolved(0)
+      return
+    }
+    let cancelled = false
+    const load = async () => {
+      const [acc, risks, ks] = await Promise.all([
+        apiRequest<AccountSummary>('/account', { headers: buildAuthHeaders(token) }).catch(() => null),
+        apiRequest<{ resolved: boolean }[]>('/risk-events?limit=50', { headers: buildAuthHeaders(token) }).catch(() => []),
+        isAdmin ? getKillSwitch(token).then((r) => r.state).catch(() => null) : Promise.resolve(null),
+      ])
+      if (cancelled) return
+      setAccount(acc)
+      setUnresolved((risks || []).filter((r) => !r.resolved).length)
+      setEngine(ks)
+    }
+    load()
+    const t = setInterval(load, 30000)
+    return () => {
+      cancelled = true
+      clearInterval(t)
+    }
+  }, [token, isAdmin])
 
   const navItems = useMemo(() => {
-    if (!isAdmin) return BASE_NAV_ITEMS
-    return [...BASE_NAV_ITEMS, { href: '/admin', label: '管理后台' }]
+    const items = [...BASE_NAV]
+    if (isAdmin) items.push(ADMIN_NAV)
+    items.push(SETTINGS_NAV)
+    return items
   }, [isAdmin])
 
-  const userLabel = useMemo(() => {
-    if (!session) return '未登录'
-    return `${session.user.name} · ${session.user.role === 'admin' ? '管理员' : '普通用户'}`
-  }, [session])
+  const handleLogout = useCallback(() => {
+    logout()
+    router.push('/login')
+  }, [logout, router])
+
+  const closeDrawer = useCallback(() => setOpen(false), [])
+
+  if (isAuthPage) {
+    return <>{children}</>
+  }
+
+  const { title, sub } = pageMeta(pathname)
+  const dailyPct = account?.daily_pnl_pct
+  const detail = dailyPct != null ? `日盈亏 ${fmtPct(dailyPct * 100)}` : undefined
+
+  let riskChip: RiskChip | null = null
+  if (session) {
+    if (isAdmin && engine === 'paused') riskChip = { tone: 'rose', label: '已暂停', detail }
+    else if (unresolved > 0) riskChip = { tone: 'amber', label: `风控事件 ${unresolved}`, detail }
+    else riskChip = { tone: 'mint', label: '风控正常', detail }
+  }
+
+  const userName = session ? session.user.name : '未登录'
+  const userMeta = session ? `${session.user.email} · ${isAdmin ? '管理员' : '普通用户'}` : '本地存储会话'
 
   return (
-    <>
-      <header className="shellHeader">
-        <div className="shellBrand">
-          <span className="shellLogo" aria-hidden="true">
-            <span className="shellLogoCore" />
-          </span>
-          <div>
-            <strong>AlphaPilot</strong>
-            <small>{isAdmin ? 'Control plane · admin ready' : 'Control plane · operator view'}</small>
-          </div>
-        </div>
-
-        <nav className="shellNav" aria-label="主导航">
-          {navItems.map((item) => {
-            const active = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)
-            return (
-              <Link key={item.href} href={item.href} className="shellNavItem" data-active={active}>
-                {item.label}
-              </Link>
-            )
-          })}
-        </nav>
-
-        <div className="shellActions">
-          <div className="shellUserCard">
-            <span className="shellStatusDot" data-ready={ready} />
-            <div>
-              <strong>{userLabel}</strong>
-              <small>{session ? session.user.email : '本地存储会话'}</small>
-            </div>
-          </div>
-
-          {session ? (
-            <>
-              {isAdmin && !pathname.startsWith('/admin') && (
-                <Link href="/admin" className="shellGhostButton">
-                  后台入口
-                </Link>
-              )}
-              <button
-                className="shellGhostButton"
-                onClick={() => {
-                  logout()
-                  router.push('/login')
-                }}
-              >
-                退出
-              </button>
-            </>
-          ) : !isAuthPage ? (
-            <Link href="/login" className="shellPrimaryButton">
-              登录 / 注册
-            </Link>
-          ) : null}
-        </div>
-      </header>
-      {isAdmin && pathname.startsWith('/admin') && <AdminSubnav />}
-      {children}
-    </>
+    <div className={styles.shell}>
+      <div className={styles.backdrop} data-open={open ? 'true' : undefined} onClick={closeDrawer} />
+      <Sidebar
+        navItems={navItems}
+        activeHref={pathname}
+        account={account}
+        engine={engine}
+        isAdmin={!!isAdmin}
+        loggedIn={!!session}
+        userName={userName}
+        userMeta={userMeta}
+        open={open}
+        onNavigate={closeDrawer}
+        onLogout={handleLogout}
+      />
+      <div className={styles.main}>
+        <Topbar
+          title={title}
+          sub={sub}
+          riskChip={riskChip}
+          autoState={isAdmin ? engine : null}
+          unresolvedCount={unresolved}
+          onMenu={() => setOpen(true)}
+        />
+        {isAdmin && pathname.startsWith('/admin') && <AdminSubnav />}
+        <main>{children}</main>
+      </div>
+    </div>
   )
 }

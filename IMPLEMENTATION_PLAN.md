@@ -7,12 +7,13 @@
 **目标**: 令牌单一化 + 组件库 + 左侧栏 shell + Modal/事件总线基础设施
 **成功标准**: build + tsc + vitest 全绿；所有路由在新 shell 下行为不变；无蓝紫/发光球/渐变；数字 mono；后端零改动
 **子步骤**:
-- [进行中] 令牌清理（globals.css 别名 → --ap-*；删发光球/渐变 body；layout 去 ambient div）
-- [未开始] 引入 lucide-react Icon 封装 + 清 emoji（依赖已装）
-- [未开始] 组件库 src/components/ui/（Button/Card/StatCard/Badge/Table/RiskBanner/Modal/Dot/Sparkline）+ 单测
-- [未开始] 新 shell：Sidebar(240px) + Topbar 替换 app-shell
-- [未开始] 危险操作 Modal 基础设施 + 事件总线 Provider（lib/ws.ts catchup）
-**状态**: 进行中
+- [完成] 令牌清理（globals.css 别名 → --ap-*；删发光球/渐变 body；layout 去 ambient div）
+- [完成] 引入 lucide-react + Icon 封装
+- [完成] 组件库 src/components/ui/（Button/Card/StatCard/Badge/Table/RiskBanner/Modal/ConfirmDialog/Dot/Sparkline）+ 14 单测；vitest 接入 plugin-react
+- [完成] 新 shell：Sidebar(240px 品牌/权益/8段导航/引擎状态/登出) + Topbar(风控胶囊降级版/AUTO/通知红点) 替换 app-shell；窄屏抽屉
+- [完成] 危险操作 ConfirmDialog 基础设施（含 requireText 口令校验）
+- [范围微调→P1] 事件总线 Provider 随其消费方(dashboard)在 P1 落地；dashboard 内残留 emoji 随 P1 重做清除
+**状态**: 完成（build + tsc + vitest 33 passed 全绿）
 
 ## 阶段 P1: 拆页 + 主控制台重做（纯前端，现有接口）
 **目标**: 1060 行单页拆成 8 段路由；主控制台 = AI 决策 hero(Stepper) + 权益卡 + 关键指标 + 持仓预览 + 实时事件流
