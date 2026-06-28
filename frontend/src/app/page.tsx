@@ -95,6 +95,22 @@ interface StrategyScore {
   sample_count: number
 }
 
+interface AttributionBucket {
+  key: string
+  pnl_sum: number
+  trade_count: number
+  win_rate: number | null
+}
+
+interface AttributionSummary {
+  total_trades: number
+  total_pnl: number
+  by_symbol: AttributionBucket[]
+  by_exit_reason: AttributionBucket[]
+  by_regime: AttributionBucket[]
+  by_time_bucket: AttributionBucket[]
+}
+
 interface LiveEvent {
   type: string
   symbol?: string
@@ -162,6 +178,7 @@ export default function Home() {
   const [decisions, setDecisions] = useState<Decision[]>([])
   const [riskEvents, setRiskEvents] = useState<RiskEvent[]>([])
   const [strategyScores, setStrategyScores] = useState<StrategyScore[]>([])
+  const [attribution, setAttribution] = useState<AttributionSummary | null>(null)
   const [liveEvents, setLiveEvents] = useState<LiveEvent[]>([])
   const [runtimeConfig, setRuntimeConfig] = useState<RuntimeConfig | null>(null)
   const [configForm, setConfigForm] = useState<RuntimeConfigForm>({
@@ -197,7 +214,7 @@ export default function Home() {
     const authHeaders = buildAuthHeaders(token, false)
     try {
       // health 无需鉴权但统一走 envelope; 其余端点带 token
-      const [h, a, p, t, d, r, c, sc] = await Promise.all([
+      const [h, a, p, t, d, r, c, sc, attr] = await Promise.all([
         apiRequest<HealthData>('/health', { skipAuthRedirect: true }),
         apiRequest<AccountData>('/account', { headers: authHeaders }).catch(() => null),
         apiRequest<Position[]>('/positions', { headers: authHeaders }).catch(() => []),
@@ -209,6 +226,7 @@ export default function Home() {
           ? apiRequest<RuntimeConfig>('/config/runtime', { headers: authHeaders }).catch(() => null)
           : Promise.resolve(null),
         apiRequest<StrategyScore[]>('/strategy-scores?window=30d', { headers: authHeaders }).catch(() => []),
+        apiRequest<AttributionSummary>('/attribution/summary?window_days=30', { headers: authHeaders }).catch(() => null),
       ])
       setHealth(h)
       setAccount(a)
@@ -218,6 +236,7 @@ export default function Home() {
       setRiskEvents(r)
       setRuntimeConfig(c)
       setStrategyScores(sc)
+      setAttribution(attr)
       if (c) {
         setConfigForm((prev) => ({
           ...prev,
@@ -990,6 +1009,46 @@ export default function Home() {
             </>
           )}
         </section>
+
+        {/* 盈亏归因 (PRD 8.1.3) */}
+        {attribution && attribution.total_trades > 0 && (
+          <section className={styles.card}>
+            <h2 className={styles.cardTitle}>
+              盈亏归因
+              <small className={styles.sectionDescription}> · 近 30 天 {attribution.total_trades} 笔 · 合计 {attribution.total_pnl >= 0 ? '+' : ''}{attribution.total_pnl.toFixed(2)} USDT</small>
+            </h2>
+            <div className={styles.row2}>
+              <div>
+                <h3 className={styles.subTitle}>按币种</h3>
+                <div className={styles.attribList}>
+                  {attribution.by_symbol.slice(0, 6).map((b) => (
+                    <div key={`sym-${b.key}`} className={styles.attribRow}>
+                      <span className={styles.attribKey}>{b.key}</span>
+                      <span className={styles.attribMeta}>{b.trade_count} 笔 · 胜率 {b.win_rate != null ? `${(b.win_rate * 100).toFixed(0)}%` : '—'}</span>
+                      <span className={styles.attribPnl} data-sign={b.pnl_sum >= 0 ? 'pos' : 'neg'}>
+                        {b.pnl_sum >= 0 ? '+' : ''}{b.pnl_sum.toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <h3 className={styles.subTitle}>按退出类型</h3>
+                <div className={styles.attribList}>
+                  {attribution.by_exit_reason.slice(0, 6).map((b) => (
+                    <div key={`exit-${b.key}`} className={styles.attribRow}>
+                      <span className={styles.attribKey}><code className={styles.code}>{b.key}</code></span>
+                      <span className={styles.attribMeta}>{b.trade_count} 笔</span>
+                      <span className={styles.attribPnl} data-sign={b.pnl_sum >= 0 ? 'pos' : 'neg'}>
+                        {b.pnl_sum >= 0 ? '+' : ''}{b.pnl_sum.toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Footer */}
         <p className={styles.footer}>

@@ -68,8 +68,9 @@
 | Windows 全流程差距收口 | OPS/前后端/文档 差距审计后逐项实现（见 worklog 2026-06-13） | ✅ 完成 |
 | 通知系统（PRD P1） | event→告警映射 + Telegram/Email/Log channel + Streams `notifier` consumer 接入 scheduler | ✅ 完成 |
 | 策略评分器（PRD 8.2.5 / V0.2） | 接通现有 `strategy_scores` 骨架表：按 策略×币种×regime 算胜率/盈亏/回撤/夏普/止损退出率 + 调度 job + REST + 前端卡片 | ✅ 完成 |
+| 交易归因分析（PRD 8.1.3 / V0.3） | 接通 `trade_attributions` 骨架表：逐笔中文叙述 + 按币种/退出类型/regime/时段聚合拆解盈亏 + 调度 job + REST + 前端卡片（只读历史，零决策影响） | ✅ 完成 |
 
-**测试基线：514 passed + 2 skipped（全绿）。前端 `next build` + `tsc --noEmit` 通过。ruff 全仓 0 警告。**
+**测试基线：526 passed + 2 skipped（全绿）。前端 `next build` + `tsc --noEmit` 通过。ruff 全仓 0 警告。**
 
 ---
 
@@ -104,6 +105,7 @@
 | strategy_pipeline_scanner | 每 15 分钟 | 完整策略链：行情→指标→状态→决策→守卫→下单→发布事件 |
 | position_monitor_scanner | 每 10 秒 | 止损检测 + 止盈轮询 + 熔断检查 |
 | strategy_scoring_scanner | 每 24 小时 | 按 策略×币种×regime 聚合已平仓交易评分（写 strategy_scores） |
+| attribution_scanner | 每 24 小时 | 逐笔交易归因（写 trade_attributions，中文叙述 + 维度标签） |
 | event_shuttle | 常驻 | 事件搬运（DB event_store ↔ Redis Pub/Sub）+ notifier 告警 consumer |
 
 > 注：旧的 `src/workers/` 业务逻辑已重组进 `src/schedulers/` + 各 `services/` 子域。
@@ -126,6 +128,9 @@
 | `POST /api/reports/generate` | 手动触发今日日报（admin） |
 | `GET /api/strategy-scores` | 策略评分列表（需登录，按 window 筛选） |
 | `POST /api/strategy-scores/generate` | 手动触发策略评分（admin） |
+| `GET /api/attribution` | 逐笔归因列表（需登录） |
+| `GET /api/attribution/summary` | 盈亏聚合拆解（需登录，按维度） |
+| `POST /api/attribution/generate` | 手动触发逐笔归因（admin） |
 | `GET /api/account` | 最新账户快照（需登录） |
 | `POST /api/auth/login` | JWT 登录（`register` 已按 C5 禁用，建号走 admin） |
 | `GET /api/auth/me` | 当前登录用户 |

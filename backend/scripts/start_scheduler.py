@@ -42,6 +42,7 @@ def _setup_scheduler() -> BackgroundScheduler:
         },
     )
 
+    from src.schedulers.attribution_scanner import attribution_job
     from src.schedulers.position_monitor_scanner import position_monitor_job
     from src.schedulers.strategy_pipeline_scanner import strategy_pipeline_job
     from src.schedulers.strategy_scoring_scanner import strategy_scoring_job
@@ -61,9 +62,14 @@ def _setup_scheduler() -> BackgroundScheduler:
         hours=cfg.STRATEGY_SCORING_INTERVAL_HOURS,
         id="strategy_scoring", replace_existing=True,
     )
+    scheduler.add_job(
+        attribution_job, "interval",
+        hours=cfg.STRATEGY_SCORING_INTERVAL_HOURS,
+        id="attribution", replace_existing=True,
+    )
     scheduler.start()
     logger.info(
-        "APScheduler started: strategy_loop=%dm position_monitor=%ds scoring=%dh (PG JobStore: %s)",
+        "APScheduler started: strategy_loop=%dm position_monitor=%ds scoring/attribution=%dh (PG JobStore: %s)",
         cfg.STRATEGY_LOOP_INTERVAL_MINUTES,
         cfg.POSITION_MONITOR_INTERVAL_SECONDS,
         cfg.STRATEGY_SCORING_INTERVAL_HOURS,
