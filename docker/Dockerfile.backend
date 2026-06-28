@@ -16,6 +16,10 @@ COPY src/ ./src/
 COPY scripts/ ./scripts/
 RUN chmod +x scripts/start.sh
 
+# 代码在 /app；console_script(alembic) 与 `python scripts/x.py` 不会自动把 /app 加入 sys.path，
+# 统一用 PYTHONPATH 兜底，保证 `from src...` 可导入（uvicorn 本就自动加 cwd）。
+ENV PYTHONPATH=/app
+
 EXPOSE 8000
 
 # 启动时自动跑迁移再启动 uvicorn
