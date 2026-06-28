@@ -4,7 +4,7 @@
         test-up test-down \
         prod-deploy \
         dev-backend init-db upgrade-db \
-        test test-unit test-integration lint fmt
+        test test-unit test-integration hooks lint fmt
 
 # ── Docker Compose 文件 ───────────────────────────────────────────────────────
 COMPOSE_DEPS    = docker compose -f docker/docker-compose.dev.yml
@@ -106,6 +106,11 @@ test-unit:
 
 test-integration:
 	cd backend && uv run pytest tests/integration/ -v
+
+# 启用 git pre-commit 钩子（提交前跑单元测试，通过才允许提交）。新克隆执行一次即可。
+hooks:
+	git config core.hooksPath .githooks
+	@echo "✅ 已启用 pre-commit 钩子（.githooks/）。提交前会自动跑单元测试，前置：make deps-up"
 
 lint:
 	cd backend && uv run ruff check src/ tests/

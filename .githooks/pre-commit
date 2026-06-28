@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# 项目规则：提交前跑单元测试，通过才允许提交。
+# 启用：git config core.hooksPath .githooks   （或 make hooks）
+# 前置：本地依赖栈在跑 —— make deps-up（PostgreSQL 5442 + Redis 6389），
+#       因为 tests/conftest.py 的 session autouse fixture 需要连 PG 5442 建库+迁移。
+# 紧急跳过（不推荐）：git commit --no-verify
+set -e
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT/backend"
+
+echo "[pre-commit] 运行单元测试：pytest tests/unit/ ..."
+if ! uv run pytest tests/unit/ -q; then
+    echo ""
+    echo "❌ 单元测试未通过，提交被阻止。"
+    echo "   • DB 未起？  先  make deps-up   （PG 5442 + Redis 6389）"
+    echo "   • 确需跳过：  git commit --no-verify"
+    exit 1
+fi
+echo "[pre-commit] ✅ 单元测试通过，允许提交"

@@ -260,11 +260,21 @@ feat-xxx ──PR──► dev ──PR──► uat ──PR──► main
 - push 到 `dev`/`uat`/`main` 由 GitHub Actions（`.github/workflows/deploy-{dev,uat,prod}.yml`）SSH 进服务器自动跑 `scripts/deploy-{dev,uat,prod}.sh`。
 - prod 走 GitHub Environment 审批门（接 Binance mainnet，需人工 Approve）。
 
+## 提交前测试规则（强制）
+
+**提交前必须跑单元测试，通过才能提交。** 由 git pre-commit 钩子强制执行：
+
+- 钩子脚本：`.githooks/pre-commit`（提交前自动 `uv run pytest tests/unit/`，不过则拦下提交）。
+- **新克隆启用一次**：`make hooks`（= `git config core.hooksPath .githooks`）。
+- 前置：`make deps-up`（PG 5442 + Redis 6389）——`tests/conftest.py` 的 session autouse fixture 需连 PG 5442。
+- 紧急跳过（不推荐）：`git commit --no-verify`。
+- 注：CI（GitHub Actions）已**不再跑测试门禁**，测试责任前移到本地提交前；故此钩子是质量闸门。
+
 ## 自动提交 & 推送规则
 
 **每次完成一个实现块后，必须依次执行：**
 
-1. 运行相关测试 / build 验收
+1. 运行相关测试 / build 验收（单元测试由 pre-commit 钩子兜底）
 2. `git commit` — 提交代码
 3. `git push` — **立即推送到远程，无需询问用户**
 4. push 到对应环境分支后，CI 自动部署（无需手动执行 deploy 脚本）
