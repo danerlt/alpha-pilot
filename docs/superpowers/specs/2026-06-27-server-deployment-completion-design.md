@@ -57,6 +57,67 @@
 
 ## 3. 设计
 
+### 3.0 共享中间件 + 库隔离架构（采纳，替代"每环境独立 PG/Redis"）
+
+> 老板方案：服务器上**只起一套中间件**（一个 PostgreSQL 实例 + 一个 Redis 实例），dev/test/prod
+> 三环境**共用这套中间件**，靠 **不同 database 名 + 不同 Redis db 编号** 做隔离，而非每环境一套 PG/Redis。
+> 优点：单机省资源、运维简单、备份集中。
+
+#### 拓扑
+
+```
+┌─────────────────────────── 服务器（单机）───────────────────────────┐
+│                                                                      │
+│  docker-compose.middleware.yml  （常驻，独立于应用部署生命周期）       │
+│    ├─ postgres (container: ap-postgres)  ── 库: alphapilot_dev       │
+│    │                                          alphapilot_test        │
+│    │                                          alphapilot_prod        │
+│    └─ redis    (container: ap-redis)     ── db0=dev db1=test db2=prod │
+│         共享 docker network: ap-shared (external)                     │
+│                                                                      │
+│  docker-compose.dev-server.yml   → backend+scheduler+frontend (dev)  │
+│  docker-compose.test.yml         → backend+scheduler+frontend (test) │
+│  docker-compose.prod.yml         → backend+scheduler+frontend (prod) │
+│    三套应用 compose 都【不含 pg/redis】，加入 ap-shared 连中间件        │
+└──────────────────────────────────────────────────────────────────────┘
+            ↑ nginx 子路径反代  /ap-dev · /ap-test · /ap
+```
+
+#### 隔离矩阵
+
+| 环境 | 触发分支 | nginx 路径 | api/前端口(127.0.0.1) | database | Redis db | env 文件 |
+|------|---------|-----------|----------------------|----------|----------|---------|
+| dev  | `dev`  | `/ap-dev`  | 8001 / 3001 | `alphapilot_dev`  | 0 | `envs/dev.env`  |
+| test | `test` | `/ap-test` | 8002 / 3002 | `alphapilot_test` | 1 | `envs/test.env` |
+| prod | `main` | `/ap`      | 8003 / 3003 | `alphapilot_prod` | 2 | `envs/prod.env` |
+
+中间件本身：`ap-postgres` 绑 `127.0.0.1:5432`、`ap-redis` 绑 `127.0.0.1:6379`（仅本机，nginx/应用容器内部访问，不暴露公网）。
+
+#### 跨 compose 网络
+
+- 中间件 compose 创建具名 network `ap-shared`，pg/redis 接入并固定 `container_name`（`ap-postgres`/`ap-redis`）。
+- 应用 compose 以 `external: true` 引用 `ap-shared`，backend/scheduler 通过容器名访问：
+  - `DATABASE_URL = postgresql://alphapilot:<pw>@ap-postgres:5432/alphapilot_<env>`
+  - `REDIS_URL = redis://ap-redis:6379/<db编号>`
+
+#### 多库初始化
+
+中间件 postgres 用 `/docker-entrypoint-initdb.d/` 脚本（仅数据卷为空的首次启动执行一次）建三库：
+
+```sql
+-- docker/postgres-init/01-create-databases.sql
+CREATE DATABASE alphapilot_dev;
+CREATE DATABASE alphapilot_test;
+CREATE DATABASE alphapilot_prod;
+```
+
+> 若中间件卷已存在（非首次），需手动 `CREATE DATABASE`；spec 落地脚本会做幂等检查。
+> 各环境部署时各自 `alembic upgrade` 自己的库，互不影响。
+
+#### 与本地开发的关系（不变）
+
+- `docker-compose.local.yml`（本地全栈，自带 pg/redis）与 `docker-compose.dev.yml`（本地测试中间件 5442/6389）**保持不变**——本地开发不受服务器架构调整影响。
+
 ### 3.1 G1 — scheduler service（P0）
 
 每个环境 compose 在 `backend` 之后增加一个 `scheduler` service，复用同一镜像，仅启动命令不同：
@@ -161,6 +222,43 @@ prod 谨慎：回滚也接 mainnet，建议 prod 回滚后仅恢复服务、不�
 scheduler 无 HTTP 端口，healthcheck 用进程/心跳两选一：
 - **轻量**：`healthcheck` 检查主进程存活（`pgrep -f start_scheduler`）。
 - **更实**：scheduler 周期性写一个 Redis 心跳 key（`SET scheduler:heartbeat <ts> EX 90`），healthcheck 检 key 新鲜度。后者能发现"进程在但 job 卡死"，但需少量代码（`OpsHeartbeat` 事件契约已存在，可复用）。V0.x 先用轻量版。
+
+### 3.7 CI 自动部署 dev 端到端（push dev → 服务器）
+
+> 现有 `deploy-dev.yml → _deploy.yml → SSH → scripts/deploy-dev.sh` 机制已就绪，**无需重写流程**，
+> 只需配 secrets + 服务器一次性准备 + deploy 脚本改用共享中间件架构。
+
+**链路**：`git push origin dev` → GitHub Actions `Deploy Dev` 触发 → （G2 落地后先跑 test job）→
+`_deploy.yml` 用 secrets 里的 SSH 连服务器 → `cd <DEPLOY_DIR_DEV> && bash scripts/deploy-dev.sh` →
+脚本 `git pull` + `compose up -d --build`（应用三件套，连共享中间件）+ 迁移 + 健康三检。
+
+**GitHub Secrets（老板侧，一次性，绝不进 git）**：
+
+| Secret | 值的来源 | 说明 |
+|--------|---------|------|
+| `DEPLOY_SSH_HOST` | 服务器公网 IP | 仅填进 GitHub Secret |
+| `DEPLOY_SSH_PORT` | SSH 端口 | 非 22 时必填 |
+| `DEPLOY_SSH_USER` | SSH 登录用户名 | |
+| `DEPLOY_SSH_KEY`  | 专用部署私钥整段 PEM | 公钥加服务器 `authorized_keys` |
+| `DEPLOY_DIR_DEV`  | 服务器上 dev clone 的绝对路径 | |
+
+> SSH host/port 等真实值由老板直接填入 GitHub Secrets，本仓库任何文件不出现真实 IP/端口/路径。
+
+**服务器一次性准备**：
+
+```bash
+# 1) 起共享中间件（仅一次，常驻；后续应用重部署不动它）
+cd <某个 clone>/docker && docker compose -f docker-compose.middleware.yml up -d
+#    首次启动自动建 alphapilot_dev/test/prod 三库
+
+# 2) dev 应用 clone + env
+git clone <repo> <DEPLOY_DIR_DEV> && cd <DEPLOY_DIR_DEV> && git checkout dev
+cp example.env envs/dev.env   # 填真实密钥, 不进 git; 必填 APP_AUTH_SECRET_KEY / APP_CONFIG_MASTER_KEY
+
+# 3) nginx 并入 docker/nginx/alpha-pilot.conf 的 location 块（含新增 /ap-test 段）后 reload
+```
+
+之后每次 `git push origin dev` 即自动部署 dev，无需手动操作。
 
 ## 4. 实施阶段
 

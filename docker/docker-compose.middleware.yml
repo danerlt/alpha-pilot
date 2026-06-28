@@ -1,0 +1,56 @@
+# 共享中间件（dev/test/prod 三环境共用一套，靠不同 database + Redis db 隔离）
+# 常驻，独立于应用部署生命周期：应用重部署不动这套中间件。
+#
+# 启动（服务器一次性）：
+#   cd docker && docker compose -f docker-compose.middleware.yml up -d
+# 首次启动（数据卷为空）自动建 alphapilot_dev / alphapilot_test / alphapilot_prod 三库。
+#
+# 端口仅绑 127.0.0.1：nginx / 应用容器内部访问，不暴露公网。
+
+name: ap-middleware
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ap-postgres
+    environment:
+      POSTGRES_USER: alphapilot
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-alphapilot}
+      POSTGRES_DB: alphapilot          # 默认库；三环境业务库由 init 脚本另建
+    volumes:
+      - postgres_shared_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alphapilot"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - ap-shared
+
+  redis:
+    image: redis:7-alpine
+    container_name: ap-redis
+    volumes:
+      - redis_shared_data:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - ap-shared
+
+volumes:
+  postgres_shared_data:
+  redis_shared_data:
+
+networks:
+  ap-shared:
+    name: ap-shared

@@ -1,13 +1,14 @@
 #!/bin/bash
-# 开发环境自动部署脚本（Linux 服务器）
-# 每次完成阶段任务后由 Claude 自动调用
-# 访问地址: https://www.danerlt.top/ap-dev
+# 开发环境自动部署脚本（Linux 服务器，由 GitHub Actions SSH 调用）
+# 共享中间件架构：连 docker-compose.middleware.yml 的 ap-postgres / ap-redis，
+# 用 database=alphapilot_dev + Redis db=0 隔离。
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 COMPOSE_FILE="$PROJECT_DIR/docker/docker-compose.dev-server.yml"
+MIDDLEWARE_FILE="$PROJECT_DIR/docker/docker-compose.middleware.yml"
 ENV_FILE="$PROJECT_DIR/envs/dev.env"
 
 echo "========================================"
@@ -15,36 +16,63 @@ echo " AlphaPilot Dev 环境自动部署"
 echo "========================================"
 
 if [ ! -f "$ENV_FILE" ]; then
-    echo "❌ 未找到 $ENV_FILE"
-    echo "   请先复制 example.env 为 envs/dev.env 并填写配置"
+    echo "❌ 未找到 $ENV_FILE，请先从 example.env 拷贝填写"
     exit 1
 fi
 
 cd "$PROJECT_DIR"
 
-echo "[1/4] 拉取最新代码 (dev 分支)..."
+# 健康检查失败时回滚到部署前的 SHA
+PREV_SHA="$(git rev-parse HEAD)"
+
+rollback() {
+    echo "❌ 部署失败，回滚到 $PREV_SHA"
+    git reset --hard "$PREV_SHA"
+    docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --build || true
+    exit 1
+}
+
+echo "[1/5] 确保共享中间件在运行..."
+docker compose -f "$MIDDLEWARE_FILE" up -d
+# 等中间件 postgres 健康（首次会建 alphapilot_dev/test/prod 三库）
+RETRIES=30
+until docker exec ap-postgres pg_isready -U alphapilot >/dev/null 2>&1; do
+    RETRIES=$((RETRIES - 1)); [ $RETRIES -le 0 ] && { echo "❌ 中间件 postgres 未就绪"; exit 1; }
+    sleep 2
+done
+# 幂等兜底：卷已存在（非首次）时 init 脚本不会跑，这里确保 dev 库存在
+docker exec ap-postgres psql -U alphapilot -tc \
+    "SELECT 1 FROM pg_database WHERE datname='alphapilot_dev'" | grep -q 1 || \
+    docker exec ap-postgres psql -U alphapilot -c "CREATE DATABASE alphapilot_dev"
+
+echo "[2/5] 拉取最新代码..."
 git pull origin dev
 
-echo "[2/4] 构建镜像并重启服务..."
-docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --build
+echo "[3/5] 构建镜像并重启应用（backend + scheduler + frontend）..."
+docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --build || rollback
 
-echo "[3/4] 等待后端服务就绪 (port 8001)..."
+echo "[4/5] 运行数据库迁移（单点执行）..."
+docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec -T backend python scripts/upgrade_db.py || rollback
+
+echo "[5/5] 健康三检（API + scheduler + 端点冒烟）..."
 RETRIES=30
-until docker compose -f "$COMPOSE_FILE" exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" > /dev/null 2>&1; do
+until docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec -T backend \
+        python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" >/dev/null 2>&1; do
     RETRIES=$((RETRIES - 1))
     if [ $RETRIES -le 0 ]; then
-        echo "❌ 后端服务启动超时"
-        docker compose -f "$COMPOSE_FILE" logs backend --tail=50
-        exit 1
+        echo "❌ API 健康检查超时"
+        docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" logs backend --tail=50
+        rollback
     fi
     sleep 2
 done
-
-echo "[4/4] 运行数据库迁移..."
-docker compose -f "$COMPOSE_FILE" exec -T backend python scripts/upgrade_db.py
+# scheduler 存活 + 启动日志
+if ! docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" logs scheduler --tail=30 2>/dev/null | grep -q "APScheduler started"; then
+    echo "⚠️  scheduler 未见 'APScheduler started'，打印日志供排查："
+    docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" logs scheduler --tail=30
+    rollback
+fi
 
 echo ""
-echo "✅ 开发环境部署完成"
-echo "   前端: https://www.danerlt.top/ap-dev  (本机: http://localhost:3001)"
-echo "   后端: https://www.danerlt.top/ap-dev/api  (本机: http://localhost:8001)"
-echo "   API文档: https://www.danerlt.top/ap-dev/docs"
+echo "✅ Dev 环境部署完成（backend + scheduler + frontend 已就绪）"
+echo "   前端: <PUBLIC_DOMAIN>/ap-dev  ·  后端: <PUBLIC_DOMAIN>/ap-dev/api"

@@ -1,17 +1,16 @@
-name: Deploy Dev
+name: Deploy Test
 
-# push 到 dev 分支 → 先在 CI 跑测试门禁 → 绿灯才 SSH 部署到服务器 dev 环境
+# push 到 test 分支 → 先在 CI 跑测试门禁 → 绿灯才 SSH 部署到服务器 test 环境
 on:
   push:
-    branches: [dev]
+    branches: [test]
   workflow_dispatch:
 
 concurrency:
-  group: deploy-dev
+  group: deploy-test
   cancel-in-progress: false
 
 jobs:
-  # 测试门禁：坏代码不进服务器
   test:
     runs-on: ubuntu-latest
     services:
@@ -62,9 +61,9 @@ jobs:
           npm run build
 
   deploy:
-    needs: test            # 测试绿才部署
+    needs: test
     uses: ./.github/workflows/_deploy.yml
     with:
-      environment: dev
-      deploy_script: scripts/deploy-dev.sh
+      environment: test
+      deploy_script: scripts/deploy-test.sh
     secrets: inherit

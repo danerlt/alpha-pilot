@@ -1,35 +1,33 @@
 #!/bin/bash
-# 生产环境部署脚本（Linux 服务器）
-# 共享中间件架构：连 ap-postgres / ap-redis，database=alphapilot_prod + Redis db=2。
-# CI 经 GitHub Environment 审批门把关；服务器手动执行会交互确认。
+# test 环境部署脚本（Linux 服务器）
+# 共享中间件架构：连 ap-postgres / ap-redis，database=alphapilot_test + Redis db=1。
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-COMPOSE_FILE="$PROJECT_DIR/docker/docker-compose.prod.yml"
+COMPOSE_FILE="$PROJECT_DIR/docker/docker-compose.test.yml"
 MIDDLEWARE_FILE="$PROJECT_DIR/docker/docker-compose.middleware.yml"
-ENV_FILE="$PROJECT_DIR/envs/prod.env"
+ENV_FILE="$PROJECT_DIR/envs/test.env"
 
 echo "========================================"
-echo " AlphaPilot 生产环境部署"
+echo " AlphaPilot Test 环境部署"
 echo "========================================"
-echo "⚠️  警告：这是生产环境，请确认已在 dev/test 环境验证通过"
-# 交互式终端才询问; CI (无 TTY) 或 FORCE_DEPLOY=1 时跳过 (CI 由 GitHub Environment 审批门把关)
-if [ -t 0 ] && [ "${FORCE_DEPLOY:-0}" != "1" ]; then
-    read -p "确认部署到生产环境？(yes/no): " CONFIRM
-    if [ "$CONFIRM" != "yes" ]; then
-        echo "已取消"
-        exit 0
-    fi
-fi
 
 if [ ! -f "$ENV_FILE" ]; then
-    echo "❌ 未找到 $ENV_FILE"
+    echo "❌ 未找到 $ENV_FILE，请先从 example.env 拷贝填写"
     exit 1
 fi
 
 cd "$PROJECT_DIR"
+
+PREV_SHA="$(git rev-parse HEAD)"
+rollback() {
+    echo "❌ 部署失败，回滚到 $PREV_SHA"
+    git reset --hard "$PREV_SHA"
+    docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --build || true
+    exit 1
+}
 
 echo "[1/5] 确保共享中间件在运行..."
 docker compose -f "$MIDDLEWARE_FILE" up -d
@@ -39,17 +37,17 @@ until docker exec ap-postgres pg_isready -U alphapilot >/dev/null 2>&1; do
     sleep 2
 done
 docker exec ap-postgres psql -U alphapilot -tc \
-    "SELECT 1 FROM pg_database WHERE datname='alphapilot_prod'" | grep -q 1 || \
-    docker exec ap-postgres psql -U alphapilot -c "CREATE DATABASE alphapilot_prod"
+    "SELECT 1 FROM pg_database WHERE datname='alphapilot_test'" | grep -q 1 || \
+    docker exec ap-postgres psql -U alphapilot -c "CREATE DATABASE alphapilot_test"
 
 echo "[2/5] 拉取最新代码..."
-git pull origin main
+git pull origin test
 
 echo "[3/5] 构建镜像并重启应用（backend + scheduler + frontend）..."
-docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --build
+docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --build || rollback
 
 echo "[4/5] 运行数据库迁移（单点执行）..."
-docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec -T backend python scripts/upgrade_db.py
+docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec -T backend python scripts/upgrade_db.py || rollback
 
 echo "[5/5] 健康三检（API + scheduler）..."
 RETRIES=30
@@ -59,16 +57,16 @@ until docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec -T backend \
     if [ $RETRIES -le 0 ]; then
         echo "❌ API 健康检查超时"
         docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" logs backend --tail=50
-        exit 1
+        rollback
     fi
     sleep 2
 done
 if ! docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" logs scheduler --tail=30 2>/dev/null | grep -q "APScheduler started"; then
     echo "⚠️  scheduler 未见 'APScheduler started'，打印日志供排查："
     docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" logs scheduler --tail=30
-    exit 1
+    rollback
 fi
 
 echo ""
-echo "✅ 生产环境部署完成（backend + scheduler + frontend 已就绪）"
-echo "   前端: <PUBLIC_DOMAIN>/ap  ·  后端: <PUBLIC_DOMAIN>/ap/api"
+echo "✅ Test 环境部署完成（backend + scheduler + frontend 已就绪）"
+echo "   前端: <PUBLIC_DOMAIN>/ap-test  ·  后端: <PUBLIC_DOMAIN>/ap-test/api"

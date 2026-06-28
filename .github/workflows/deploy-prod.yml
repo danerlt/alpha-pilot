@@ -1,8 +1,8 @@
 name: Deploy Prod
 
-# push 到 main 分支 → 部署生产环境 (https://www.danerlt.top/ap)
+# push 到 main 分支 → 测试门禁 → 生产部署（接 Binance mainnet）
 # 安全门: 在仓库 Settings → Environments → prod 配置 required reviewers,
-#         合并到 main 后部署会暂停等待人工 Approve 才真正执行 (接 Binance mainnet)。
+#         合并到 main 后部署会暂停等待人工 Approve 才真正执行。
 on:
   push:
     branches: [main]
@@ -13,7 +13,58 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # 测试门禁：未测代码绝不进 mainnet
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: alphapilot
+          POSTGRES_PASSWORD: alphapilot
+          POSTGRES_DB: alphapilot
+        ports:
+          - 5442:5432
+        options: >-
+          --health-cmd "pg_isready -U alphapilot"
+          --health-interval 5s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6389:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install uv
+        run: pip install uv
+      - name: Backend deps
+        working-directory: backend
+        run: uv sync --extra dev
+      - name: Backend tests
+        working-directory: backend
+        env:
+          ALPHAPILOT_SKIP_SECRET_VALIDATION: '1'
+        run: uv run pytest -q
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Frontend deps
+        working-directory: frontend
+        run: npm ci
+      - name: Frontend typecheck + test + build
+        working-directory: frontend
+        run: |
+          npm run typecheck
+          npm run test
+          npm run build
+
   deploy:
+    needs: test            # 测试绿 + Environment 审批门 双保险
     uses: ./.github/workflows/_deploy.yml
     with:
       environment: prod
