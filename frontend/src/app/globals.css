@@ -1,16 +1,18 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* 兼容层：旧的 globals 变量全部别名到设计系统单一令牌源 (--ap-*)，
+   旧 auth/admin 类无需逐个改写即可换到方向 A 配色，整页重做在 P2。 */
 :root {
   color-scheme: dark;
-  --bg-0: #07111f;
-  --bg-1: #0c1729;
-  --panel: rgba(9, 18, 34, 0.78);
-  --panel-strong: rgba(13, 24, 44, 0.92);
-  --border: rgba(148, 163, 184, 0.16);
-  --text-soft: #94a3b8;
-  --text-strong: #f8fafc;
-  --accent: #60a5fa;
-  --accent-2: #a78bfa;
+  --bg-0: var(--ap-bg-0);
+  --bg-1: var(--ap-bg-1);
+  --panel: var(--ap-bg-2);
+  --panel-strong: var(--ap-bg-3);
+  --border: var(--ap-line);
+  --text-soft: var(--ap-fg-3);
+  --text-strong: var(--ap-fg-1);
+  --accent: var(--ap-mint);
+  --accent-2: var(--ap-violet);
 }
 
 html, body {
@@ -18,12 +20,9 @@ html, body {
 }
 
 body {
-  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background:
-    radial-gradient(circle at top left, rgba(96, 165, 250, 0.14), transparent 28%),
-    radial-gradient(circle at top right, rgba(167, 139, 250, 0.14), transparent 24%),
-    linear-gradient(180deg, var(--bg-0) 0%, #0b1322 46%, #0f172a 100%);
-  color: #e2e8f0;
+  font-family: var(--ap-font-sans);
+  background: var(--ap-bg-0);
+  color: var(--ap-fg-1);
   min-height: 100vh;
   position: relative;
   overflow-x: hidden;
@@ -34,29 +33,7 @@ a {
   text-decoration: none;
 }
 
-.shellAmbient {
-  position: fixed;
-  inset: auto;
-  width: 34rem;
-  height: 34rem;
-  border-radius: 999px;
-  filter: blur(90px);
-  opacity: 0.22;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.shellAmbientA {
-  top: -10rem;
-  left: -8rem;
-  background: #2563eb;
-}
-
-.shellAmbientB {
-  top: 8rem;
-  right: -10rem;
-  background: #7c3aed;
-}
+/* 背景发光球已移除 — 方向 A 纯平面 (P0 现代化) */
 
 button,
 input,

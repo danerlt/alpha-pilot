@@ -13,8 +13,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="zh">
       <body>
-        <div className="shellAmbient shellAmbientA" aria-hidden="true" />
-        <div className="shellAmbient shellAmbientB" aria-hidden="true" />
         <AuthProvider>
           <AppShell>{children}</AppShell>
         </AuthProvider>
