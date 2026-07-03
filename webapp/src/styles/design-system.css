@@ -1,0 +1,122 @@
+/* ============================================================
+   AlphaPilot Design System — colors & type
+   Dark-first, crypto/AI trading aesthetic.
+   Inspired by source project (Hyper Alpha Arena) — Hyperliquid
+   mint as the profit/primary accent, rose for loss, violet for AI.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* ---------- Core neutrals (dark base) ---------- */
+  --ap-bg-0:        #07090F;   /* page background, true near-black */
+  --ap-bg-1:        #0B0E15;   /* app surface */
+  --ap-bg-2:        #11151F;   /* card surface */
+  --ap-bg-3:        #171C29;   /* raised surface / hover */
+  --ap-bg-4:        #1F2533;   /* input / pressed */
+  --ap-line:        #222838;   /* hairline borders */
+  --ap-line-soft:   #1A1F2B;   /* subtle dividers */
+
+  /* ---------- Foreground scale ---------- */
+  --ap-fg-1:        #F5F7FB;   /* primary text */
+  --ap-fg-2:        #C7CDDB;   /* secondary text */
+  --ap-fg-3:        #8893A8;   /* tertiary / labels */
+  --ap-fg-4:        #5A6478;   /* muted / disabled */
+  --ap-fg-5:        #3A4256;   /* placeholder */
+
+  /* ---------- Brand / semantic ---------- */
+  --ap-mint:        #00D395;   /* primary — profit / long / up */
+  --ap-mint-soft:   rgba(0,211,149,0.14);
+  --ap-mint-glow:   rgba(0,211,149,0.35);
+  --ap-mint-dim:    #0A6A4F;
+
+  --ap-rose:        #FF4D6D;   /* loss / short / down */
+  --ap-rose-soft:   rgba(255,77,109,0.14);
+  --ap-rose-glow:   rgba(255,77,109,0.35);
+  --ap-rose-dim:    #7A2236;
+
+  --ap-violet:      #7C5CFF;   /* AI / intelligence highlight */
+  --ap-violet-soft: rgba(124,92,255,0.16);
+  --ap-violet-glow: rgba(124,92,255,0.40);
+
+  --ap-amber:       #F0B90B;   /* caution / Binance tint / warning */
+  --ap-amber-soft:  rgba(240,185,11,0.14);
+
+  --ap-cyan:        #22D3EE;   /* informational / data */
+  --ap-cyan-soft:   rgba(34,211,238,0.14);
+
+  /* ---------- Risk / guard states ---------- */
+  --ap-state-pass:    var(--ap-mint);
+  --ap-state-reject:  var(--ap-rose);
+  --ap-state-degrade: var(--ap-amber);
+  --ap-state-halted:  #8893A8;
+
+  /* ---------- Typography ---------- */
+  --ap-font-sans: 'Inter', 'Noto Sans SC', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --ap-font-mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+
+  --ap-fs-display: 32px;
+  --ap-fs-h1:      24px;
+  --ap-fs-h2:      20px;
+  --ap-fs-h3:      17px;
+  --ap-fs-body:    15px;
+  --ap-fs-sm:      13px;
+  --ap-fs-xs:      11px;
+  --ap-fs-micro:   10px;
+
+  /* ---------- Radii ---------- */
+  --ap-r-xs: 6px;
+  --ap-r-sm: 8px;
+  --ap-r-md: 12px;
+  --ap-r-lg: 16px;
+  --ap-r-xl: 20px;
+  --ap-r-pill: 999px;
+
+  /* ---------- Spacing scale ---------- */
+  --ap-s-1: 4px;
+  --ap-s-2: 8px;
+  --ap-s-3: 12px;
+  --ap-s-4: 16px;
+  --ap-s-5: 20px;
+  --ap-s-6: 24px;
+  --ap-s-7: 32px;
+  --ap-s-8: 40px;
+
+  /* ---------- Shadows ---------- */
+  --ap-shadow-1: 0 1px 2px rgba(0,0,0,0.4);
+  --ap-shadow-2: 0 4px 12px rgba(0,0,0,0.45);
+  --ap-shadow-3: 0 12px 32px rgba(0,0,0,0.55);
+  --ap-shadow-glow-mint: 0 0 24px rgba(0,211,149,0.25);
+  --ap-shadow-glow-rose: 0 0 24px rgba(255,77,109,0.25);
+
+  /* ---------- Chart palette ---------- */
+  --ap-chart-1: #00D395;
+  --ap-chart-2: #7C5CFF;
+  --ap-chart-3: #22D3EE;
+  --ap-chart-4: #F0B90B;
+  --ap-chart-5: #FF4D6D;
+}
+
+/* ---------- Semantic elements ---------- */
+body {
+  background: var(--ap-bg-0);
+  color: var(--ap-fg-1);
+  font-family: var(--ap-font-sans);
+  font-size: var(--ap-fs-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv11","ss01","ss03";
+}
+
+h1 { font-size: var(--ap-fs-h1); font-weight: 600; letter-spacing: -0.02em; }
+h2 { font-size: var(--ap-fs-h2); font-weight: 600; letter-spacing: -0.01em; }
+h3 { font-size: var(--ap-fs-h3); font-weight: 600; }
+
+.ap-display  { font-size: var(--ap-fs-display); font-weight: 700; letter-spacing: -0.03em; font-family: var(--ap-font-mono); font-variant-numeric: tabular-nums; }
+.ap-num      { font-family: var(--ap-font-mono); font-variant-numeric: tabular-nums; }
+.ap-label    { font-size: var(--ap-fs-xs); color: var(--ap-fg-3); letter-spacing: 0.05em; text-transform: uppercase; font-weight: 500; }
+.ap-caption  { font-size: var(--ap-fs-sm); color: var(--ap-fg-3); }
+
+.ap-pos { color: var(--ap-mint); }
+.ap-neg { color: var(--ap-rose); }
+.ap-ai  { color: var(--ap-violet); }

@@ -1,0 +1,80 @@
+@import "./design-system.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------- 全局基线（补充 design-system.css 的 body 规则） ---------- */
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow: hidden; /* 滚动收敛到 PageShell 内容区 */
+}
+
+/* 数字纪律：所有数字用 mono + tabular-nums，统一走 .ap-num 或 font-mono 类 */
+.font-mono {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 细滚动条，贴近深色终端质感 */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--ap-bg-4);
+  border-radius: 4px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* 交互状态规范（handoff/01 §3.4）*/
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* 流式决策动画（设计稿 enhancements.jsx） */
+@keyframes apblink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.2;
+  }
+}
+@keyframes appulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+/* 通用闪烁点动画（引擎状态/实时事件） */
+@keyframes ap-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.ap-pulse {
+  animation: ap-pulse 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
