@@ -37,12 +37,14 @@ from src.models.account_entity import RiskProfile
 from src.models.candle import Candle
 from src.models.position import Position
 from src.services.events.contracts import (
+    DecisionComplete,
     DecisionProposed,
     FactorsUpdated,
     IndicatorsComputed,
     RegimeClassified,
 )
 from src.services.events.outbox import OutboxWriter
+from src.services.events.progress import DecisionProgressEmitter
 from src.services.execution.account_state import AccountStateService
 from src.services.execution.execution_guard import ExecutionGuard
 from src.services.execution.market_data import MarketDataService
@@ -96,6 +98,7 @@ class _PipelineDeps:
     executor: OrderExecutor
     adapter: ExchangeAdapter
     outbox: Optional[OutboxWriter]
+    progress: Optional[DecisionProgressEmitter] = None
 
 
 def _run_one_symbol_tf(
@@ -126,6 +129,17 @@ def _run_one_symbol_tf(
 
     trace_id = f"pipeline:{symbol}:{tf}:{datetime.now(timezone.utc).timestamp()}"
 
+    def _progress(stage, status, *, decision_id=None, detail=None):
+        """decision.progress 埋点 (handoff 3.3); emitter 内部吞异常, 不影响主链路。"""
+        if deps.progress is not None:
+            deps.progress.emit(
+                stage, status,
+                symbol=symbol, timeframe=tf, trace_id=trace_id,
+                decision_id=decision_id, detail=detail,
+            )
+
+    _progress("snapshot", "start")
+
     # 1. 拉 K 线
     deps.market.fetch_and_store(
         account_id=account_id, trading_mode=trading_mode,
@@ -139,6 +153,7 @@ def _run_one_symbol_tf(
         symbol=symbol, timeframe=tf, limit=210,
     )
     if not values.is_valid_for_trading():
+        _progress("snapshot", "fail", detail={"reason": "insufficient_indicators"})
         return {"action": "SKIP", "reason": "insufficient_indicators"}
 
     # 3. 算因子
@@ -207,6 +222,11 @@ def _run_one_symbol_tf(
             trace_id=trace_id,
         )
 
+    _progress("snapshot", "done", detail={
+        "regime": regime_result.regime,
+        "confidence": float(regime_result.confidence),
+    })
+
     # 5. 当前价格
     ticker = deps.adapter.get_ticker(symbol)
     current_price = float(ticker.price)
@@ -258,7 +278,13 @@ def _run_one_symbol_tf(
     )
 
     # 8. 策略路由 → AI Trader (decision_id 直接来自 Solver, 无需反查)
+    _progress("reasoning", "start")
     proposal, decision_id = deps.router.decide(pipeline_input)
+    _progress("reasoning", "done", decision_id=decision_id, detail={
+        "action": proposal.action,
+        "confidence": float(proposal.confidence),
+        "is_fallback": proposal.is_fallback,
+    })
 
     # publish decision.proposed —— Notifier / UI 实时拿决策摘要
     # 跳过场景:
@@ -293,6 +319,7 @@ def _run_one_symbol_tf(
 
     # 9. 执行守卫 (decision_id + trace_id 让 Guard 在 DEGRADE/REJECT 时
     # 能 publish decision.degraded / decision.rejected)
+    _progress("guard", "start", decision_id=decision_id)
     guard_dec = deps.guard.check(
         proposal=proposal, trading_mode=trading_mode,
         current_price=current_price, regime=regime_result.regime,
@@ -300,10 +327,25 @@ def _run_one_symbol_tf(
         daily_pnl_pct=daily_pnl_pct, atr=values.atr or 0.0,
         decision_id=decision_id, trace_id=trace_id,
     )
+    _progress("guard", "done", decision_id=decision_id, detail={
+        "result": guard_dec.result, "reason": guard_dec.reason,
+    })
 
     # 10. 按 guard 结果路由
     action_taken = "SKIP"
-    if guard_dec.result == "PASS":
+    will_execute = (
+        guard_dec.result == "PASS"
+        and (
+            proposal.action == "OPEN_LONG"
+            or (proposal.action == "CLOSE_LONG" and open_pos is not None)
+        )
+    )
+    _progress("verdict", "done", decision_id=decision_id, detail={
+        "final_action": proposal.action if will_execute else "SKIP",
+        "guard_result": guard_dec.result,
+    })
+    if will_execute:
+        _progress("execute", "start", decision_id=decision_id)
         if proposal.action == "OPEN_LONG":
             # OPEN_LONG 由 LLM 主动产出, 必然走过 Solver, decision_id 必非 None
             deps.executor.open_long(
@@ -313,13 +355,40 @@ def _run_one_symbol_tf(
                 current_price=current_price,
             )
             action_taken = "OPEN_LONG"
-        elif proposal.action == "CLOSE_LONG" and open_pos:
+        else:
             deps.executor.close_long(
                 position=open_pos, reason="ai_close",
                 decision_id=decision_id,
                 account_id=account_id, trading_mode=trading_mode,
             )
             action_taken = "CLOSE_LONG"
+        _progress("execute", "done", decision_id=decision_id, detail={"action": action_taken})
+
+    # decision.complete — 与业务写同事务走 outbox, caller commit 后随 shuttle 推 WS
+    if deps.outbox is not None and decision_id is not None:
+        deps.outbox.record(
+            db, aggregate_type="ai_decision", aggregate_id=decision_id,
+            event=DecisionComplete(
+                decision_id=decision_id,
+                symbol=symbol, timeframe=tf,
+                action=action_taken,
+                proposal_action=proposal.action,
+                confidence=float(proposal.confidence),
+                guard_result=guard_dec.result,
+                guard_reason=guard_dec.reason,
+                regime=regime_result.regime,
+                is_fallback=proposal.is_fallback,
+                entry_price=proposal.entry_price,
+                stop_loss=proposal.stop_loss,
+                take_profit=proposal.take_profit,
+                position_size_pct=(
+                    float(proposal.position_size_pct)
+                    if proposal.position_size_pct is not None else None
+                ),
+            ),
+            account_id=account_id, trading_mode=trading_mode,
+            trace_id=trace_id,
+        )
 
     return {
         "action": action_taken,
@@ -341,6 +410,7 @@ def run_strategy_pipeline_once(
     symbols: list[str],
     timeframes: list[str],
     outbox: Optional[OutboxWriter] = None,
+    progress_emitter: Optional[DecisionProgressEmitter] = None,
 ) -> dict[str, dict]:
     """执行一次完整 pipeline; 返回 {symbol_tf: {action, guard, ...}}。"""
     summary: dict[str, dict] = {}
@@ -363,6 +433,7 @@ def run_strategy_pipeline_once(
         executor=OrderExecutor(db, adapter, outbox=outbox),
         adapter=adapter,
         outbox=outbox,
+        progress=progress_emitter,
     )
 
     # 0. 阻塞开新仓的两条腿统一查 KillSwitchService:
@@ -405,5 +476,7 @@ def run_strategy_pipeline_once(
                 logger.exception("pipeline cycle failed for %s", key)
                 summary[key] = {"action": "ERROR"}
                 db.rollback()
+                if progress_emitter is not None:
+                    progress_emitter.fail_current(f"pipeline_error:{key}")
 
     return summary

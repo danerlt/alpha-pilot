@@ -248,3 +248,73 @@ def test_pipeline_garbage_llm_falls_back_no_order(session, profile):
     # 没有 orders / positions 写入
     assert session.execute(select(Order)).scalars().first() is None
     assert session.execute(select(Position)).scalars().first() is None
+
+
+class _FakeProgressEmitter:
+    """记录 emit 调用的假发射器 — 不碰 DB (handoff P1)。"""
+
+    def __init__(self):
+        self.calls: list[tuple[str, str, dict]] = []
+
+    def emit(self, stage, status, **kw):
+        self.calls.append((stage, status, kw))
+
+    def fail_current(self, error: str) -> None:
+        self.calls.append(("__fail__", "fail", {"error": error}))
+
+
+def test_pipeline_emits_progress_stages_and_complete_event(session, profile):
+    """五阶段 decision.progress 顺序点亮 + decision.complete 落 outbox (handoff 3.3)。"""
+    from src.models.event_store import EventOutbox
+    from src.services.events.outbox import OutboxWriter
+
+    adapter = _PipelineAdapter(ticker_price=50_000.0, fill_price=50_000.0)
+    llm = MockLLMClient(canned_response=VALID_OPEN_LONG)
+    emitter = _FakeProgressEmitter()
+
+    summary = run_strategy_pipeline_once(
+        db=session, account_id=1, trading_mode="testnet",
+        adapter=adapter, llm_client=llm, risk_profile=profile,
+        symbols=["BTCUSDT"], timeframes=["1h"],
+        outbox=OutboxWriter(), progress_emitter=emitter,
+    )
+    assert summary["BTCUSDT:1h"]["action"] == "OPEN_LONG"
+
+    seq = [(s, st) for s, st, _ in emitter.calls]
+    assert seq == [
+        ("snapshot", "start"), ("snapshot", "done"),
+        ("reasoning", "start"), ("reasoning", "done"),
+        ("guard", "start"), ("guard", "done"),
+        ("verdict", "done"),
+        ("execute", "start"), ("execute", "done"),
+    ]
+    # reasoning done 带 decision_id 与动作
+    reasoning_done = next(kw for s, st, kw in emitter.calls if (s, st) == ("reasoning", "done"))
+    assert reasoning_done["decision_id"] is not None
+    assert reasoning_done["detail"]["action"] == "OPEN_LONG"
+    # guard done 带结果
+    guard_done = next(kw for s, st, kw in emitter.calls if (s, st) == ("guard", "done"))
+    assert guard_done["detail"]["result"] == "PASS"
+
+    # decision.complete 走 outbox（与业务同事务）
+    complete_rows = [
+        r for r in session.execute(select(EventOutbox)).scalars().all()
+        if r.event_type == "decision.complete"
+    ]
+    assert len(complete_rows) == 1
+    payload = complete_rows[0].payload_json["payload"]
+    assert payload["action"] == "OPEN_LONG"
+    assert payload["guard_result"] == "PASS"
+    assert payload["regime"] in {"trending_up", "trending_down", "ranging", "chaotic"}
+
+
+def test_pipeline_without_emitter_still_works(session, profile):
+    """progress_emitter=None 完全兼容旧行为。"""
+    adapter = _PipelineAdapter(ticker_price=50_000.0, fill_price=50_000.0)
+    llm = MockLLMClient(canned_response=VALID_OPEN_LONG)
+    summary = run_strategy_pipeline_once(
+        db=session, account_id=1, trading_mode="testnet",
+        adapter=adapter, llm_client=llm, risk_profile=profile,
+        symbols=["BTCUSDT"], timeframes=["1h"],
+    )
+    assert summary["BTCUSDT:1h"]["action"] == "OPEN_LONG"

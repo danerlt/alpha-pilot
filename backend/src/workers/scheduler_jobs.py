@@ -24,6 +24,7 @@ from src.core.llm.client import (
 from src.db.engines import get_session_factory
 from src.models.account_entity import RiskProfile
 from src.services.events.outbox import OutboxWriter
+from src.services.events.progress import DecisionProgressEmitter
 from src.services.risk.kill_switch import KillSwitchService
 from src.workers.position_monitor_worker import run_position_monitor_once
 from src.workers.strategy_pipeline import run_strategy_pipeline_once
@@ -88,6 +89,10 @@ def new_strategy_pipeline_job() -> None:
         adapter = _build_adapter(settings)
         llm = _build_llm(settings)
         outbox = OutboxWriter()
+        progress_emitter = DecisionProgressEmitter(
+            session_factory=get_session_factory(),
+            account_id=1, trading_mode=settings.TRADING_MODE.value,
+        )
         symbols = _parse_csv(settings.PIPELINE_SYMBOLS)
         timeframes = _parse_csv(settings.PIPELINE_TIMEFRAMES)
         summary = run_strategy_pipeline_once(
@@ -97,6 +102,7 @@ def new_strategy_pipeline_job() -> None:
             risk_profile=profile,
             symbols=symbols, timeframes=timeframes,
             outbox=outbox,
+            progress_emitter=progress_emitter,
         )
         logger.info("strategy_pipeline summary: %s", summary)
     except Exception:
