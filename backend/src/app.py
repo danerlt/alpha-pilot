@@ -29,6 +29,7 @@ from src.controllers.api.v1.risk.commands import router as _commands_router
 from src.controllers.api.v1.system.events_catchup import router as _events_catchup_router
 from src.controllers.router import router as _root_router
 from src.controllers.websocket import redis_subscriber, websocket_endpoint
+from src.controllers.websocket_market import market_websocket_endpoint
 from src.db.session import get_db_session
 from src.middleware.error_logging_middleware import ErrorLoggingMiddleware
 from src.middleware.request_logging_middleware import RequestLoggingMiddleware
@@ -150,6 +151,7 @@ def create_app() -> FastAPI:
     app.include_router(_commands_router)
     app.include_router(_events_catchup_router)
     app.add_api_websocket_route("/ws", websocket_endpoint)
+    app.add_api_websocket_route("/ws/market", market_websocket_endpoint)
 
     _use_route_names_as_operation_ids(app)
 
