@@ -9,6 +9,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from src.common.exception.errors import ParamsException
+from src.common.enums import PositionStatus
 from src.core.exchange.adapter import ExchangeAdapter
 from src.core.exchange.types import Kline, OrderRequest, OrderResult, Ticker
 from src.models import Base
@@ -163,7 +164,7 @@ def test_list_symbols_aggregates_position_and_regime(session):
     session.add(SymbolConfig(symbol="ETHUSDT", base_asset="ETH", enabled=True, sort_order=2))
     session.add(SymbolConfig(symbol="OFFUSDT", base_asset="OFF", enabled=False))
     session.add(Position(
-        account_id=1, trading_mode="testnet", symbol="BTCUSDT", status="OPEN",
+        account_id=1, trading_mode="testnet", symbol="BTCUSDT", status=PositionStatus.OPEN.value,
         side="LONG", quantity=0.01, entry_price=50_000.0, stop_loss=49_000.0,
         opened_at=now,
     ))

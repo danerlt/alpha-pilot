@@ -58,6 +58,19 @@ class GuardCheckResult:
     severity: Literal["REJECT", "DEGRADE"] = "REJECT"  # 未通过时的裁决级别
 
 
+def derive_verdict(results: list[GuardCheckResult]) -> tuple[str, str]:
+    """逐项结果 → (verdict, reason): 首个未通过项定裁决, 全过为 PASS。
+
+    check() 与手动下单预检共用, 保证两条路径判定同源。
+    """
+    first_fail = next((r for r in results if not r.passed), None)
+    if first_fail is None:
+        return "PASS", "all_checks_passed"
+    if first_fail.severity == "DEGRADE":
+        return "DEGRADE", first_fail.note
+    return "REJECT", first_fail.note
+
+
 class ExecutionGuard:
     def __init__(
         self,
@@ -105,12 +118,10 @@ class ExecutionGuard:
             daily_pnl_pct=daily_pnl_pct, atr=atr,
             review_rejected=review_rejected,
         )
-        first_fail = next((r for r in results if not r.passed), None)
-        if first_fail is None:
-            return self._record(proposal, "PASS", "all_checks_passed")
-        if first_fail.severity == "DEGRADE":
-            return self._record(proposal, "DEGRADE", first_fail.note, modified="HOLD")
-        return self._record(proposal, "REJECT", first_fail.note)
+        verdict, reason = derive_verdict(results)
+        if verdict == "DEGRADE":
+            return self._record(proposal, "DEGRADE", reason, modified="HOLD")
+        return self._record(proposal, verdict, reason)
 
     def evaluate(
         self,

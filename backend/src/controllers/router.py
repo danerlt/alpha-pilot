@@ -9,6 +9,7 @@ from fastapi import APIRouter
 
 # ── execution 域 ───────────────────────────────────────────────────────
 from src.controllers.api.v1.execution.account import router as _account_router
+from src.controllers.api.v1.execution.orders import router as _orders_router
 from src.controllers.api.v1.execution.positions import router as _positions_router
 from src.controllers.api.v1.execution.trades import router as _trades_router
 
@@ -54,3 +55,4 @@ router.include_router(_account_router)
 router.include_router(_runtime_config_router)
 router.include_router(_tasks_router)
 router.include_router(_market_router)
+router.include_router(_orders_router)

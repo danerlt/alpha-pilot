@@ -50,6 +50,7 @@ class DecisionProposal(BaseModel):
     strategy_mode: Literal[
         "ai_trend", "ai_breakout", "ai_observation",
         "program_trend", "program_breakout",
+        "manual",
     ]
     reasoning: list[str] = Field(default_factory=list)
     risk_note: str | None = None

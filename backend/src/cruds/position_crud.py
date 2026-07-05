@@ -4,6 +4,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.common.enums import PositionStatus
 from src.cruds.base_crud import BaseCrud
 from src.models.position import Position
 
@@ -26,7 +27,7 @@ class PositionCrud(BaseCrud[Position]):
             select(Position.symbol).where(
                 Position.account_id == account_id,
                 Position.trading_mode == trading_mode,
-                Position.status == "OPEN",
+                Position.status == PositionStatus.OPEN.value,
             ).distinct()
         ).scalars()
         return set(rows)
