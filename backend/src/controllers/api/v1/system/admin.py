@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from src.common.api_response import api_response
 from src.common.exception.errors import DBException, ParamsException, ServiceException
 from src.common.response.response_code import ErrorCode
-from src.controllers.dependencies import client_meta, require_admin
+from src.controllers.dependencies import client_meta, get_current_user, require_admin
 from src.db.session import get_db
 from src.models.audit_log import AuditLog
 from src.models.symbol_config import SymbolConfig
@@ -15,6 +15,7 @@ from src.models.user import User
 from src.schemas.symbol_config import SymbolConfigCreate, SymbolConfigUpdate
 from src.schemas.user import UserCreate, UserUpdate
 from src.services.auth import hash_password
+from src.services.system.permissions import PERMISSION_MATRIX, ROLE_ALIASES, ROLES, resolve_role
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -281,3 +282,19 @@ def list_audit_logs(
         }
         for item in items
     ]
+
+
+@router.get("/roles")
+@api_response()
+def get_roles_matrix(current_user=Depends(get_current_user)):
+    """权限矩阵下发 (webapp 架构 B3) — 前端 usePermission() 的唯一数据源。
+
+    登录即可读 (viewer 也要知道自己不能做什么); 端点级强制仍走 require_admin,
+    P4 RBAC 落地后本矩阵接入 require_permission 依赖项。
+    """
+    return {
+        "roles": ROLES,
+        "matrix": PERMISSION_MATRIX,
+        "role_aliases": ROLE_ALIASES,
+        "current_role": resolve_role(current_user.role),
+    }

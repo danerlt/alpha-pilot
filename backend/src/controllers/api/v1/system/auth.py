@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Request
+from fastapi import Response as HTTPResponse
 from sqlalchemy.orm import Session
 
 from src.common.api_response import api_response
@@ -16,6 +17,7 @@ from src.db.session import get_db
 from src.models.user import User
 from src.schemas.auth import AuthLoginCreate, UserRegisterCreate
 from src.services.auth import (
+    ACCESS_TOKEN_EXPIRE_MINUTES,
     create_access_token,
     ensure_user_is_active,
     hash_password,
@@ -49,11 +51,20 @@ def register(payload: UserRegisterCreate, db: Session = Depends(get_db)):
     )
 
 
+AUTH_COOKIE_NAME = "ap_token"
+
+
+def _cookie_secure() -> bool:
+    """uat/prod 走 https → Secure; 本地/dev http 环境不加以免 cookie 被浏览器丢弃。"""
+    return get_base_settings().ENVIRONMENT in ("uat", "prod")
+
+
 @router.post("/login")
 @api_response()
 def login(
     payload: AuthLoginCreate,
     request: Request,
+    response: HTTPResponse,
     db: Session = Depends(get_db),
 ):
     """密码登录 — 带限流 + timing-equal 防 user enumeration.
@@ -93,6 +104,13 @@ def login(
         subject=str(user.id), role=user.role,
         secret_key=get_base_settings().APP_AUTH_SECRET_KEY,
     )
+    # webapp 架构 B3: httpOnly cookie 下发 (token 不落 localStorage 防 XSS),
+    # 与 Bearer 头并存, 不破坏既有调用方
+    response.set_cookie(
+        key=AUTH_COOKIE_NAME, value=token,
+        httponly=True, samesite="lax", secure=_cookie_secure(),
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60, path="/",
+    )
     return {
         "access_token": token,
         "token_type": "bearer",
@@ -101,6 +119,14 @@ def login(
             "role": user.role, "status": user.status,
         },
     }
+
+
+@router.post("/logout")
+@api_response()
+def logout(response: HTTPResponse):
+    """清 httpOnly cookie (webapp 架构 B3)。不要求有效 token — 过期也能登出。"""
+    response.delete_cookie(AUTH_COOKIE_NAME, path="/")
+    return {"ok": True}
 
 
 @router.get("/me")

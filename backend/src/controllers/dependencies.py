@@ -5,7 +5,7 @@ require_admin / get_adapter, 不再各自重复实现。
 """
 from __future__ import annotations
 
-from fastapi import Depends, Header, Request
+from fastapi import Cookie, Depends, Header, Request
 from sqlalchemy.orm import Session
 
 from src.common.enums import TradingMode
@@ -45,16 +45,24 @@ def client_meta(request: Request) -> tuple[str | None, str | None]:
 
 def get_current_user(
     authorization: str | None = Header(default=None),
+    ap_token: str | None = Cookie(default=None),
     db: Session = Depends(get_db),
 ):
-    """从 Authorization header 解析 JWT, 返回 User; 异常 → 401/403。
+    """从 Authorization header 或 ap_token cookie 解析 JWT, 返回 User; 异常 → 401/403。
 
+    优先 Bearer 头 (既有调用方); 缺失时回退 httpOnly cookie
+    (webapp 架构 B3, token 不落 localStorage)。
     所有 token 解码 / sub 转 int 的失败统一翻成 401, 避免泄漏成 500
     (前端 401 自动登出依赖此处必须抛 401, 否则会一直卡 loading).
     """
     from src.models.user import User
 
-    token = extract_bearer_token(authorization)
+    if authorization:
+        token = extract_bearer_token(authorization)
+    elif ap_token:
+        token = ap_token
+    else:
+        raise ServiceException("Missing bearer token", error_code=ErrorCode.AUTH_ERROR)
     secret_key = get_base_settings().APP_AUTH_SECRET_KEY
     try:
         payload = decode_access_token(token, secret_key)
