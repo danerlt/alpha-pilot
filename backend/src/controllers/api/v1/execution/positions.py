@@ -13,9 +13,12 @@ from sqlalchemy.orm import Session
 from src.common.api_response import api_response
 from src.common.enums import PositionStatus
 from src.configs.app_configs import get_settings
-from src.controllers.dependencies import get_current_user
+from src.controllers.dependencies import get_adapter, get_current_user, require_admin
 from src.db.session import get_db
 from src.models.position import Position
+from src.schemas.manual_order import SltpUpdate
+from src.services.events.outbox import OutboxWriter
+from src.services.execution.manual_trade import ManualTradeService
 
 router = APIRouter(prefix="/api/positions", tags=["positions"])
 
@@ -51,3 +54,25 @@ def list_positions(
         }
         for p in rows
     ]
+
+
+@router.patch("/{position_id}/sltp")
+@api_response()
+def update_position_sltp(
+    position_id: int,
+    body: SltpUpdate,
+    db: Session = Depends(get_db),
+    current_admin=Depends(require_admin),
+    adapter=Depends(get_adapter),
+):
+    """修改持仓 SL/TP (handoff P2 §3.2): 走守卫规则校验 + 审计。
+
+    权限: 暂 require_admin, P4 RBAC 落地后放宽为 trader+。
+    """
+    settings = get_settings()
+    mode = settings.TRADING_MODE
+    return ManualTradeService(db, adapter, outbox=OutboxWriter()).update_sltp(
+        position_id=position_id, body=body,
+        trading_mode=mode.value if hasattr(mode, "value") else mode,
+        operator_user_id=current_admin.id,
+    )

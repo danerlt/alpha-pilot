@@ -13,7 +13,13 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from src.common.enums import PositionStatus
-from src.common.exception.errors import RiskRejectedException, ServiceException
+from src.common.exception.errors import (
+    DBException,
+    ParamsException,
+    RiskRejectedException,
+    ServiceException,
+)
+from src.common.response.response_code import ErrorCode
 from src.core.exchange.adapter import ExchangeAdapter
 from src.core.trace.trace_id import generate_manual_trace_id
 from src.cruds.account_crud import account_snapshot_crud
@@ -25,8 +31,8 @@ from src.cruds.regime_crud import regime_snapshot_crud
 from src.models.audit_log import AuditLog
 from src.models.order import Order
 from src.models.position import Position
-from src.schemas.manual_order import ManualOrderCreate
-from src.services.events.contracts import ManualOverride
+from src.schemas.manual_order import ManualOrderCreate, SltpUpdate
+from src.services.events.contracts import ManualOverride, PositionUpdated
 from src.services.events.outbox import OutboxWriter
 from src.services.execution.execution_guard import (
     ExecutionGuard,
@@ -293,6 +299,95 @@ class ManualTradeService:
                 account_id=account_id, trading_mode=trading_mode,
                 trace_id=trace_id,
             )
+
+    def update_sltp(
+        self,
+        *,
+        position_id: int,
+        body: SltpUpdate,
+        trading_mode: str,
+        operator_user_id: int,
+        account_id: int = 1,
+    ) -> dict:
+        """修改持仓 SL/TP: 校验与守卫规则 7 同逻辑 (方向 + ATR 距离), 记审计。
+
+        本方法负责 commit。
+        """
+        if body.stop_loss is None and body.take_profit is None:
+            raise ParamsException("stop_loss 与 take_profit 至少给一个")
+
+        position = self._session.get(Position, position_id)
+        if (
+            position is None
+            or position.trading_mode != trading_mode
+            or position.status != PositionStatus.OPEN.value
+        ):
+            raise DBException(
+                error_code=ErrorCode.NOT_FOUND,
+                message=f"open position id={position_id} not found",
+            )
+
+        current_price = float(self._adapter.get_ticker(position.symbol).price)
+        profile = risk_profile_crud.find_active(self._session, account_id=account_id)
+        ind = indicator_snapshot_crud.find_latest_by_symbol(
+            self._session, trading_mode=trading_mode,
+            symbol=position.symbol, account_id=account_id,
+        )
+        atr = float(ind.atr) if ind is not None and ind.atr is not None else 0.0
+
+        if body.stop_loss is not None:
+            if body.stop_loss >= current_price:
+                raise RiskRejectedException(
+                    f"sl_direction: stop_loss={body.stop_loss} >= current_price={current_price} (多头 SL 必须低于现价)"
+                )
+            if atr > 0 and profile is not None:
+                distance = abs(current_price - body.stop_loss)
+                lo = float(profile.sl_atr_min_mult) * atr
+                hi = float(profile.sl_atr_max_mult) * atr
+                if not (lo <= distance <= hi):
+                    raise RiskRejectedException(
+                        f"sl_distance_out_of_range:{distance:.4f} not in [{lo:.4f}, {hi:.4f}]"
+                    )
+        if body.take_profit is not None and body.take_profit <= current_price:
+            raise RiskRejectedException(
+                f"tp_direction: take_profit={body.take_profit} <= current_price={current_price} (多头 TP 必须高于现价)"
+            )
+
+        before = {
+            "stop_loss": float(position.stop_loss) if position.stop_loss else None,
+            "take_profit": float(position.take_profit) if position.take_profit else None,
+        }
+        if body.stop_loss is not None:
+            position.stop_loss = body.stop_loss
+        if body.take_profit is not None:
+            position.take_profit = body.take_profit
+        self._session.flush()
+
+        after = {
+            "stop_loss": float(position.stop_loss) if position.stop_loss else None,
+            "take_profit": float(position.take_profit) if position.take_profit else None,
+        }
+        self._session.add(AuditLog(
+            account_id=account_id, user_id=operator_user_id,
+            action="manual_sltp_update", resource_type="position",
+            resource_id=str(position_id), before_json=before, after_json=after,
+        ))
+        self._session.flush()
+        if self._outbox is not None:
+            self._outbox.record(
+                self._session,
+                aggregate_type="position", aggregate_id=position.id,
+                event=PositionUpdated(
+                    position_id=position.id,
+                    current_price=current_price,
+                    unrealized_pnl=float(position.unrealized_pnl or 0),
+                    unrealized_pnl_pct=float(position.unrealized_pnl_pct or 0),
+                ),
+                account_id=account_id, trading_mode=trading_mode,
+                trace_id=f"manual_sltp:{position.id}:{operator_user_id}",
+            )
+        self._session.commit()
+        return {"position_id": position.id, **after}
 
     def _build_guard(self, *, account_id: int) -> ExecutionGuard:
         profile = risk_profile_crud.find_active(self._session, account_id=account_id)

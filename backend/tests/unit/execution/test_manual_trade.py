@@ -242,3 +242,105 @@ def test_place_order_sell_closes_position(session):
     assert trade.exit_reason == "manual"
     pos = session.execute(_select(Position)).scalars().one()
     assert pos.status == PositionStatus.CLOSED.value
+
+
+# ── update_sltp (handoff P2 Task 7) ─────────────────────────────────────
+
+
+def _open_position(session, **kw) -> Position:
+    defaults = dict(
+        account_id=1, trading_mode="testnet", symbol="BTCUSDT",
+        status=PositionStatus.OPEN.value, side="LONG",
+        quantity=0.02, entry_price=49_000.0, stop_loss=48_000.0,
+        opened_at=datetime.now(tz=timezone.utc),
+    )
+    defaults.update(kw)
+    pos = Position(**defaults)
+    session.add(pos)
+    session.commit()
+    return pos
+
+
+def test_update_sltp_success_and_audited(session):
+    from src.models.audit_log import AuditLog
+    from src.schemas.manual_order import SltpUpdate
+    from sqlalchemy import select as _select
+
+    pos = _open_position(session)
+    out = _svc(session).update_sltp(
+        position_id=pos.id, body=SltpUpdate(stop_loss=49_500.0, take_profit=51_000.0),
+        trading_mode="testnet", operator_user_id=1,
+    )
+    assert out["stop_loss"] == 49_500.0
+    assert out["take_profit"] == 51_000.0
+    session.expire_all()
+    assert float(session.get(Position, pos.id).stop_loss) == 49_500.0
+    logs = session.execute(_select(AuditLog)).scalars().all()
+    assert any(log.action == "manual_sltp_update" for log in logs)
+
+
+def test_update_sltp_sl_above_price_rejected(session):
+    from src.common.exception.errors import RiskRejectedException
+    from src.schemas.manual_order import SltpUpdate
+
+    pos = _open_position(session)
+    with pytest.raises(RiskRejectedException):
+        _svc(session).update_sltp(
+            position_id=pos.id, body=SltpUpdate(stop_loss=50_500.0),  # 现价 50000
+            trading_mode="testnet", operator_user_id=1,
+        )
+
+
+def test_update_sltp_tp_below_price_rejected(session):
+    from src.common.exception.errors import RiskRejectedException
+    from src.schemas.manual_order import SltpUpdate
+
+    pos = _open_position(session)
+    with pytest.raises(RiskRejectedException):
+        _svc(session).update_sltp(
+            position_id=pos.id, body=SltpUpdate(take_profit=49_000.0),
+            trading_mode="testnet", operator_user_id=1,
+        )
+
+
+def test_update_sltp_sl_distance_out_of_atr_range_rejected(session):
+    from src.common.exception.errors import RiskRejectedException
+    from src.models.indicator import IndicatorSnapshot
+    from src.schemas.manual_order import SltpUpdate
+
+    session.add(IndicatorSnapshot(
+        account_id=1, trading_mode="testnet", symbol="BTCUSDT", timeframe="1h",
+        snapshot_at=datetime.now(tz=timezone.utc), atr=200.0,
+    ))
+    session.commit()
+    pos = _open_position(session)
+    with pytest.raises(RiskRejectedException):
+        # 距离 5000 > 5×200 上限
+        _svc(session).update_sltp(
+            position_id=pos.id, body=SltpUpdate(stop_loss=45_000.0),
+            trading_mode="testnet", operator_user_id=1,
+        )
+
+
+def test_update_sltp_missing_fields_rejected(session):
+    from src.common.exception.errors import ParamsException
+    from src.schemas.manual_order import SltpUpdate
+
+    pos = _open_position(session)
+    with pytest.raises(ParamsException):
+        _svc(session).update_sltp(
+            position_id=pos.id, body=SltpUpdate(),
+            trading_mode="testnet", operator_user_id=1,
+        )
+
+
+def test_update_sltp_closed_position_not_found(session):
+    from src.common.exception.errors import DBException
+    from src.schemas.manual_order import SltpUpdate
+
+    pos = _open_position(session, status=PositionStatus.CLOSED.value)
+    with pytest.raises(DBException):
+        _svc(session).update_sltp(
+            position_id=pos.id, body=SltpUpdate(stop_loss=49_500.0),
+            trading_mode="testnet", operator_user_id=1,
+        )

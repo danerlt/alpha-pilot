@@ -135,3 +135,30 @@ def test_place_order_rejected_returns_risk_code(admin_client):
     body = r.json()
     assert body["success"] is False
     assert body["code"] == "600002"  # RISK_REJECTED
+
+
+def test_patch_sltp_full_chain(admin_client):
+    from src.common.enums import PositionStatus
+    from src.models.position import Position
+    from datetime import datetime, timezone
+
+    cli, engine = admin_client
+    with Session(engine) as s:
+        pos = Position(
+            account_id=1, trading_mode="testnet", symbol="BTCUSDT",
+            status=PositionStatus.OPEN.value, side="LONG",
+            quantity=0.02, entry_price=49_000.0, stop_loss=48_000.0,
+            opened_at=datetime.now(tz=timezone.utc),
+        )
+        s.add(pos)
+        s.commit()
+        pos_id = pos.id
+    r = cli.patch(f"/api/positions/{pos_id}/sltp", json={"stop_loss": 49_500.0})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["success"] is True
+    assert body["data"]["stop_loss"] == 49_500.0
+
+    # 非法方向 → 600002
+    r2 = cli.patch(f"/api/positions/{pos_id}/sltp", json={"stop_loss": 50_500.0})
+    assert r2.json()["code"] == "600002"
