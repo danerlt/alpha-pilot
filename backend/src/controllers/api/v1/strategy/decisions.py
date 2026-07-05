@@ -8,6 +8,7 @@ from src.common.api_response import api_response
 from src.common.response.response_schema import Response
 from src.configs.app_configs import get_settings
 from src.controllers.dependencies import get_current_user
+from src.cruds.risk_event_crud import risk_event_crud
 from src.db.session import get_db
 from src.models.decision import AIDecision
 from src.schemas.strategy_read import DecisionDetailOut, DecisionRead
@@ -33,10 +34,12 @@ def list_decisions(
         .limit(limit)
         .all()
     )
+    verdicts = risk_event_crud.find_guard_verdicts(db, [d.id for d in rows])
     return [
         {
             "id": d.id, "symbol": d.symbol, "timeframe": d.timeframe,
             "action": d.action,
+            "guard_verdict": verdicts.get(d.id),
             "confidence": float(d.confidence) if d.confidence else None,
             "strategy_mode": d.strategy_mode,
             "reasoning": d.reasoning,

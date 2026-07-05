@@ -18,6 +18,8 @@ class PositionRead(BaseModel):
     unrealized_pnl: float
     unrealized_pnl_pct: float
     opened_at: str
+    strategy_mode: str | None = None  # 联调缺口#4: 决策反查
+    position_pct: float | None = None  # 联调缺口#4: 仓位市值/总权益
 
 
 class TradeRead(BaseModel):
@@ -75,3 +77,28 @@ class OrderPlacedOut(BaseModel):
     status: str | None = None
     position_id: int | None = None
     trade_id: int | None = None
+
+
+class EquityPointRead(BaseModel):
+    """权益曲线单点 (联调缺口#2)。"""
+
+    ts: str
+    equity: float
+
+
+class OrderListItemRead(BaseModel):
+    """订单簿表行 (联调缺口#3)。"""
+
+    id: int
+    symbol: str
+    side: str
+    order_type: str
+    status: str
+    quantity: float
+    price: float | None = None
+    avg_fill_price: float | None = None
+    trace_id: str
+    position_id: int | None = None
+    ai_decision_id: int | None = None
+    submitted_at: str
+    filled_at: str | None = None

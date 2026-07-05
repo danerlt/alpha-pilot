@@ -21,4 +21,16 @@ class AccountSnapshotCrud(BaseCrud[AccountSnapshot]):
             ).order_by(AccountSnapshot.snapshot_at.desc()).limit(1)
         ).scalars().first()
 
+    def find_series(
+        self, session: Session, *, trading_mode: str, limit: int, account_id: int = 1,
+    ) -> list[AccountSnapshot]:
+        """最近 limit 个快照, 按时间正序 (权益曲线)。"""
+        rows = list(session.execute(
+            select(AccountSnapshot).where(
+                AccountSnapshot.account_id == account_id,
+                AccountSnapshot.trading_mode == trading_mode,
+            ).order_by(AccountSnapshot.snapshot_at.desc()).limit(limit)
+        ).scalars())
+        return list(reversed(rows))
+
 account_snapshot_crud = AccountSnapshotCrud()

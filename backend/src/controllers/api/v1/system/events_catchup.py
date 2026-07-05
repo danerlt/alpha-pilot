@@ -16,14 +16,16 @@ from sqlalchemy.orm import Session
 
 from src.common.api_response import api_response
 from src.common.constants import CATCHUP_LIMIT_HARD_CAP
+from src.common.response.response_schema import Response
 from src.controllers.dependencies import get_current_user
 from src.db.session import get_db
 from src.models.event_store import EventOutbox
+from src.schemas.system_read import CatchupOut
 
 router = APIRouter(prefix="/api/events", tags=["events"])
 
 
-@router.get("/catchup")
+@router.get("/catchup", response_model=Response[CatchupOut])
 @api_response()
 def catchup(
     since: str | None = Query(default=None, description="last event_id; 返回此 id 之后的事件"),

@@ -1936,6 +1936,84 @@
         }
       }
     },
+    "/api/account/history": {
+      "get": {
+        "tags": [
+          "account"
+        ],
+        "summary": "Account History",
+        "description": "权益曲线序列 (联调缺口#2): 近 N 个快照点, 时间正序。",
+        "operationId": "account_history",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 200,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "ap_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ap Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Response_list_EquityPointRead__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/config/runtime": {
       "get": {
         "tags": [
@@ -2535,6 +2613,82 @@
             }
           }
         }
+      },
+      "get": {
+        "tags": [
+          "orders"
+        ],
+        "summary": "List Orders",
+        "description": "订单列表 (联调缺口#3): 近 N 条, 新的在前 (要求登录)。",
+        "operationId": "list_orders",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "ap_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ap Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Response_list_OrderListItemRead__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/risk/state": {
@@ -2586,6 +2740,72 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Response_RiskStateOut_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/risk/limits": {
+      "get": {
+        "tags": [
+          "risk"
+        ],
+        "summary": "Get Risk Limits",
+        "description": "硬风控阈值只读视图 (联调缺口#7): active RiskProfile + runtime 覆盖生效值。",
+        "operationId": "get_risk_limits",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "ap_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ap Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Response_RiskLimitsOut_"
                 }
               }
             }
@@ -3354,7 +3574,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/Response_CatchupOut_"
+                }
               }
             }
           },
@@ -3577,6 +3799,56 @@
         ],
         "title": "AuthLoginCreate",
         "description": "POST /api/auth/login 入参."
+      },
+      "CatchupEventRead": {
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "title": "Event Id"
+          },
+          "event_type": {
+            "type": "string",
+            "title": "Event Type"
+          },
+          "envelope": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Envelope"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id",
+          "event_type",
+          "envelope"
+        ],
+        "title": "CatchupEventRead"
+      },
+      "CatchupOut": {
+        "properties": {
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/CatchupEventRead"
+            },
+            "type": "array",
+            "title": "Events"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "events",
+          "count",
+          "limit"
+        ],
+        "title": "CatchupOut"
       },
       "CloseAllCreate": {
         "properties": {
@@ -4031,6 +4303,17 @@
             "type": "string",
             "title": "Action"
           },
+          "guard_verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guard Verdict"
+          },
           "confidence": {
             "anyOf": [
               {
@@ -4141,6 +4424,25 @@
           "result"
         ],
         "title": "DecisionReviewRead"
+      },
+      "EquityPointRead": {
+        "properties": {
+          "ts": {
+            "type": "string",
+            "title": "Ts"
+          },
+          "equity": {
+            "type": "number",
+            "title": "Equity"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ts",
+          "equity"
+        ],
+        "title": "EquityPointRead",
+        "description": "权益曲线单点 (联调缺口#2)。"
       },
       "GuardCheckItem": {
         "properties": {
@@ -4412,6 +4714,110 @@
         ],
         "title": "MarketSymbolRead"
       },
+      "OrderListItemRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "symbol": {
+            "type": "string",
+            "title": "Symbol"
+          },
+          "side": {
+            "type": "string",
+            "title": "Side"
+          },
+          "order_type": {
+            "type": "string",
+            "title": "Order Type"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "quantity": {
+            "type": "number",
+            "title": "Quantity"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price"
+          },
+          "avg_fill_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Fill Price"
+          },
+          "trace_id": {
+            "type": "string",
+            "title": "Trace Id"
+          },
+          "position_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position Id"
+          },
+          "ai_decision_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ai Decision Id"
+          },
+          "submitted_at": {
+            "type": "string",
+            "title": "Submitted At"
+          },
+          "filled_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filled At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "symbol",
+          "side",
+          "order_type",
+          "status",
+          "quantity",
+          "trace_id",
+          "submitted_at"
+        ],
+        "title": "OrderListItemRead",
+        "description": "订单簿表行 (联调缺口#3)。"
+      },
       "OrderPlacedOut": {
         "properties": {
           "order_id": {
@@ -4594,6 +5000,28 @@
           "opened_at": {
             "type": "string",
             "title": "Opened At"
+          },
+          "strategy_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Strategy Mode"
+          },
+          "position_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position Pct"
           }
         },
         "type": "object",
@@ -4761,6 +5189,59 @@
         },
         "type": "object",
         "title": "Response[AgentActionConfirmOut]"
+      },
+      "Response_CatchupOut_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "default": true
+          },
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "default": "0"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "成功"
+          },
+          "detailMessage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detailmessage"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CatchupOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          }
+        },
+        "type": "object",
+        "title": "Response[CatchupOut]"
       },
       "Response_DecisionDetailOut_": {
         "properties": {
@@ -5026,6 +5507,59 @@
         },
         "type": "object",
         "title": "Response[PrecheckOut]"
+      },
+      "Response_RiskLimitsOut_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "default": true
+          },
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "default": "0"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "成功"
+          },
+          "detailMessage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detailmessage"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RiskLimitsOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          }
+        },
+        "type": "object",
+        "title": "Response[RiskLimitsOut]"
       },
       "Response_RiskStateOut_": {
         "properties": {
@@ -5406,6 +5940,63 @@
         "type": "object",
         "title": "Response[list[DecisionRead]]"
       },
+      "Response_list_EquityPointRead__": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "default": true
+          },
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "default": "0"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "成功"
+          },
+          "detailMessage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detailmessage"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/EquityPointRead"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          }
+        },
+        "type": "object",
+        "title": "Response[list[EquityPointRead]]"
+      },
       "Response_list_KlineRead__": {
         "properties": {
           "success": {
@@ -5519,6 +6110,63 @@
         },
         "type": "object",
         "title": "Response[list[MarketSymbolRead]]"
+      },
+      "Response_list_OrderListItemRead__": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "default": true
+          },
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "default": "0"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "成功"
+          },
+          "detailMessage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detailmessage"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OrderListItemRead"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          }
+        },
+        "type": "object",
+        "title": "Response[list[OrderListItemRead]]"
       },
       "Response_list_PositionRead__": {
         "properties": {
@@ -5757,6 +6405,68 @@
         "type": "object",
         "title": "RiskEventResolveCreate",
         "description": "POST /api/risk-events/{id}/resolve 入参.\n\nbody 兼容性: reason 可选, 缺省给个标识来源的占位串. 前端最好显式传."
+      },
+      "RiskLimitsOut": {
+        "properties": {
+          "max_position_size_pct": {
+            "type": "number",
+            "title": "Max Position Size Pct"
+          },
+          "max_daily_loss_pct": {
+            "type": "number",
+            "title": "Max Daily Loss Pct"
+          },
+          "max_consecutive_losses": {
+            "type": "integer",
+            "title": "Max Consecutive Losses"
+          },
+          "max_single_risk_pct": {
+            "type": "number",
+            "title": "Max Single Risk Pct"
+          },
+          "min_rr_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Rr Ratio"
+          },
+          "sl_atr_min_mult": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sl Atr Min Mult"
+          },
+          "sl_atr_max_mult": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sl Atr Max Mult"
+          }
+        },
+        "type": "object",
+        "required": [
+          "max_position_size_pct",
+          "max_daily_loss_pct",
+          "max_consecutive_losses",
+          "max_single_risk_pct"
+        ],
+        "title": "RiskLimitsOut",
+        "description": "硬风控阈值只读视图 (联调缺口#7); 值为 runtime 覆盖后的生效值。"
       },
       "RiskStateOut": {
         "properties": {

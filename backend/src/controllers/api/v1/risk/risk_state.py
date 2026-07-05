@@ -13,7 +13,7 @@ from src.common.response.response_schema import Response
 from src.configs.app_configs import get_settings
 from src.controllers.dependencies import get_current_user
 from src.db.session import get_db
-from src.schemas.risk_read import RiskStateOut
+from src.schemas.risk_read import RiskLimitsOut, RiskStateOut
 from src.services.risk.risk_state import RiskStateService
 
 router = APIRouter(prefix="/api/risk", tags=["risk"])
@@ -31,3 +31,25 @@ def get_risk_state(
     return RiskStateService(db).compute(
         trading_mode=mode.value if hasattr(mode, "value") else mode,
     )
+
+
+@router.get("/limits", response_model=Response[RiskLimitsOut])
+@api_response()
+def get_risk_limits(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """硬风控阈值只读视图 (联调缺口#7): active RiskProfile + runtime 覆盖生效值。"""
+    from src.cruds.account_entity_crud import risk_profile_crud
+
+    settings = get_settings()
+    profile = risk_profile_crud.find_active(db)
+    return {
+        "max_position_size_pct": float(settings.MAX_POSITION_SIZE_PCT),
+        "max_daily_loss_pct": float(settings.MAX_DAILY_LOSS_PCT),
+        "max_consecutive_losses": int(settings.MAX_CONSECUTIVE_LOSSES),
+        "max_single_risk_pct": float(settings.MAX_SINGLE_RISK_PCT),
+        "min_rr_ratio": float(profile.min_rr_ratio) if profile else None,
+        "sl_atr_min_mult": float(profile.sl_atr_min_mult) if profile else None,
+        "sl_atr_max_mult": float(profile.sl_atr_max_mult) if profile else None,
+    }

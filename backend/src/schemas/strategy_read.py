@@ -11,6 +11,7 @@ class DecisionRead(BaseModel):
     symbol: str
     timeframe: str
     action: str
+    guard_verdict: str | None = None  # PASS/REJECT/DEGRADE (联调缺口#1)
     confidence: float | None = None
     strategy_mode: str | None = None
     reasoning: list[Any] | None = None

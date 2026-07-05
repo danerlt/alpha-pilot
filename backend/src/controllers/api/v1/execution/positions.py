@@ -42,6 +42,19 @@ def list_positions(
         .order_by(Position.opened_at.desc())
         .all()
     )
+    # 联调缺口#4: strategy_mode 决策反查 + 仓位占比(市值/总权益)
+    from src.cruds.account_crud import account_snapshot_crud
+    from src.models.decision import AIDecision
+
+    decision_ids = [p.ai_decision_id for p in rows if p.ai_decision_id]
+    modes: dict[int, str | None] = {}
+    if decision_ids:
+        for d in db.query(AIDecision).filter(AIDecision.id.in_(decision_ids)).all():
+            modes[d.id] = d.strategy_mode
+    snap = account_snapshot_crud.find_latest(
+        db, trading_mode=settings.TRADING_MODE.value,
+    )
+    total = float(snap.total_balance_usdt) if snap else 0.0
     return [
         {
             "id": p.id, "symbol": p.symbol,
@@ -53,6 +66,11 @@ def list_positions(
             "unrealized_pnl": float(p.unrealized_pnl or 0),
             "unrealized_pnl_pct": float(p.unrealized_pnl_pct or 0),
             "opened_at": p.opened_at.isoformat(),
+            "strategy_mode": modes.get(p.ai_decision_id) if p.ai_decision_id else None,
+            "position_pct": (
+                float(p.quantity) * float(p.current_price or p.entry_price) / total
+                if total > 0 else None
+            ),
         }
         for p in rows
     ]

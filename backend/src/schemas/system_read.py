@@ -57,3 +57,15 @@ class AgentActionConfirmOut(BaseModel):
     status: str
     key: str
     value: object = None
+
+
+class CatchupEventRead(BaseModel):
+    event_id: str
+    event_type: str
+    envelope: dict
+
+
+class CatchupOut(BaseModel):
+    events: list[CatchupEventRead]
+    count: int
+    limit: int

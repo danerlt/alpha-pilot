@@ -1,5 +1,12 @@
 # webapp ⇄ 后端真联调 · 后端待办清单
 
+> **状态更新（2026-07-05 后端会话）**：#1-4、#6、#7 已全部收口（commit 见 git log
+> `feat(api): webapp 联调缺口收口`），openapi.json 已重导（48 paths），前端可
+> `npm run gen:api` 后删对应兼容代码。#5（周/月 PnL/Sharpe 等聚合指标）按清单建议留 P6 绩效期。
+> 新增端点：`GET /api/account/history`、`GET /api/orders`、`GET /api/risk/limits`；
+> 补字段：DecisionRead.guard_verdict、PositionRead.strategy_mode/position_pct；
+> catchup 已挂 CatchupOut response_model（可删形状嗅探）。
+
 > 2026-07-05 前端会话完成 wire 适配层后，对**真实后端**（隔离库 `alphapilot_webapp_it`）
 > 跑通浏览器级联调：登录（ap_token cookie）→ 2FA → 主控台/行情/决策流/持仓 全部正常、
 > 零控制台错误。以下是联调发现的**后端缺口**，按前端影响排序，供后端会话逐项收口。
