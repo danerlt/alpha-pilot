@@ -1,10 +1,11 @@
 /**
  * 策略实验室（handoff/02 P8）—— 受控进化流水线图示 + 候选卡（影子进度/对比/门槛）+ 进化历史。
  */
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ArrowDown, ArrowUp, FlaskConical, Layers, Pause } from "lucide-react";
 import { PageShell } from "@/components/shell/PageShell";
 import { Card, Pill } from "@/components/ui/atoms";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { labApi } from "@/api/services";
 import type { LabCandidate, LabHistoryItem, LabStage } from "@/api/types";
 
@@ -16,7 +17,17 @@ const STAGE_CFG: Record<LabStage, { l: string; tone: "violet" | "default" | "amb
   retired: { l: "RETIRED 归档", tone: "default" },
 };
 
-function CandidateCard({ c }: { c: LabCandidate }) {
+function CandidateCard({
+  c,
+  onStart,
+  onPromote,
+  onTerminate,
+}: {
+  c: LabCandidate;
+  onStart: (c: LabCandidate) => void;
+  onPromote: (c: LabCandidate) => void;
+  onTerminate: (c: LabCandidate) => void;
+}) {
   const isQueued = c.stage === "queued";
   const better = c.metrics.filter((m) => m.better === "shadow").length >
     c.metrics.filter((m) => m.better === "live").length;
@@ -45,7 +56,10 @@ function CandidateCard({ c }: { c: LabCandidate }) {
       {isQueued ? (
         <div className="flex items-center gap-2.5">
           <div className="flex-1 text-xs text-fg-3">等待影子槽位 · 预计明日开始 14 天影子运行</div>
-          <button className="cursor-pointer rounded-sm border border-violet bg-violet-soft px-3.5 py-2 text-xs font-semibold text-violet">
+          <button
+            onClick={() => onStart(c)}
+            className="cursor-pointer rounded-sm border border-violet bg-violet-soft px-3.5 py-2 text-xs font-semibold text-violet"
+          >
             立即开始
           </button>
         </div>
@@ -98,7 +112,10 @@ function CandidateCard({ c }: { c: LabCandidate }) {
           {/* 操作（门槛逻辑：服务端校验，前端只做展示禁用） */}
           <div className="mt-3.5 flex items-center gap-2">
             {c.promotable ? (
-              <button className="cursor-pointer rounded-[9px] border-none bg-mint px-4 py-[9px] text-xs font-bold text-bg-0 hover:brightness-110">
+              <button
+                onClick={() => onPromote(c)}
+                className="cursor-pointer rounded-[9px] border-none bg-mint px-4 py-[9px] text-xs font-bold text-bg-0 hover:brightness-110"
+              >
                 申请灰度上线 →
               </button>
             ) : (
@@ -110,7 +127,10 @@ function CandidateCard({ c }: { c: LabCandidate }) {
                 {c.blockReason ?? "表现未达标"}
               </button>
             )}
-            <button className="cursor-pointer rounded-[9px] border border-line bg-transparent px-3.5 py-[9px] text-xs text-fg-3">
+            <button
+              onClick={() => onTerminate(c)}
+              className="cursor-pointer rounded-[9px] border border-line bg-transparent px-3.5 py-[9px] text-xs text-fg-3 hover:text-rose"
+            >
               终止
             </button>
             <span className="ml-auto font-mono text-micro text-fg-4">上线需人工批准</span>
@@ -124,11 +144,38 @@ function CandidateCard({ c }: { c: LabCandidate }) {
 export default function Lab() {
   const [candidates, setCandidates] = useState<LabCandidate[]>([]);
   const [history, setHistory] = useState<LabHistoryItem[]>([]);
+  const [confirm, setConfirm] = useState<{
+    kind: "promote" | "terminate";
+    c: LabCandidate;
+  } | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
+  const reload = useCallback(() => {
     labApi.candidates().then(setCandidates).catch(() => {});
     labApi.history().then(setHistory).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    reload();
+  }, [reload]);
+
+  const start = async (c: LabCandidate) => {
+    await labApi.start(c.id);
+    reload();
+  };
+
+  const runConfirmed = async () => {
+    if (!confirm) return;
+    setBusy(true);
+    try {
+      if (confirm.kind === "promote") await labApi.promote(confirm.c.id);
+      else await labApi.terminate(confirm.c.id);
+      setConfirm(null);
+      reload();
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <PageShell title="策略实验室" sub="STRATEGY LAB">
@@ -181,7 +228,13 @@ export default function Lab() {
         {/* 候选 + 历史 */}
         <div className="grid items-start gap-5 min-[1000px]:grid-cols-2">
           {candidates.map((c) => (
-            <CandidateCard key={c.id} c={c} />
+            <CandidateCard
+              key={c.id}
+              c={c}
+              onStart={start}
+              onPromote={(x) => setConfirm({ kind: "promote", c: x })}
+              onTerminate={(x) => setConfirm({ kind: "terminate", c: x })}
+            />
           ))}
 
           <Card title="进化历史">
@@ -224,6 +277,35 @@ export default function Lab() {
           </Card>
         </div>
       </div>
+
+      {/* 灰度/终止确认（上线需人工批准；服务端最终校验门槛） */}
+      <ConfirmDialog
+        open={confirm !== null}
+        onClose={() => setConfirm(null)}
+        onConfirm={runConfirmed}
+        busy={busy}
+        title={
+          confirm?.kind === "promote"
+            ? "申请灰度上线 · 人工批准"
+            : "终止候选 · 归档"
+        }
+        confirmLabel={confirm?.kind === "promote" ? "批准进入灰度" : "确认终止"}
+        body={
+          confirm &&
+          (confirm.kind === "promote" ? (
+            <>
+              候选 <b className="text-fg-1">{confirm.c.title}</b>{" "}
+              将进入 <b className="text-amber">CANARY 灰度</b>
+              （小仓位真实运行）。灰度期回撤超限将自动回滚。服务端会再次校验影子期与指标门槛。
+            </>
+          ) : (
+            <>
+              候选 <b className="text-fg-1">{confirm.c.title}</b>{" "}
+              将被终止并归档，影子运行数据保留在进化历史中。
+            </>
+          ))
+        }
+      />
     </PageShell>
   );
 }

@@ -226,6 +226,44 @@ export const labApi = {
     if (USE_MOCK) return delay([...mock.mockLabHistory]);
     return http("/api/lab/history");
   },
+  start(id: string): Promise<{ ok: boolean }> {
+    if (USE_MOCK) {
+      const c = mock.mockLabCandidates.find((x) => x.id === id);
+      if (c) {
+        c.stage = "shadow";
+        c.shadowProgressPct = 2;
+        c.shadowDays = 0;
+        c.blockReason = "影子期进度 2% < 60%，继续观察";
+        c.promotable = false;
+      }
+      return delay({ ok: true }, 350);
+    }
+    return http(`/api/lab/candidates/${id}/start`, { method: "POST" });
+  },
+  promote(id: string): Promise<{ ok: boolean }> {
+    if (USE_MOCK) {
+      const c = mock.mockLabCandidates.find((x) => x.id === id);
+      if (c) c.stage = "canary";
+      return delay({ ok: true }, 400);
+    }
+    return http(`/api/lab/candidates/${id}/promote`, { method: "POST" });
+  },
+  terminate(id: string): Promise<{ ok: boolean }> {
+    if (USE_MOCK) {
+      const i = mock.mockLabCandidates.findIndex((x) => x.id === id);
+      if (i >= 0) {
+        const [c] = mock.mockLabCandidates.splice(i, 1);
+        mock.mockLabHistory.unshift({
+          ts: "刚刚",
+          kind: "retire",
+          title: `${c.title.slice(0, 20)}… 终止归档`,
+          note: "人工终止",
+        });
+      }
+      return delay({ ok: true }, 350);
+    }
+    return http(`/api/lab/candidates/${id}/terminate`, { method: "POST" });
+  },
 };
 
 export const auditApi = {

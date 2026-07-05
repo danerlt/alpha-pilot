@@ -376,5 +376,5 @@ export interface ChatMessage {
   role: "user" | "assistant";
   text: string;
   tools?: ChatToolCall[];
-  pendingAction?: { id: string; label: string };
+  pendingAction?: { id: string; label: string; applied?: boolean };
 }

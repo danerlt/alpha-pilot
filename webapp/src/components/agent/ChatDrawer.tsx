@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from "react";
 import { BrainCircuit, Check, Loader2, Send, X } from "lucide-react";
 import type { ChatMessage } from "@/api/types";
 import { Pill } from "@/components/ui/atoms";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { stream } from "@/api/stream";
 
 const QUICK = [
   "当前持仓风险敞口多大？",
@@ -38,7 +40,26 @@ export function ChatDrawer({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState<{ msgId: string; label: string } | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
+
+  // 应用修改：AI 无权直改配置，人工确认后才生效（handoff/02 P10）
+  const applyPending = () => {
+    if (!confirming) return;
+    setMessages((m) =>
+      m.map((msg) =>
+        msg.id === confirming.msgId && msg.pendingAction
+          ? { ...msg, pendingAction: { ...msg.pendingAction, applied: true } }
+          : msg,
+      ),
+    );
+    stream.emitEvent({
+      kind: "system",
+      msg: `配置修改已人工确认 · ${confirming.label} · 已落审计日志`,
+      tone: "amber",
+    });
+    setConfirming(null);
+  };
 
   useEffect(() => {
     bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight });
@@ -175,13 +196,32 @@ export function ChatDrawer({
                   </div>
                 )}
                 {m.pendingAction && (
-                  <div className="flex items-center justify-between rounded-sm border border-amber/30 bg-amber-soft px-3 py-2">
-                    <span className="font-mono text-xs text-amber">
+                  <div
+                    className={`flex items-center justify-between rounded-sm border px-3 py-2 ${
+                      m.pendingAction.applied
+                        ? "border-mint/30 bg-mint-soft"
+                        : "border-amber/30 bg-amber-soft"
+                    }`}
+                  >
+                    <span
+                      className={`font-mono text-xs ${m.pendingAction.applied ? "text-mint" : "text-amber"}`}
+                    >
                       {m.pendingAction.label}
                     </span>
-                    <button className="cursor-pointer rounded-xs bg-amber px-2 py-1 text-micro font-semibold text-bg-0 hover:brightness-110">
-                      应用修改（需确认）
-                    </button>
+                    {m.pendingAction.applied ? (
+                      <span className="flex items-center gap-1 font-mono text-micro font-semibold text-mint">
+                        <Check size={11} strokeWidth={2.6} /> 已确认生效
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() =>
+                          setConfirming({ msgId: m.id, label: m.pendingAction!.label })
+                        }
+                        className="cursor-pointer rounded-xs bg-amber px-2 py-1 text-micro font-semibold text-bg-0 hover:brightness-110"
+                      >
+                        应用修改（需确认）
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -199,6 +239,24 @@ export function ChatDrawer({
             ))}
           </div>
         )}
+
+        {/* 人工确认弹窗：Agent 无权绕过直改硬风控 */}
+        <ConfirmDialog
+          open={confirming !== null}
+          onClose={() => setConfirming(null)}
+          onConfirm={applyPending}
+          title="确认应用 AI 建议的配置修改"
+          confirmLabel="确认应用"
+          body={
+            confirming && (
+              <>
+                将执行配置变更：
+                <b className="font-mono text-amber"> {confirming.label}</b>
+                。硬风控修改需人工确认后才生效，操作将记录审计日志。
+              </>
+            )
+          }
+        />
 
         {/* input */}
         <div className="flex items-center gap-2 border-t border-line-soft px-4 py-3">
