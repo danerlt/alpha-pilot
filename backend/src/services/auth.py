@@ -35,6 +35,12 @@ def create_access_token(*, subject: str, role: str, secret_key: str) -> str:
     return jwt.encode(payload, secret_key, algorithm=ALGORITHM)
 
 
+def create_scoped_token(*, subject: str, scope: str, secret_key: str, expires_minutes: int = 5) -> str:
+    """短期专用 token (如 2FA 二段式的中间票据); scope 与正式 token 区分。"""
+    expire = datetime.now(timezone.utc) + timedelta(minutes=expires_minutes)
+    return jwt.encode({"sub": subject, "scope": scope, "exp": expire}, secret_key, algorithm=ALGORITHM)
+
+
 def decode_access_token(token: str, secret_key: str) -> dict[str, Any]:
     try:
         return jwt.decode(token, secret_key, algorithms=[ALGORITHM])

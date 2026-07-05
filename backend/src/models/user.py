@@ -1,4 +1,4 @@
-﻿from sqlalchemy import BigInteger, String
+﻿from sqlalchemy import BigInteger, Boolean, String, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.common.enums import UserRole, UserStatus
@@ -15,3 +15,5 @@ class User(Base):
     role: Mapped[str] = mapped_column(String(20), nullable=False, default=UserRole.USER.value)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default=UserStatus.ACTIVE.value)
     last_login_at: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    totp_secret: Mapped[str | None] = mapped_column(String(300), nullable=True, comment="Fernet 加密的 TOTP secret")
+    two_fa_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("FALSE"))

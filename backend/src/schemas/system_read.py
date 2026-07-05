@@ -10,12 +10,17 @@ class UserRead(BaseModel):
     email: str
     role: str
     status: str
+    two_fa_enabled: bool = False
 
 
 class LoginOut(BaseModel):
-    access_token: str
-    token_type: str
-    user: UserRead
+    """二段式 (handoff 3.7): 启用 2FA 的用户第一段只回 requires_2fa+票据。"""
+
+    access_token: str | None = None
+    token_type: str | None = None
+    user: UserRead | None = None
+    requires_2fa: bool = False
+    two_fa_token: str | None = None
 
 
 class LogoutOut(BaseModel):
@@ -69,3 +74,14 @@ class CatchupOut(BaseModel):
     events: list[CatchupEventRead]
     count: int
     limit: int
+
+
+class TwoFaSetupOut(BaseModel):
+    """secret 仅在 setup 响应出现一次 (扫码需要); verify 后不再可取。"""
+
+    secret: str
+    otpauth_uri: str
+
+
+class TwoFaStatusOut(BaseModel):
+    two_fa_enabled: bool
