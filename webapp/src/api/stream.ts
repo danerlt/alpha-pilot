@@ -55,7 +55,6 @@ class MockStream implements Stream {
   private handlers = new Map<StreamTopic, Set<(p: never) => void>>();
   private timers: ReturnType<typeof setInterval>[] = [];
   private cycleTimers: ReturnType<typeof setTimeout>[] = [];
-  private subscriberCount = 0;
   private scene: Scene = "ok";
   private equity = mockAccount.equity;
   private prices: Record<string, number> = { BTCUSDT: 68863.92, ETHUSDT: 3219.92 };
@@ -68,12 +67,11 @@ class MockStream implements Stream {
   ): () => void {
     if (!this.handlers.has(topic)) this.handlers.set(topic, new Set());
     this.handlers.get(topic)!.add(cb as (p: never) => void);
-    this.subscriberCount++;
-    if (this.subscriberCount === 1) this.start();
+    // 常驻单例：幂等 start，不随订阅数归零而停
+    // （StrictMode 双挂载 / HMR / 路由切换下引用计数会竞态，定时器成本可忽略）
+    this.start();
     return () => {
       this.handlers.get(topic)?.delete(cb as (p: never) => void);
-      this.subscriberCount--;
-      if (this.subscriberCount <= 0) this.stop();
     };
   }
 
@@ -117,6 +115,7 @@ class MockStream implements Stream {
   }
 
   private start() {
+    if (this.timers.length > 0) return; // 幂等
     // 账户快照 + 行情 tick（4s）
     this.timers.push(
       setInterval(() => {
@@ -201,13 +200,6 @@ class MockStream implements Stream {
     );
   }
 
-  private stop() {
-    this.subscriberCount = 0;
-    this.timers.forEach(clearInterval);
-    this.cycleTimers.forEach(clearTimeout);
-    this.timers = [];
-    this.cycleTimers = [];
-  }
 }
 
 // ============================================================

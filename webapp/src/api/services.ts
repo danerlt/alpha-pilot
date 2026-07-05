@@ -1,9 +1,9 @@
 /**
- * API service 层 —— 页面只 import 这里，不感知 mock/真实后端。
- * 真实路径按 handoff/03 契约与仓库现有 REST API 对齐。
+ * API service 层 —— 页面只 import 这里，唯一一条真实 fetch 路径。
+ * 无后端时由 MSW 在网络层拦截（见 mocks/handlers.ts），业务代码不感知。
+ * 路径契约见 handoff/03 与 docs/webapp前端架构.md §3。
  */
-import { USE_MOCK, delay, http } from "./client";
-import * as mock from "./mock/data";
+import { http } from "./client";
 import type {
   AccountOverview,
   AccountSnapshot,
@@ -36,280 +36,126 @@ import type {
 } from "./types";
 
 export const riskApi = {
-  state(): Promise<RiskState> {
-    if (USE_MOCK) return delay({ ...mock.mockRiskState });
-    return http("/api/risk/state");
-  },
+  state: () => http<RiskState>("/api/risk/state"),
 };
 
 export const accountApi = {
-  overview(): Promise<AccountOverview> {
-    if (USE_MOCK) return delay({ ...mock.mockAccount });
-    return http("/api/account");
-  },
-  history(): Promise<AccountSnapshot[]> {
-    if (USE_MOCK) return delay([...mock.mockEquitySeries]);
-    return http("/api/account/history");
-  },
+  overview: () => http<AccountOverview>("/api/account"),
+  history: () => http<AccountSnapshot[]>("/api/account/history"),
 };
 
 export const positionsApi = {
-  list(): Promise<Position[]> {
-    if (USE_MOCK) return delay(mock.mockPositions.map((p) => ({ ...p })));
-    return http("/api/positions");
-  },
-  close(id: string): Promise<{ ok: boolean }> {
-    if (USE_MOCK) {
-      const i = mock.mockPositions.findIndex((p) => p.id === id);
-      if (i >= 0) mock.mockPositions.splice(i, 1);
-      return delay({ ok: true }, 400);
-    }
-    return http(`/api/commands/close-position/${id}`, { method: "POST" });
-  },
-  updateSltp(id: string, sl: number, tp: number): Promise<{ ok: boolean }> {
-    if (USE_MOCK) {
-      const p = mock.mockPositions.find((x) => x.id === id);
-      if (p) {
-        p.sl = sl;
-        p.tp = tp;
-      }
-      return delay({ ok: true }, 300);
-    }
-    return http(`/api/positions/${id}/sltp`, {
+  list: () => http<Position[]>("/api/positions"),
+  close: (id: string) =>
+    http<{ ok: boolean }>(`/api/commands/close-position/${id}`, {
+      method: "POST",
+    }),
+  updateSltp: (id: string, sl: number, tp: number) =>
+    http<{ ok: boolean }>(`/api/positions/${id}/sltp`, {
       method: "PATCH",
       body: JSON.stringify({ sl, tp }),
-    });
-  },
+    }),
 };
 
 export const ordersApi = {
-  list(): Promise<Order[]> {
-    if (USE_MOCK) return delay(mock.mockOrders.map((o) => ({ ...o })));
-    return http("/api/orders");
-  },
-  precheck(payload: OrderTicketPayload): Promise<PrecheckResult> {
-    if (USE_MOCK) {
-      const qtyOk = payload.qty > 0;
-      const riskOk = payload.sl !== undefined || payload.reduceOnly;
-      const sizeOk = payload.qty * (payload.price ?? 68863) < 25000;
-      const items = [
-        { check: "qty_valid", pass: qtyOk, note: qtyOk ? "数量合法" : "数量必须大于 0" },
-        { check: "stop_loss_set", pass: riskOk, note: riskOk ? "止损已设置" : "开仓必须设置止损" },
-        { check: "max_position_size", pass: sizeOk, note: sizeOk ? "< 20% 权益" : "超出单仓位上限 20%" },
-        { check: "daily_loss_limit", pass: true, note: "-0.48% > -3.0%" },
-        { check: "halted_check", pass: true, note: "风控状态 OK" },
-      ];
-      const pass = items.every((i) => i.pass);
-      return delay({ verdict: pass ? "PASS" : "REJECT", items }, 350);
-    }
-    return http("/api/orders/precheck", {
+  list: () => http<Order[]>("/api/orders"),
+  precheck: (payload: OrderTicketPayload) =>
+    http<PrecheckResult>("/api/orders/precheck", {
       method: "POST",
       body: JSON.stringify(payload),
-    });
-  },
-  place(payload: OrderTicketPayload): Promise<{ ok: boolean }> {
-    if (USE_MOCK) {
-      mock.mockOrders.unshift({
-        id: `o_m${mock.mockOrders.length + 1}`,
-        ts: "刚刚",
-        symbol: payload.symbol,
-        side: payload.side,
-        type: payload.type,
-        qty: payload.qty,
-        price: payload.price ?? 0,
-        status: payload.type === "MARKET" ? "FILLED" : "WORKING",
-      });
-      return delay({ ok: true }, 500);
-    }
-    return http("/api/orders", { method: "POST", body: JSON.stringify(payload) });
-  },
+    }),
+  place: (payload: OrderTicketPayload) =>
+    http<{ ok: boolean }>("/api/orders", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 };
 
 export const tradesApi = {
-  list(): Promise<Trade[]> {
-    if (USE_MOCK) return delay(mock.mockTrades.map((t) => ({ ...t })));
-    return http("/api/trades");
-  },
+  list: () => http<Trade[]>("/api/trades"),
 };
 
 export const decisionsApi = {
-  list(): Promise<Decision[]> {
-    if (USE_MOCK) return delay(mock.mockDecisions.map((d) => ({ ...d })));
-    return http("/api/decisions");
-  },
-  detail(id: string): Promise<Decision | undefined> {
-    if (USE_MOCK)
-      return delay(mock.mockDecisions.find((d) => d.id === id));
-    return http(`/api/decisions/${id}`);
-  },
+  list: () => http<Decision[]>("/api/decisions"),
+  detail: (id: string) => http<Decision | null>(`/api/decisions/${id}`),
 };
 
 export const eventsApi = {
-  recent(): Promise<EventItem[]> {
-    if (USE_MOCK) return delay(mock.mockEvents.map((e) => ({ ...e })));
-    return http("/api/events/catchup");
-  },
+  recent: () => http<EventItem[]>("/api/events/catchup"),
 };
 
 export const marketApi = {
-  symbols(): Promise<MarketSymbol[]> {
-    if (USE_MOCK) return delay(mock.mockSymbols.map((s) => ({ ...s })));
-    return http("/api/market/symbols");
-  },
-  klines(symbol: string, interval: string, limit = 180): Promise<Kline[]> {
-    if (USE_MOCK) return delay(mock.genKlines(symbol, limit), 220);
-    return http(
+  symbols: () => http<MarketSymbol[]>("/api/market/symbols"),
+  klines: (symbol: string, interval: string, limit = 180) =>
+    http<Kline[]>(
       `/api/market/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`,
-    );
-  },
-  ticker(symbol: string): Promise<Ticker> {
-    if (USE_MOCK) return delay(mock.genTicker(symbol));
-    return http(`/api/market/ticker?symbol=${symbol}`);
-  },
-  orderBook(symbol: string): Promise<OrderBook> {
-    if (USE_MOCK) return delay(mock.genOrderBook(symbol), 120);
-    return http(`/api/market/depth?symbol=${symbol}`);
-  },
-  recentTrades(symbol: string): Promise<RecentTrade[]> {
-    if (USE_MOCK) return delay(mock.genRecentTrades(symbol), 120);
-    return http(`/api/market/trades?symbol=${symbol}`);
-  },
+    ),
+  ticker: (symbol: string) => http<Ticker>(`/api/market/ticker?symbol=${symbol}`),
+  orderBook: (symbol: string) =>
+    http<OrderBook>(`/api/market/depth?symbol=${symbol}`),
+  recentTrades: (symbol: string) =>
+    http<RecentTrade[]>(`/api/market/trades?symbol=${symbol}`),
 };
 
 export const performanceApi = {
-  summary(): Promise<PerformanceSummary> {
-    if (USE_MOCK) return delay({ ...mock.mockPerformance });
-    return http("/api/performance/summary");
-  },
-  monthly(): Promise<MonthlyPnl[]> {
-    if (USE_MOCK) return delay([...mock.mockMonthlyPnl]);
-    return http("/api/performance/monthly");
-  },
-  attribution(dim: AttributionDim): Promise<AttributionRow[]> {
-    if (USE_MOCK) return delay([...(mock.mockAttribution[dim] ?? [])]);
-    return http(`/api/performance/attribution?dim=${dim}`);
-  },
+  summary: () => http<PerformanceSummary>("/api/performance/summary"),
+  monthly: () => http<MonthlyPnl[]>("/api/performance/monthly"),
+  attribution: (dim: AttributionDim) =>
+    http<AttributionRow[]>(`/api/performance/attribution?dim=${dim}`),
 };
 
 export const strategyApi = {
-  list(): Promise<StrategyCard[]> {
-    if (USE_MOCK) return delay(mock.mockStrategies.map((s) => ({ ...s })));
-    return http("/api/strategies");
-  },
-  toggle(id: string, enabled: boolean): Promise<{ ok: boolean }> {
-    if (USE_MOCK) {
-      const s = mock.mockStrategies.find((x) => x.id === id);
-      if (s) s.enabled = enabled;
-      return delay({ ok: true }, 250);
-    }
-    return http(`/api/strategies/${id}`, {
+  list: () => http<StrategyCard[]>("/api/strategies"),
+  toggle: (id: string, enabled: boolean) =>
+    http<{ ok: boolean }>(`/api/strategies/${id}`, {
       method: "PATCH",
       body: JSON.stringify({ enabled }),
-    });
-  },
-  hardLimits(): Promise<HardLimit[]> {
-    if (USE_MOCK) return delay([...mock.mockHardLimits]);
-    return http("/api/config/runtime");
-  },
-  symbolConfigs(): Promise<SymbolConfig[]> {
-    if (USE_MOCK) return delay(mock.mockSymbolConfigs.map((s) => ({ ...s })));
-    return http("/api/admin/symbols");
-  },
+    }),
+  hardLimits: () => http<HardLimit[]>("/api/config/runtime"),
+  symbolConfigs: () => http<SymbolConfig[]>("/api/admin/symbols"),
 };
 
 export const labApi = {
-  candidates(): Promise<LabCandidate[]> {
-    if (USE_MOCK) return delay(mock.mockLabCandidates.map((c) => ({ ...c })));
-    return http("/api/lab/candidates");
-  },
-  history(): Promise<LabHistoryItem[]> {
-    if (USE_MOCK) return delay([...mock.mockLabHistory]);
-    return http("/api/lab/history");
-  },
-  start(id: string): Promise<{ ok: boolean }> {
-    if (USE_MOCK) {
-      const c = mock.mockLabCandidates.find((x) => x.id === id);
-      if (c) {
-        c.stage = "shadow";
-        c.shadowProgressPct = 2;
-        c.shadowDays = 0;
-        c.blockReason = "影子期进度 2% < 60%，继续观察";
-        c.promotable = false;
-      }
-      return delay({ ok: true }, 350);
-    }
-    return http(`/api/lab/candidates/${id}/start`, { method: "POST" });
-  },
-  promote(id: string): Promise<{ ok: boolean }> {
-    if (USE_MOCK) {
-      const c = mock.mockLabCandidates.find((x) => x.id === id);
-      if (c) c.stage = "canary";
-      return delay({ ok: true }, 400);
-    }
-    return http(`/api/lab/candidates/${id}/promote`, { method: "POST" });
-  },
-  terminate(id: string): Promise<{ ok: boolean }> {
-    if (USE_MOCK) {
-      const i = mock.mockLabCandidates.findIndex((x) => x.id === id);
-      if (i >= 0) {
-        const [c] = mock.mockLabCandidates.splice(i, 1);
-        mock.mockLabHistory.unshift({
-          ts: "刚刚",
-          kind: "retire",
-          title: `${c.title.slice(0, 20)}… 终止归档`,
-          note: "人工终止",
-        });
-      }
-      return delay({ ok: true }, 350);
-    }
-    return http(`/api/lab/candidates/${id}/terminate`, { method: "POST" });
-  },
+  candidates: () => http<LabCandidate[]>("/api/lab/candidates"),
+  history: () => http<LabHistoryItem[]>("/api/lab/history"),
+  start: (id: string) =>
+    http<{ ok: boolean }>(`/api/lab/candidates/${id}/start`, { method: "POST" }),
+  promote: (id: string) =>
+    http<{ ok: boolean }>(`/api/lab/candidates/${id}/promote`, {
+      method: "POST",
+    }),
+  terminate: (id: string) =>
+    http<{ ok: boolean }>(`/api/lab/candidates/${id}/terminate`, {
+      method: "POST",
+    }),
 };
 
 export const auditApi = {
-  logs(): Promise<AuditLog[]> {
-    if (USE_MOCK) return delay(mock.mockAuditLogs.map((a) => ({ ...a })));
-    return http("/api/admin/audit-logs");
-  },
-  reports(): Promise<DailyReport[]> {
-    if (USE_MOCK) return delay(mock.mockReports.map((r) => ({ ...r })));
-    return http("/api/reports");
-  },
+  logs: () => http<AuditLog[]>("/api/admin/audit-logs"),
+  reports: () => http<DailyReport[]>("/api/reports"),
 };
 
 export const adminApi = {
-  users(): Promise<User[]> {
-    if (USE_MOCK) return delay(mock.mockUsers.map((u) => ({ ...u })));
-    return http("/api/admin/users");
-  },
-  permissions(): Promise<PermissionRow[]> {
-    if (USE_MOCK) return delay([...mock.mockPermissions]);
-    return http("/api/admin/roles");
-  },
-  approveUser(id: string): Promise<{ ok: boolean }> {
-    if (USE_MOCK) {
-      const u = mock.mockUsers.find((x) => x.id === id);
-      if (u) u.status = "active";
-      return delay({ ok: true }, 300);
-    }
-    return http(`/api/admin/users/${id}/approve`, { method: "POST" });
-  },
+  users: () => http<User[]>("/api/admin/users"),
+  permissions: () => http<PermissionRow[]>("/api/admin/roles"),
+  approveUser: (id: string) =>
+    http<{ ok: boolean }>(`/api/admin/users/${id}/approve`, { method: "POST" }),
+};
+
+export const authApi = {
+  login: (email: string, password: string) =>
+    http<User>("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
+  me: () => http<User>("/api/auth/me"),
+  logout: () => http<{ ok: boolean }>("/api/auth/logout", { method: "POST" }),
 };
 
 export const commandsApi = {
-  closeAll(): Promise<{ taskId: string }> {
-    if (USE_MOCK) {
-      mock.mockPositions.splice(0, mock.mockPositions.length);
-      return delay({ taskId: "task_mock_1" }, 600);
-    }
-    return http("/api/commands/close-all", { method: "POST" });
-  },
-  pause(): Promise<{ ok: boolean }> {
-    if (USE_MOCK) return delay({ ok: true }, 300);
-    return http("/api/commands/pause", { method: "POST" });
-  },
-  resume(): Promise<{ ok: boolean }> {
-    if (USE_MOCK) return delay({ ok: true }, 300);
-    return http("/api/commands/resume", { method: "POST" });
-  },
+  closeAll: () =>
+    http<{ taskId: string }>("/api/commands/close-all", { method: "POST" }),
+  pause: () => http<{ ok: boolean }>("/api/commands/pause", { method: "POST" }),
+  resume: () =>
+    http<{ ok: boolean }>("/api/commands/resume", { method: "POST" }),
 };
