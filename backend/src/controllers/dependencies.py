@@ -115,3 +115,18 @@ def get_adapter() -> BinanceAdapter:
         api_secret=settings.BINANCE_API_SECRET,
         trading_mode=mode,
     )
+
+
+def get_llm_client():
+    """LLM 装配 (与 scheduler_jobs._build_llm 同逻辑): 占位 key 回退 Mock。"""
+    from src.core.llm.client import MockLLMClient, OpenAIClient
+
+    settings = get_settings()
+    api_key = settings.LLM_API_KEY
+    if not api_key or api_key.startswith("test-"):
+        return MockLLMClient(
+            canned_response='{"final": "LLM 未配置 (占位 key), 请在设置中配置 LLM_API_KEY。"}'
+        )
+    return OpenAIClient(
+        api_key=api_key, model=settings.LLM_MODEL, base_url=settings.LLM_BASE_URL,
+    )

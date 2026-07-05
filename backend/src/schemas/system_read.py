@@ -41,3 +41,19 @@ class RolesOut(BaseModel):
     matrix: list[PermissionGroupRead]
     role_aliases: dict[str, str]
     current_role: str
+
+
+class AgentHistoryItemRead(BaseModel):
+    invocation_id: int
+    message: str | None = None
+    answer: str | None = None
+    tools: list[str] = []
+    pending_action_id: int | None = None
+    occurred_at: str
+
+
+class AgentActionConfirmOut(BaseModel):
+    action_id: int
+    status: str
+    key: str
+    value: object = None

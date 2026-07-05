@@ -7,6 +7,9 @@
 """
 from fastapi import APIRouter
 
+# ── agent 域 (handoff P3) ──────────────────────────────────────────────
+from src.controllers.api.v1.agent.agent import router as _agent_router
+
 # ── execution 域 ───────────────────────────────────────────────────────
 from src.controllers.api.v1.execution.account import router as _account_router
 from src.controllers.api.v1.execution.orders import router as _orders_router
@@ -58,3 +61,4 @@ router.include_router(_tasks_router)
 router.include_router(_market_router)
 router.include_router(_orders_router)
 router.include_router(_risk_state_router)
+router.include_router(_agent_router)

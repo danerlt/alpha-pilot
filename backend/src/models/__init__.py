@@ -2,6 +2,7 @@
 from src.models.account import AccountSnapshot
 from src.models.account_entity import Account, ParameterVersion, RiskProfile
 from src.models.agent_invocation import AgentInvocation
+from src.models.agent_pending_action import AgentPendingAction
 from src.models.attribution import StrategyScore, TradeAttribution
 from src.models.audit_log import AuditLog
 from src.models.base import Base, TradingModeMixin
@@ -35,6 +36,7 @@ __all__ = [
     "Account",
     "AccountSnapshot",
     "AgentInvocation",
+    "AgentPendingAction",
     "AIDecision",
     "AuditLog",
     "Candle",
