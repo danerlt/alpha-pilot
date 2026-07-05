@@ -6,6 +6,7 @@ import App from "./App";
 import { USE_MOCK } from "./api/client";
 import { queryClient } from "./api/queryClient";
 import { startStreamBridge } from "./api/streamBridge";
+import { config } from "./config";
 import "./styles/index.css";
 
 async function bootstrap() {
@@ -20,7 +21,7 @@ async function bootstrap() {
   ReactDOM.createRoot(document.getElementById("root")!).render(
     <React.StrictMode>
       <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
+        <BrowserRouter basename={config.basePath}>
           <App />
         </BrowserRouter>
       </QueryClientProvider>

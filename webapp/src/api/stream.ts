@@ -5,6 +5,7 @@
  * 消息格式 {type, payload}，断线指数退避重连，补偿走 /api/events/catchup（页面侧已接）。
  */
 import { USE_MOCK } from "./client";
+import { resolveWsUrl } from "@/config";
 import type {
   AccountSnapshot,
   Decision,
@@ -254,10 +255,7 @@ class WsStream implements Stream {
   private lastEventId: string | null = null;
 
   private url(): string {
-    const explicit = import.meta.env.VITE_WS_URL as string | undefined;
-    const base = explicit
-      ? explicit
-      : ((import.meta.env.VITE_API_BASE_URL as string) ?? "").replace(/^http/, "ws") + "/ws";
+    const base = resolveWsUrl();
     // 断线重连带 since，后端 _replay_since 回放缺口事件
     return this.lastEventId ? `${base}?since=${this.lastEventId}` : base;
   }

@@ -4,7 +4,9 @@
  * VITE_API_BASE_URL 未配置时启用 MSW（网络层 mock），业务代码路径与生产完全一致。
  */
 
-const BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "";
+import { config } from "@/config";
+
+const BASE = config.apiBaseUrl;
 
 export const USE_MOCK = BASE === "";
 

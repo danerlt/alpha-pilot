@@ -68,6 +68,9 @@ run_deploy() {
     local SHA; SHA="$(git rev-parse --short=12 HEAD)"
     local IMAGE_TAG="$SHA"
     local FRONTEND_TAG="$SHA-$DEPLOY_ENV"
+    # webapp 镜像零环境烘焙（真 build-once），跨环境同一 tag；
+    # export 使所有 compose 调用可插值（compose 文件未引用该服务时无副作用）
+    export WEBAPP_TAG="$SHA"
     echo "    SHA = $SHA"
 
     # ── [3/7] inspect-or-build 镜像 ──────────────────────────
@@ -87,6 +90,15 @@ run_deploy() {
             --build-arg "NEXT_PUBLIC_API_BASE=$FRONTEND_BASE_PATH/api" \
             -f docker/Dockerfile.frontend frontend
     fi
+    # webapp（仅当目标 compose 引用了该服务才构建）
+    if grep -q "alphapilot-webapp" "$BUILD_DIR/docker/$COMPOSE_BASENAME"; then
+        if docker image inspect "alphapilot-webapp:$WEBAPP_TAG" >/dev/null 2>&1; then
+            echo "    webapp:$WEBAPP_TAG 已存在，复用（build-once）"
+        else
+            echo "    构建 webapp:$WEBAPP_TAG"
+            docker build -t "alphapilot-webapp:$WEBAPP_TAG" -f docker/Dockerfile.webapp webapp
+        fi
+    fi
 
     # ── [4/7] 同步 compose 到部署目录 ────────────────────────
     echo "[4/7] 同步 compose 到部署目录..."
@@ -100,6 +112,7 @@ run_deploy() {
         if [ -f "$DEPLOY_DIR/last-good.tag" ]; then
             local LG; LG="$(cat "$DEPLOY_DIR/last-good.tag")"
             echo "↩️  回滚到上一个可用镜像 $LG（不动 git）"
+            export WEBAPP_TAG="$LG"   # webapp 与 backend 同 SHA 轨回滚
             _up "$LG" "$LG-$DEPLOY_ENV" || true
             echo "$LG" > "$DEPLOY_DIR/current.tag"
         else

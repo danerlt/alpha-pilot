@@ -1,0 +1,44 @@
+# webapp（Vite SPA）—— build-once / deploy-many：
+# 镜像内零环境烘焙，环境差异由 entrypoint 用环境变量渲染 /config.js 注入。
+# 构建（仓库根）：docker build -t alphapilot-webapp:<sha> -f docker/Dockerfile.webapp webapp
+
+# ---------- 构建 ----------
+FROM node:20-alpine AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm config set registry https://registry.npmmirror.com && npm ci
+COPY . .
+RUN npm run build
+
+# ---------- 运行 ----------
+FROM nginx:1.27-alpine
+COPY --from=build /app/dist /usr/share/nginx/html
+
+# SPA fallback：容器始终按根路径服务（外层 nginx 以带斜杠 proxy_pass 剥掉路径前缀）
+RUN printf 'server {\n\
+    listen 80;\n\
+    root /usr/share/nginx/html;\n\
+    index index.html;\n\
+    location / {\n\
+        try_files $uri $uri/ /index.html;\n\
+    }\n\
+    location = /config.js {\n\
+        add_header Cache-Control "no-store";\n\
+    }\n\
+}\n' > /etc/nginx/conf.d/default.conf
+
+# entrypoint：渲染运行时配置（apiBaseUrl / wsUrl / basePath）
+RUN printf '#!/bin/sh\n\
+set -e\n\
+cat > /usr/share/nginx/html/config.js <<EOF\n\
+window.__AP_CONFIG__ = {\n\
+  apiBaseUrl: "${AP_API_BASE_URL:-}",\n\
+  wsUrl: "${AP_WS_URL:-}",\n\
+  basePath: "${AP_BASE_PATH:-/}"\n\
+};\n\
+EOF\n\
+exec nginx -g "daemon off;"\n' > /docker-entrypoint-webapp.sh \
+    && chmod +x /docker-entrypoint-webapp.sh
+
+EXPOSE 80
+ENTRYPOINT ["/docker-entrypoint-webapp.sh"]
