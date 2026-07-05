@@ -48,6 +48,16 @@ class GuardDecision:
     modified_action: Literal["HOLD"] | None = None  # DEGRADE 时
 
 
+@dataclass
+class GuardCheckResult:
+    """单条守卫规则的逐项结果 (handoff P2 预检 UI 用)。"""
+
+    check: str
+    passed: bool
+    note: str
+    severity: Literal["REJECT", "DEGRADE"] = "REJECT"  # 未通过时的裁决级别
+
+
 class ExecutionGuard:
     def __init__(
         self,
@@ -75,7 +85,11 @@ class ExecutionGuard:
         decision_id: int | None = None,
         trace_id: str | None = None,
     ) -> GuardDecision:
-        """逐条规则检查; 命中即短路写审计 + 返回。"""
+        """裁决入口: evaluate() 逐项结果 → 首个未通过项定裁决 → 写审计/发事件。
+
+        handoff P2 重构: 判定逻辑单一实现在 evaluate(), 本方法只做裁决推导
+        与副作用 (risk_events + outbox), 保证预检与实盘同一套规则。
+        """
         self._cur_decision_id = decision_id  # _record 内部用
         self._cur_trading_mode = trading_mode
         self._cur_trace_id = trace_id or f"guard:{proposal.symbol}:{datetime.now(tz=timezone.utc).timestamp()}"
@@ -84,14 +98,55 @@ class ExecutionGuard:
         if proposal.action == "HOLD":
             return self._record(proposal, "PASS", "hold_no_check")
 
+        results = self.evaluate(
+            proposal=proposal, trading_mode=trading_mode,
+            current_price=current_price, regime=regime,
+            available_usdt=available_usdt, daily_pnl=daily_pnl,
+            daily_pnl_pct=daily_pnl_pct, atr=atr,
+            review_rejected=review_rejected,
+        )
+        first_fail = next((r for r in results if not r.passed), None)
+        if first_fail is None:
+            return self._record(proposal, "PASS", "all_checks_passed")
+        if first_fail.severity == "DEGRADE":
+            return self._record(proposal, "DEGRADE", first_fail.note, modified="HOLD")
+        return self._record(proposal, "REJECT", first_fail.note)
+
+    def evaluate(
+        self,
+        *,
+        proposal: DecisionProposal,
+        trading_mode: str,
+        current_price: float,
+        regime: str,
+        available_usdt: float,
+        daily_pnl: float,
+        daily_pnl_pct: float,
+        atr: float,
+        review_rejected: bool = False,
+    ) -> list[GuardCheckResult]:
+        """跑全部规则 (不短路、不写审计、不发事件), 按 1-10 顺序返回逐项结果。
+
+        HOLD 返回空列表; 不适用的规则 passed=True 并在 note 说明。
+        未通过项的 note 与旧版短路 reason 逐字一致 (审计/测试兼容)。
+        """
+        if proposal.action == "HOLD":
+            return []
+
         p = self._profile
+        is_open = proposal.action == "OPEN_LONG"
+        results: list[GuardCheckResult] = []
 
         # 1. 日亏损熔断
         if daily_pnl_pct <= -float(p.max_daily_loss_pct):
-            return self._record(
-                proposal, "REJECT",
+            results.append(GuardCheckResult(
+                "daily_loss", False,
                 f"circuit_breaker:daily_loss_pct={daily_pnl_pct:.4f}",
-            )
+            ))
+        else:
+            results.append(GuardCheckResult(
+                "daily_loss", True, f"daily_pnl_pct={daily_pnl_pct:.4f}",
+            ))
 
         # 2. 连续亏损熔断 (今日最近 N 笔)
         from datetime import time, timedelta
@@ -106,24 +161,39 @@ class ExecutionGuard:
             ).order_by(Trade.closed_at.desc()).limit(int(p.max_consecutive_losses))
         ).scalars().all()
         if len(recent) >= int(p.max_consecutive_losses) and all(float(t.pnl or 0) < 0 for t in recent):
-            return self._record(
-                proposal, "REJECT",
+            results.append(GuardCheckResult(
+                "consecutive_losses", False,
                 f"circuit_breaker:consecutive_losses>={int(p.max_consecutive_losses)}",
-            )
+            ))
+        else:
+            results.append(GuardCheckResult(
+                "consecutive_losses", True,
+                f"recent_losses<{int(p.max_consecutive_losses)}",
+            ))
 
-        # 仅 OPEN_LONG 才检查仓位/风险/SL/RR; CLOSE_LONG 直接进 9-10 条
-        if proposal.action == "OPEN_LONG":
-            size_pct = float(proposal.position_size_pct or 0.0)
+        # 3-8 仅 OPEN_LONG 适用; CLOSE_LONG 标 n/a
+        size_pct = float(proposal.position_size_pct or 0.0)
+        entry = proposal.entry_price or current_price
+        sl = proposal.stop_loss
+        sl_valid = sl is not None and entry > 0
 
-            # 3. 可用余额校验
+        # 3. 可用余额
+        if is_open:
             need = available_usdt * size_pct
             if need <= 0 or available_usdt < need:
-                return self._record(
-                    proposal, "REJECT",
+                results.append(GuardCheckResult(
+                    "balance", False,
                     f"insufficient_balance:need={need:.2f} available={available_usdt:.2f}",
-                )
+                ))
+            else:
+                results.append(GuardCheckResult(
+                    "balance", True, f"need={need:.2f} available={available_usdt:.2f}",
+                ))
+        else:
+            results.append(GuardCheckResult("balance", True, "n/a (close order)"))
 
-            # 4. 已有同币持仓
+        # 4. 已有同币持仓
+        if is_open:
             existing = self._session.execute(
                 select(Position).where(
                     Position.account_id == proposal.account_id,
@@ -133,63 +203,99 @@ class ExecutionGuard:
                 )
             ).scalars().first()
             if existing is not None:
-                return self._record(
-                    proposal, "REJECT",
-                    f"already_open:{proposal.symbol}",
-                )
+                results.append(GuardCheckResult(
+                    "duplicate_position", False, f"already_open:{proposal.symbol}",
+                ))
+            else:
+                results.append(GuardCheckResult(
+                    "duplicate_position", True, "no open position",
+                ))
+        else:
+            results.append(GuardCheckResult("duplicate_position", True, "n/a (close order)"))
 
-            # 5. 仓位上限
-            if size_pct > float(p.max_position_size_pct):
-                return self._record(
-                    proposal, "REJECT",
-                    f"oversize:{size_pct:.4f}>{float(p.max_position_size_pct):.4f}",
-                )
+        # 5. 仓位上限
+        if is_open and size_pct > float(p.max_position_size_pct):
+            results.append(GuardCheckResult(
+                "position_size", False,
+                f"oversize:{size_pct:.4f}>{float(p.max_position_size_pct):.4f}",
+            ))
+        else:
+            results.append(GuardCheckResult(
+                "position_size", True,
+                f"size_pct={size_pct:.4f}" if is_open else "n/a (close order)",
+            ))
 
-            # 6. 单笔风险
-            entry = proposal.entry_price or current_price
-            sl = proposal.stop_loss
-            if sl is None or entry <= 0:
-                return self._record(
-                    proposal, "REJECT", "missing_sl_or_entry",
-                )
-            risk_pct = abs(entry - sl) / entry * size_pct
-            if risk_pct > float(p.max_single_risk_pct):
-                return self._record(
-                    proposal, "REJECT",
-                    f"single_risk:{risk_pct:.4f}>{float(p.max_single_risk_pct):.4f}",
-                )
+        # 6. 单笔风险 (含 SL/entry 缺失)
+        if is_open:
+            if not sl_valid:
+                results.append(GuardCheckResult("single_risk", False, "missing_sl_or_entry"))
+            else:
+                risk_pct = abs(entry - sl) / entry * size_pct
+                if risk_pct > float(p.max_single_risk_pct):
+                    results.append(GuardCheckResult(
+                        "single_risk", False,
+                        f"single_risk:{risk_pct:.4f}>{float(p.max_single_risk_pct):.4f}",
+                    ))
+                else:
+                    results.append(GuardCheckResult(
+                        "single_risk", True, f"risk_pct={risk_pct:.4f}",
+                    ))
+        else:
+            results.append(GuardCheckResult("single_risk", True, "n/a (close order)"))
 
-            # 7. SL/ATR 距离
-            if atr > 0:
-                sl_distance = abs(entry - sl)
-                if not (float(p.sl_atr_min_mult) * atr <= sl_distance <= float(p.sl_atr_max_mult) * atr):
-                    return self._record(
-                        proposal, "REJECT",
-                        f"sl_distance_out_of_range:{sl_distance:.4f}",
-                    )
+        # 7. SL/ATR 距离
+        if is_open and sl_valid and atr > 0:
+            sl_distance = abs(entry - sl)
+            if not (float(p.sl_atr_min_mult) * atr <= sl_distance <= float(p.sl_atr_max_mult) * atr):
+                results.append(GuardCheckResult(
+                    "sl_distance", False,
+                    f"sl_distance_out_of_range:{sl_distance:.4f}",
+                ))
+            else:
+                results.append(GuardCheckResult(
+                    "sl_distance", True, f"sl_distance={sl_distance:.4f}",
+                ))
+        else:
+            results.append(GuardCheckResult(
+                "sl_distance", True,
+                "n/a (close order)" if not is_open else "skipped (no sl/atr)",
+            ))
 
-            # 8. R/R 比
-            tp = proposal.take_profit
-            if tp is not None:
-                reward = abs(tp - entry)
-                risk = abs(entry - sl)
-                if risk <= 0 or reward / risk < float(p.min_rr_ratio):
-                    return self._record(
-                        proposal, "REJECT",
-                        f"poor_rr:{(reward/risk if risk>0 else 0):.2f}<{float(p.min_rr_ratio):.2f}",
-                    )
+        # 8. R/R 比
+        tp = proposal.take_profit
+        if is_open and sl_valid and tp is not None:
+            reward = abs(tp - entry)
+            risk = abs(entry - sl)
+            if risk <= 0 or reward / risk < float(p.min_rr_ratio):
+                results.append(GuardCheckResult(
+                    "rr_ratio", False,
+                    f"poor_rr:{(reward/risk if risk>0 else 0):.2f}<{float(p.min_rr_ratio):.2f}",
+                ))
+            else:
+                results.append(GuardCheckResult(
+                    "rr_ratio", True, f"rr={reward/risk:.2f}",
+                ))
+        else:
+            results.append(GuardCheckResult(
+                "rr_ratio", True,
+                "n/a (close order)" if not is_open else "skipped (no tp/sl)",
+            ))
 
         # 9. CHAOTIC + OPEN_LONG → DEGRADE
-        if proposal.action == "OPEN_LONG" and regime == "chaotic":
-            return self._record(
-                proposal, "DEGRADE", "chaotic_regime", modified="HOLD",
-            )
+        if is_open and regime == "chaotic":
+            results.append(GuardCheckResult(
+                "chaotic_regime", False, "chaotic_regime", severity="DEGRADE",
+            ))
+        else:
+            results.append(GuardCheckResult("chaotic_regime", True, f"regime={regime}"))
 
         # 10. ReviewCritic 已 reject
         if review_rejected:
-            return self._record(proposal, "REJECT", "review_rejected")
+            results.append(GuardCheckResult("review", False, "review_rejected"))
+        else:
+            results.append(GuardCheckResult("review", True, "not rejected"))
 
-        return self._record(proposal, "PASS", "all_checks_passed")
+        return results
 
     def _record(
         self,

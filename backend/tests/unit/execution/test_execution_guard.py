@@ -301,3 +301,86 @@ def test_guard_record_decision_id_nullable(session, profile):
     ).scalars().first()
     assert ev is not None
     assert ev.decision_id is None
+
+
+# ── handoff P2: evaluate() 逐项结果 + check() 等价性 ─────────────────────
+
+
+def _evaluate(session, profile, proposal, **kw):
+    g = ExecutionGuard(session, risk_profile=profile)
+    defaults = dict(
+        trading_mode="testnet",
+        current_price=proposal.entry_price or 50000.0,
+        regime="trending_up",
+        available_usdt=10_000.0, daily_pnl=0.0, daily_pnl_pct=0.0,
+        atr=200.0, review_rejected=False,
+    )
+    defaults.update(kw)
+    return g.evaluate(proposal=proposal, **defaults)
+
+
+def test_evaluate_returns_all_checks_for_open_long(session, profile):
+    results = _evaluate(session, profile, _open_long())
+    names = [r.check for r in results]
+    assert names == [
+        "daily_loss", "consecutive_losses", "balance", "duplicate_position",
+        "position_size", "single_risk", "sl_distance", "rr_ratio",
+        "chaotic_regime", "review",
+    ]
+    assert all(r.passed for r in results)
+
+
+def test_evaluate_hold_returns_empty(session, profile):
+    p = DecisionProposal(
+        account_id=1, symbol="BTCUSDT", timeframe="1h",
+        action="HOLD", confidence=0.0,
+        strategy_mode="ai_observation", source="ai_trader",
+    )
+    assert _evaluate(session, profile, p) == []
+
+
+def test_evaluate_does_not_short_circuit(session, profile):
+    """日亏触发时其余规则仍有逐项结果 (预检 UI 逐项显示)。"""
+    results = _evaluate(session, profile, _open_long(), daily_pnl_pct=-0.04)
+    assert results[0].check == "daily_loss"
+    assert results[0].passed is False
+    assert results[0].severity == "REJECT"
+    assert len(results) == 10
+
+
+def test_evaluate_chaotic_is_degrade_severity(session, profile):
+    results = _evaluate(session, profile, _open_long(), regime="chaotic")
+    chaotic = next(r for r in results if r.check == "chaotic_regime")
+    assert chaotic.passed is False
+    assert chaotic.severity == "DEGRADE"
+
+
+def test_evaluate_does_not_write_risk_events(session, profile):
+    before = len(session.execute(select(RiskEvent)).scalars().all())
+    _evaluate(session, profile, _open_long())
+    after = len(session.execute(select(RiskEvent)).scalars().all())
+    assert before == after
+
+
+@pytest.mark.parametrize("kw,expected", [
+    (dict(), "PASS"),
+    (dict(daily_pnl_pct=-0.04), "REJECT"),
+    (dict(available=0.0), "REJECT"),
+    (dict(regime="chaotic"), "DEGRADE"),
+    (dict(review_rejected=True), "REJECT"),
+    (dict(atr=10.0), "REJECT"),  # SL 距离 200 > 5×10 ATR 上限
+])
+def test_check_verdict_equals_first_failed_evaluate_item(session, profile, kw, expected):
+    """roadmap P2 验收: 预检(evaluate)与实盘(check)同一套判定。"""
+    proposal = _open_long()
+    eval_kw = {("available_usdt" if k == "available" else k): v for k, v in kw.items()}
+    results = _evaluate(session, profile, proposal, **eval_kw)
+    check_res = _check(session, profile, proposal, **kw)
+    assert check_res.result == expected
+    first_fail = next((r for r in results if not r.passed), None)
+    if first_fail is None:
+        assert check_res.result == "PASS"
+        assert check_res.reason == "all_checks_passed"
+    else:
+        assert check_res.result == ("DEGRADE" if first_fail.severity == "DEGRADE" else "REJECT")
+        assert check_res.reason == first_fail.note
