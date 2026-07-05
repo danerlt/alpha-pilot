@@ -7,6 +7,7 @@ import { Check, Shield } from "lucide-react";
 import type { OrderTicketPayload, PrecheckResult } from "@/api/types";
 import { ordersApi } from "@/api/services";
 import { useApp } from "@/context/AppContext";
+import { usePermission } from "@/auth/permissions";
 import { fmt } from "@/lib/format";
 import { Card, Dot, Pill } from "@/components/ui/atoms";
 
@@ -19,6 +20,8 @@ type OType = "LIMIT" | "MARKET" | "STOP";
 
 export function OrderTicket({ symbol, price }: { symbol: string; price: number }) {
   const { risk, account } = useApp();
+  const { can } = usePermission();
+  const canTrade = can("trade.manual");
   const [side, setSide] = useState<Side>("BUY");
   const [type, setType] = useState<OType>("LIMIT");
   const [priceStr, setPriceStr] = useState(String(Math.round(price)));
@@ -73,7 +76,10 @@ export function OrderTicket({ symbol, price }: { symbol: string; price: number }
   })();
 
   const halted = risk?.state === "HALTED";
-  const allPass = (precheck?.verdict === "PASS" || (halted && reduceOnly)) && payload.qty > 0;
+  const allPass =
+    canTrade &&
+    (precheck?.verdict === "PASS" || (halted && reduceOnly)) &&
+    payload.qty > 0;
   const buySide = side === "BUY";
   const coin = symbol.replace("USDT", "");
 
@@ -247,9 +253,11 @@ export function OrderTicket({ symbol, price }: { symbol: string; price: number }
           ? "已提交"
           : busy
             ? "提交中…"
-            : allPass
-              ? `${buySide ? "买入" : "卖出"} ${coin}`
-              : "守卫未通过"}
+            : !canTrade
+              ? "无手动下单权限"
+              : allPass
+                ? `${buySide ? "买入" : "卖出"} ${coin}`
+                : "守卫未通过"}
       </button>
       {halted && !reduceOnly && (
         <div className="mt-2 text-center font-mono text-[10.5px] text-rose">

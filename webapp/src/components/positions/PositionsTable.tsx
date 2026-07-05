@@ -89,24 +89,30 @@ export function PositionsTable({
                 {detail && <td className="px-3 py-3 text-fg-2">{p.strategy}</td>}
                 {detail && (
                   <td className="whitespace-nowrap px-3 py-3">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEdit?.(p);
-                      }}
-                      className="mr-1 cursor-pointer rounded-xs border border-line bg-bg-3 px-2.5 py-1 text-xs text-fg-2 hover:text-fg-1"
-                    >
-                      编辑
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onClose?.(p);
-                      }}
-                      className="cursor-pointer rounded-xs border border-rose bg-rose-soft px-2.5 py-1 text-xs text-rose hover:brightness-110"
-                    >
-                      平仓
-                    </button>
+                    {onEdit && onClose ? (
+                      <>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEdit(p);
+                          }}
+                          className="mr-1 cursor-pointer rounded-xs border border-line bg-bg-3 px-2.5 py-1 text-xs text-fg-2 hover:text-fg-1"
+                        >
+                          编辑
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onClose(p);
+                          }}
+                          className="cursor-pointer rounded-xs border border-rose bg-rose-soft px-2.5 py-1 text-xs text-rose hover:brightness-110"
+                        >
+                          平仓
+                        </button>
+                      </>
+                    ) : (
+                      <span className="font-mono text-micro text-fg-4">只读</span>
+                    )}
                   </td>
                 )}
               </tr>

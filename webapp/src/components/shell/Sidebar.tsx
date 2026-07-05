@@ -13,6 +13,7 @@ import {
   Users,
 } from "lucide-react";
 import { useApp } from "@/context/AppContext";
+import { useLogout, useMe } from "@/auth/auth";
 import { fmt, fmtPct } from "@/lib/format";
 import { Dot } from "@/components/ui/atoms";
 
@@ -25,13 +26,17 @@ const NAV = [
   { to: "/risk", label: "策略与风控", icon: Shield },
   { to: "/lab", label: "策略实验室", icon: FlaskConical, badge: 2 },
   { to: "/audit", label: "审计日志", icon: ScrollText },
-  { to: "/admin", label: "后台管理", icon: Users },
+  { to: "/admin", label: "后台管理", icon: Users, adminOnly: true },
   { to: "/settings", label: "设置", icon: Settings },
 ];
 
 export function Sidebar() {
   const { account } = useApp();
+  const { data: user } = useMe();
+  const logout = useLogout();
   const navigate = useNavigate();
+  const isAdmin = user?.role === "owner" || user?.role === "admin";
+  const nav = NAV.filter((n) => !n.adminOnly || isAdmin);
   return (
     <aside className="flex h-full w-[240px] shrink-0 flex-col border-r border-line bg-bg-1">
       {/* 品牌 */}
@@ -74,7 +79,7 @@ export function Sidebar() {
 
       {/* 导航 */}
       <nav className="flex flex-1 flex-col gap-px overflow-auto px-3 py-3">
-        {NAV.map((n) => (
+        {nav.map((n) => (
           <NavLink
             key={n.to}
             to={n.to}
@@ -120,19 +125,29 @@ export function Sidebar() {
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-fg-1"
             style={{ background: "var(--ap-mint-dim)" }}
           >
-            DL
+            {user
+              ? user.name
+                  .split(" ")
+                  .map((w) => w[0])
+                  .join("")
+                  .slice(0, 2)
+              : "--"}
           </div>
           <div className="min-w-0 flex-1">
             <div className="truncate text-xs font-semibold text-fg-1">
-              Daner Li
+              {user?.name ?? "—"}
             </div>
-            <div className="font-mono text-[9.5px] font-semibold text-violet">
-              OWNER
+            <div className="font-mono text-[9.5px] font-semibold uppercase text-violet">
+              {user?.role ?? ""}
             </div>
           </div>
           <button
             title="退出登录"
-            onClick={() => navigate("/login")}
+            onClick={() =>
+              logout.mutate(undefined, {
+                onSettled: () => navigate("/login", { replace: true }),
+              })
+            }
             className="flex h-[26px] w-[26px] shrink-0 cursor-pointer items-center justify-center rounded-[7px] border border-line-soft bg-transparent text-fg-4 hover:text-fg-1"
           >
             <LogOut size={12} />

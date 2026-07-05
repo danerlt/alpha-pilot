@@ -1,5 +1,6 @@
 import { Suspense, lazy } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
+import { RequireAuth } from "./auth/RequireAuth";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Market = lazy(() => import("./pages/Market"));
@@ -25,6 +26,9 @@ export default function App() {
   return (
     <Suspense fallback={<Fallback />}>
       <Routes>
+        <Route path="/login" element={<Login />} />
+        {/* 登录后可见（RequireAuth 守卫） */}
+        <Route element={<RequireAuth />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/market" element={<Market />} />
           <Route path="/decisions" element={<Decisions />} />
@@ -35,7 +39,7 @@ export default function App() {
           <Route path="/audit" element={<Audit />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/settings" element={<Settings />} />
-          <Route path="/login" element={<Login />} />
+        </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>

@@ -12,6 +12,7 @@ import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { PositionsTable } from "@/components/positions/PositionsTable";
 import { useOrders, usePositions } from "@/api/queries";
+import { usePermission } from "@/auth/permissions";
 import { qk } from "@/api/queryClient";
 import { ordersApi, positionsApi } from "@/api/services";
 import type { Position, PrecheckResult } from "@/api/types";
@@ -19,6 +20,8 @@ import { fmt, fmtSigned } from "@/lib/format";
 
 export default function Positions() {
   const queryClient = useQueryClient();
+  const { can } = usePermission();
+  const canTrade = can("trade.manual");
   const { data: positions = [] } = usePositions();
   const { data: orders = [] } = useOrders();
   const [editing, setEditing] = useState<Position | null>(null);
@@ -129,8 +132,8 @@ export default function Positions() {
             <PositionsTable
               positions={positions}
               detail
-              onEdit={(p) => setEditing(p)}
-              onClose={(p) => setClosing(p)}
+              onEdit={canTrade ? (p) => setEditing(p) : undefined}
+              onClose={canTrade ? (p) => setClosing(p) : undefined}
             />
           ) : (
             <div className="flex flex-col items-center justify-center gap-2.5 px-6 py-12 text-center">

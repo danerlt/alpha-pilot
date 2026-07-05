@@ -3,8 +3,9 @@
  * 2FA 六位逐格输入：自动跳格、全满自动提交。
  */
 import { useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { ChevronLeft, Eye, Lock, Mail, Shield } from "lucide-react";
+import { useLogin } from "@/auth/auth";
 
 type Mode = "login" | "register" | "twofa";
 
@@ -60,6 +61,8 @@ function AuthInput({
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const login = useLogin();
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
@@ -68,6 +71,8 @@ export default function Login() {
   const [registered, setRegistered] = useState(false);
   const [code, setCode] = useState<string[]>(["", "", "", "", "", ""]);
   const codeRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  const dest = (location.state as { from?: string } | null)?.from ?? "/";
 
   const submit = () => {
     setError("");
@@ -83,7 +88,24 @@ export default function Login() {
       setRegistered(true);
       return;
     }
-    setMode("twofa");
+    // 密码校验通过后进入 2FA；会话在 2FA 全满时建立
+    login.mutate(
+      { email, password: pw },
+      {
+        onSuccess: () => setMode("twofa"),
+        onError: (e) => setError(e instanceof Error ? e.message : "登录失败"),
+      },
+    );
+  };
+
+  const demoLogin = () => {
+    login.mutate(
+      { email: "demo@alphapilot.local", password: "demo" },
+      {
+        onSuccess: () => navigate(dest, { replace: true }),
+        onError: (e) => setError(e instanceof Error ? e.message : "登录失败"),
+      },
+    );
   };
 
   const onCode = (i: number, v: string) => {
@@ -92,7 +114,8 @@ export default function Login() {
     next[i] = v;
     setCode(next);
     if (v && i < 5) codeRefs.current[i + 1]?.focus();
-    if (next.every((c) => c !== "")) setTimeout(() => navigate("/"), 350);
+    if (next.every((c) => c !== ""))
+      setTimeout(() => navigate(dest, { replace: true }), 350);
   };
 
   return (
@@ -195,9 +218,10 @@ export default function Login() {
               )}
               <button
                 onClick={submit}
-                className="mt-[22px] w-full cursor-pointer rounded-[11px] border-none bg-mint py-[13px] text-sm font-bold text-bg-0 hover:brightness-110"
+                disabled={login.isPending}
+                className="mt-[22px] w-full cursor-pointer rounded-[11px] border-none bg-mint py-[13px] text-sm font-bold text-bg-0 hover:brightness-110 disabled:opacity-50"
               >
-                {mode === "login" ? "登录" : "注册"}
+                {login.isPending ? "验证中…" : mode === "login" ? "登录" : "注册"}
               </button>
               <div className="my-[22px] flex items-center gap-3">
                 <div className="h-px flex-1 bg-line-soft" />
@@ -205,8 +229,9 @@ export default function Login() {
                 <div className="h-px flex-1 bg-line-soft" />
               </div>
               <button
-                onClick={() => navigate("/")}
-                className="w-full cursor-pointer rounded-[11px] border border-line bg-bg-2 py-3 text-sm font-semibold text-fg-2 hover:text-fg-1"
+                onClick={demoLogin}
+                disabled={login.isPending}
+                className="w-full cursor-pointer rounded-[11px] border border-line bg-bg-2 py-3 text-sm font-semibold text-fg-2 hover:text-fg-1 disabled:opacity-50"
               >
                 以演示账户进入 →
               </button>

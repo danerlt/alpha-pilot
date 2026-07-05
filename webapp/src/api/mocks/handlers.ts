@@ -242,17 +242,34 @@ export const handlers = [
     return ok({ ok: true });
   }),
 
-  // ---------- 认证（S3 接线用） ----------
-  http.post("/api/auth/login", async () => {
+  // ---------- 认证（会话用 sessionStorage 模拟 httpOnly cookie） ----------
+  http.post("/api/auth/login", async ({ request }) => {
     await delay(400);
+    const body = (await request.json()) as { email: string; password: string };
+    if (!body.email || !body.password) {
+      return HttpResponse.json({
+        success: false,
+        code: "AUTH_INVALID",
+        message: "邮箱或密码错误",
+        data: null,
+      });
+    }
+    sessionStorage.setItem("ap.mock.authed", "1");
     return ok({ ...mock.mockUsers[0] });
   }),
   http.get("/api/auth/me", async () => {
     await delay(80);
+    if (sessionStorage.getItem("ap.mock.authed") !== "1") {
+      return HttpResponse.json(
+        { success: false, code: "UNAUTHORIZED", message: "未登录", data: null },
+        { status: 401 },
+      );
+    }
     return ok({ ...mock.mockUsers[0] });
   }),
   http.post("/api/auth/logout", async () => {
     await delay(120);
+    sessionStorage.removeItem("ap.mock.authed");
     return ok({ ok: true });
   }),
 
