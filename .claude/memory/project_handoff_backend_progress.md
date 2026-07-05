@@ -20,12 +20,17 @@
 - **端点变更后必须重导 OpenAPI**：`cd backend && uv run python scripts/export_openapi.py`
   → 前端 `npm run gen:api`；每期落地通知前端删对应 MSW handler（B4 流程）。
 
+## 已完成（续，2026-07-05 晚）
+
+- **P2b**：`/ws/market` Binance WS 代理（250ms 节流/订阅扇出/断线重连，worklog 20260705_2100）
+- **P3**：Pilot AI 对话（SSE 工具循环 + agent_pending_actions 表 + confirm 白名单双重校验）
+- **联调缺口 #1-4/6/7** 全收口（guard_verdict/account history/orders 列表/持仓字段/catchup 类型/risk limits，#5 留 P6）
+- **P4 全量**（worklog 20260705_2200）：settings 三分区（加密+脱敏+权限探测）/ RBAC 四角色
+  （require_permission 端点守卫、trader 可下单 viewer 403、owner 保护、pending 批准）/
+  2FA TOTP 二段式（pyotp，secret Fernet 加密，scope=2fa 票据）。基线 **668 passed + 2 skipped**，openapi 58 paths。
+
 ## 待做（按序）
 
-0. **联调缺口收口（小项，优先插队）**：前端已对真后端跑通浏览器级联调（2026-07-05），
-   发现 7 个契约缺口，清单+复现环境见 **[`docs/webapp联调-后端待办.md`](../../docs/webapp联调-后端待办.md)**
-   —— 高优先三项：DecisionRead 补守卫裁决字段 / GET /api/account/history / GET /api/orders 列表
-1. **P2b**：`market.{symbol}` WS 行情代理（盘口/逐笔 Binance WS 转发、节流 ≥250ms、不落库）
-2. **P3**：Pilot AI 对话（agent 域 SSE + 工具白名单 + pending action confirm，handoff 3.4）
-3. **P4**：settings 三组接口 + RBAC（owner/admin/trader/viewer 落 user 表）+ 2FA（handoff 3.6/3.7）
-4. **P5** lab / **P6** performance
+1. **P5** lab（候选/影子执行调度/灰度自动回滚，handoff 3.5）
+2. **P6** performance（summary/monthly/attribution 三接口 + 联调缺口#5 聚合指标，handoff 3.8）
+3. 通知渠道 token settings 化 + notifier 接线；owner bootstrap 授予；agent 真流式
