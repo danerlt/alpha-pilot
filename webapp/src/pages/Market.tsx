@@ -7,7 +7,7 @@ import { BrainCircuit, Search } from "lucide-react";
 import { PageShell } from "@/components/shell/PageShell";
 import { Card, Pill } from "@/components/ui/atoms";
 import { AnimatedNumber } from "@/components/charts/AnimatedNumber";
-import { MarketChart } from "@/components/market/MarketChart";
+import { KlineChart } from "@/components/market/KlineChart";
 import { OrderBookView, RecentTradesView } from "@/components/market/OrderBookPanel";
 import { OrderTicket } from "@/components/market/OrderTicket";
 import { CoinAvatar } from "@/components/positions/PositionsTable";
@@ -209,7 +209,7 @@ export default function Market() {
             </div>
             {/* K线 */}
             <div className="-mx-[18px] -mb-4">
-              <MarketChart klines={klines} price={price} position={position} />
+              <KlineChart klines={klines} position={position} />
             </div>
           </Card>
 
