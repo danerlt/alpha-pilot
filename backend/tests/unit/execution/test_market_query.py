@@ -8,8 +8,8 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from src.common.exception.errors import ParamsException
 from src.common.enums import PositionStatus
+from src.common.exception.errors import ParamsException
 from src.core.exchange.adapter import ExchangeAdapter
 from src.core.exchange.types import Kline, OrderRequest, OrderResult, Ticker
 from src.models import Base

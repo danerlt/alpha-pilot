@@ -138,9 +138,10 @@ def test_place_order_rejected_returns_risk_code(admin_client):
 
 
 def test_patch_sltp_full_chain(admin_client):
+    from datetime import datetime, timezone
+
     from src.common.enums import PositionStatus
     from src.models.position import Position
-    from datetime import datetime, timezone
 
     cli, engine = admin_client
     with Session(engine) as s:

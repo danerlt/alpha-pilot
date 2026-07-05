@@ -173,8 +173,9 @@ def test_place_order_buy_writes_order_and_position(session):
     assert out["order_id"] is not None
     assert out["position_id"] is not None
     assert out["status"] in {"FILLED", "filled"}
-    from src.models.order import Order
     from sqlalchemy import select as _select
+
+    from src.models.order import Order
 
     order = session.execute(_select(Order)).scalars().one()
     assert order.ai_decision_id is None
@@ -190,16 +191,18 @@ def test_place_order_idempotent_same_client_order_id(session):
     out1 = _place(session, _buy(client_order_id="dup1"))
     out2 = _place(session, _buy(client_order_id="dup1"))
     assert out1["order_id"] == out2["order_id"]
-    from src.models.order import Order
     from sqlalchemy import select as _select
+
+    from src.models.order import Order
 
     assert len(session.execute(_select(Order)).scalars().all()) == 1
 
 
 def test_place_order_rejected_writes_nothing(session):
+    from sqlalchemy import select as _select
+
     from src.common.exception.errors import RiskRejectedException
     from src.models.order import Order
-    from sqlalchemy import select as _select
 
     with pytest.raises(RiskRejectedException):
         _place(session, _buy(qty=0.06, client_order_id="c2"))  # oversize 30%
@@ -235,8 +238,9 @@ def test_place_order_sell_closes_position(session):
         session, _buy(side="SELL", reduce_only=True, client_order_id="c5"),
     )
     assert out["trade_id"] is not None
-    from src.models.trade import Trade
     from sqlalchemy import select as _select
+
+    from src.models.trade import Trade
 
     trade = session.execute(_select(Trade)).scalars().one()
     assert trade.exit_reason == "manual"
@@ -262,9 +266,10 @@ def _open_position(session, **kw) -> Position:
 
 
 def test_update_sltp_success_and_audited(session):
+    from sqlalchemy import select as _select
+
     from src.models.audit_log import AuditLog
     from src.schemas.manual_order import SltpUpdate
-    from sqlalchemy import select as _select
 
     pos = _open_position(session)
     out = _svc(session).update_sltp(
