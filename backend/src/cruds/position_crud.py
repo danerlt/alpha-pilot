@@ -18,4 +18,17 @@ class PositionCrud(BaseCrud[Position]):
             .order_by(Position.id)
         ).scalars())
 
+    def find_open_symbols(
+        self, session: Session, *, trading_mode: str, account_id: int = 1,
+    ) -> set[str]:
+        """当前 OPEN 持仓的 symbol 集合。"""
+        rows = session.execute(
+            select(Position.symbol).where(
+                Position.account_id == account_id,
+                Position.trading_mode == trading_mode,
+                Position.status == "OPEN",
+            ).distinct()
+        ).scalars()
+        return set(rows)
+
 position_crud = PositionCrud()

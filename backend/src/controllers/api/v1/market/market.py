@@ -33,3 +33,26 @@ def get_klines(
     return MarketQueryService(db, adapter).get_klines(
         trading_mode=_trading_mode(), symbol=symbol, interval=interval, limit=limit,
     )
+
+
+@router.get("/ticker")
+@api_response()
+def get_ticker(
+    symbol: str = Query(min_length=1, max_length=20),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+    adapter=Depends(get_adapter),
+):
+    """24h 行情统计 + 标记价/资金费率/OI (要求登录; 合约指标不可用时为 null)。"""
+    return MarketQueryService(db, adapter).get_ticker(symbol=symbol)
+
+
+@router.get("/symbols")
+@api_response()
+def list_symbols(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+    adapter=Depends(get_adapter),
+):
+    """自选列表: 启用交易对的价格/涨跌/量 + 是否持仓 + 当前 regime (要求登录)。"""
+    return MarketQueryService(db, adapter).list_symbols(trading_mode=_trading_mode())

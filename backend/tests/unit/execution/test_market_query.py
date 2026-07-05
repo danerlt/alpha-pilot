@@ -117,3 +117,69 @@ def test_klines_exchange_failure_falls_back_to_db(session):
     svc = MarketQueryService(session, _Broken())
     rows = svc.get_klines(trading_mode="testnet", symbol="BTCUSDT", interval="1h", limit=10)
     assert len(rows) == 3  # 降级返 DB 既有数据
+
+
+class _RichAdapter(_StubAdapter):
+    """带 24h/合约指标的 stub。"""
+
+    def get_ticker_24h(self, symbol):
+        from src.core.exchange.types import Ticker24h
+        return Ticker24h(
+            symbol=symbol, last_price=50_000.0, price_change_pct=0.012,
+            high_24h=51_000.0, low_24h=49_000.0,
+            volume_24h=123.4, quote_volume_24h=6_170_000.0,
+        )
+
+    def get_futures_metrics(self, symbol):
+        from src.core.exchange.types import FuturesMetrics
+        return FuturesMetrics(symbol=symbol, mark_price=50_010.0, funding_rate=0.0001)
+
+
+def test_ticker_merges_24h_and_futures_metrics(session):
+    svc = MarketQueryService(session, _RichAdapter())
+    t = svc.get_ticker(symbol="BTCUSDT")
+    assert t["last_price"] == 50_000.0
+    assert t["price_change_pct"] == 0.012
+    assert t["mark_price"] == 50_010.0
+    assert t["funding_rate"] == 0.0001
+    assert t["open_interest"] is None
+
+
+def test_ticker_falls_back_to_spot_price_when_24h_unavailable(session):
+    svc = MarketQueryService(session, _StubAdapter())  # get_ticker_24h 默认 None
+    t = svc.get_ticker(symbol="BTCUSDT")
+    assert t["last_price"] == 50_000.0  # 来自 get_ticker 现价
+    assert t["price_change_pct"] is None
+    assert t["mark_price"] is None
+
+
+def test_list_symbols_aggregates_position_and_regime(session):
+    from src.models.position import Position
+    from src.models.regime import RegimeSnapshot
+    from src.models.symbol_config import SymbolConfig
+
+    now = datetime.now(tz=timezone.utc)
+    session.add(SymbolConfig(symbol="BTCUSDT", base_asset="BTC", enabled=True, sort_order=1))
+    session.add(SymbolConfig(symbol="ETHUSDT", base_asset="ETH", enabled=True, sort_order=2))
+    session.add(SymbolConfig(symbol="OFFUSDT", base_asset="OFF", enabled=False))
+    session.add(Position(
+        account_id=1, trading_mode="testnet", symbol="BTCUSDT", status="OPEN",
+        side="LONG", quantity=0.01, entry_price=50_000.0, stop_loss=49_000.0,
+        opened_at=now,
+    ))
+    session.add(RegimeSnapshot(
+        account_id=1, trading_mode="testnet", symbol="BTCUSDT", timeframe="1h",
+        snapshot_at=now, regime="trending_up", confidence=0.9,
+    ))
+    session.commit()
+
+    svc = MarketQueryService(session, _RichAdapter())
+    rows = svc.list_symbols(trading_mode="testnet")
+    assert [r["symbol"] for r in rows] == ["BTCUSDT", "ETHUSDT"]  # 禁用的不出现
+    btc = rows[0]
+    assert btc["has_position"] is True
+    assert btc["regime"] == "trending_up"
+    assert btc["last_price"] == 50_000.0
+    eth = rows[1]
+    assert eth["has_position"] is False
+    assert eth["regime"] is None

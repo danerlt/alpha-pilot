@@ -117,3 +117,31 @@ def test_market_endpoints_reject_anonymous():
     r = cli.get("/api/market/klines?symbol=BTCUSDT")
     assert r.status_code == 200
     assert r.json()["code"] == "400003"
+
+
+def test_ticker_returns_merged_payload(authed_client):
+    cli, _ = authed_client
+    r = cli.get("/api/market/ticker?symbol=BTCUSDT")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["success"] is True
+    data = body["data"]
+    assert data["last_price"] == 50_000.0
+    assert data["mark_price"] == 50_010.0
+    assert data["funding_rate"] == 0.0001
+    assert data["open_interest"] is None
+
+
+def test_symbols_lists_enabled_configs(authed_client):
+    from src.models.symbol_config import SymbolConfig
+
+    cli, engine = authed_client
+    with Session(engine) as s:
+        s.add(SymbolConfig(symbol="BTCUSDT", base_asset="BTC", enabled=True))
+        s.commit()
+    r = cli.get("/api/market/symbols")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["success"] is True
+    assert body["data"][0]["symbol"] == "BTCUSDT"
+    assert body["data"][0]["has_position"] is False
