@@ -34,6 +34,7 @@ from src.controllers.api.v1.system.admin import router as _admin_router
 from src.controllers.api.v1.system.auth import router as _auth_router
 from src.controllers.api.v1.system.health import router as _health_router
 from src.controllers.api.v1.system.runtime_config import router as _runtime_config_router
+from src.controllers.api.v1.system.settings import router as _settings_router
 from src.controllers.api.v1.system.tasks import router as _tasks_router
 
 # Re-export 共享依赖（兼容老测试）
@@ -62,3 +63,4 @@ router.include_router(_market_router)
 router.include_router(_orders_router)
 router.include_router(_risk_state_router)
 router.include_router(_agent_router)
+router.include_router(_settings_router)

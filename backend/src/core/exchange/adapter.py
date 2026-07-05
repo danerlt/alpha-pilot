@@ -60,3 +60,7 @@ class ExchangeAdapter(ABC):
 
     def get_futures_metrics(self, symbol: str) -> FuturesMetrics | None:
         return None
+
+    def get_account_permissions(self) -> dict | None:
+        """API Key 权限探测 (handoff 3.6): {read, trade, withdraw}; 不可用返 None。"""
+        return None

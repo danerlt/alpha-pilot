@@ -238,6 +238,20 @@ class BinanceAdapter(ExchangeAdapter):
             return 0.0
         return float(raw.get("free", 0.0))
 
+    def get_account_permissions(self) -> dict | None:
+        """API Key 权限探测 (handoff 3.6): 能调通 get_account 即有 read。"""
+        try:
+            self._limiter.acquire(10)
+            raw = self._client.get_account()
+        except Exception:
+            logger.warning("get_account_permissions failed (non-fatal)", exc_info=True)
+            return None
+        return {
+            "read": True,
+            "trade": bool(raw.get("canTrade")),
+            "withdraw": bool(raw.get("canWithdraw")),
+        }
+
     # --------------------------------------------------------------
     # Helpers
     # --------------------------------------------------------------
