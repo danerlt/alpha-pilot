@@ -16,8 +16,8 @@ async def root():
     return RedirectResponse(url="/health")
 
 
-@router.get("/health")
-@router.get("/api/health")
+@router.get("/health", operation_id="health_check_bare")
+@router.get("/api/health", operation_id="health_check")
 @api_response()
 async def health_check():
     settings = get_settings()

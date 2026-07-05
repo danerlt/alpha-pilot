@@ -151,7 +151,24 @@ def create_app() -> FastAPI:
     app.include_router(_events_catchup_router)
     app.add_api_websocket_route("/ws", websocket_endpoint)
 
+    _use_route_names_as_operation_ids(app)
+
     return app
+
+
+def _use_route_names_as_operation_ids(app: FastAPI) -> None:
+    """operation_id 缺省取 endpoint 函数名 (webapp 架构 B1)。
+
+    FastAPI 默认生成 `<name>_<path>_<method>` 一类又长又随路径变的 id,
+    前端 openapi-typescript 生成的函数名会跟着漂移。函数名唯一性由
+    tests/api/test_openapi_contract.py 守护; 同函数挂多路径时在路由装饰器
+    显式给 operation_id。
+    """
+    from fastapi.routing import APIRoute
+
+    for route in app.routes:
+        if isinstance(route, APIRoute) and route.operation_id is None:
+            route.operation_id = route.name
 
 
 app = create_app()

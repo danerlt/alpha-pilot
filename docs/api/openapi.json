@@ -9,7 +9,7 @@
     "/": {
       "get": {
         "summary": "Root",
-        "operationId": "root__get",
+        "operationId": "root",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -25,7 +25,7 @@
     "/api/health": {
       "get": {
         "summary": "Health Check",
-        "operationId": "health_check_api_health_get",
+        "operationId": "health_check",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -41,7 +41,7 @@
     "/health": {
       "get": {
         "summary": "Health Check",
-        "operationId": "health_check_health_get",
+        "operationId": "health_check_bare",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -61,7 +61,7 @@
         ],
         "summary": "Register",
         "description": "V0.1 单管理员场景下公开注册被禁用 (post-Plan5 安全审计 C5).\n\n所有账号必须由 admin 通过 admin_bootstrap (.env DEFAULT_ADMIN_*) 引导,\n或通过 POST /api/admin/users 创建. 公开 register 在生产 = 任何人都能拿\nUSER 角色读 /api/positions, /api/trades, /api/account, /api/decisions\n/api/events/catchup 等敏感接口 (虽然只回当前 user 的, 但 V0.1 当前无\naccount 隔离, 实际上是全局可读).\n\nV0.1.x 多账户场景重启用时, 必须改成 invite-token 流程 + 限速 + 邮箱验证.",
-        "operationId": "register_api_auth_register_post",
+        "operationId": "register",
         "requestBody": {
           "content": {
             "application/json": {
@@ -101,7 +101,7 @@
         ],
         "summary": "Login",
         "description": "密码登录 — 带限流 + timing-equal 防 user enumeration.\n\n限流 (post-Plan5 安全审计 H4):\n  - per-IP 10 次 / 60s\n  - per-email 5 次 / 60s\n  超阈值返 429 + Retry-After.\n\ntiming-equal: user 不存在时也跑一次 verify_password 让响应时延一致.",
-        "operationId": "login_api_auth_login_post",
+        "operationId": "login",
         "requestBody": {
           "content": {
             "application/json": {
@@ -140,7 +140,7 @@
           "auth"
         ],
         "summary": "Auth Me",
-        "operationId": "auth_me_api_auth_me_get",
+        "operationId": "auth_me",
         "parameters": [
           {
             "name": "authorization",
@@ -187,7 +187,7 @@
           "admin"
         ],
         "summary": "List Symbol Configs",
-        "operationId": "list_symbol_configs_api_admin_symbols_get",
+        "operationId": "list_symbol_configs",
         "parameters": [
           {
             "name": "authorization",
@@ -232,7 +232,7 @@
           "admin"
         ],
         "summary": "Create Symbol Config",
-        "operationId": "create_symbol_config_api_admin_symbols_post",
+        "operationId": "create_symbol_config",
         "parameters": [
           {
             "name": "authorization",
@@ -289,7 +289,7 @@
           "admin"
         ],
         "summary": "Update Symbol Config",
-        "operationId": "update_symbol_config_api_admin_symbols__symbol_id__patch",
+        "operationId": "update_symbol_config",
         "parameters": [
           {
             "name": "symbol_id",
@@ -355,7 +355,7 @@
           "admin"
         ],
         "summary": "List Users",
-        "operationId": "list_users_api_admin_users_get",
+        "operationId": "list_users",
         "parameters": [
           {
             "name": "authorization",
@@ -401,7 +401,7 @@
         ],
         "summary": "Create User",
         "description": "admin 创建账号 — 公开注册按安全审计 C5 禁用, 这是唯一的运行时建号入口。",
-        "operationId": "create_user_api_admin_users_post",
+        "operationId": "create_user",
         "parameters": [
           {
             "name": "authorization",
@@ -458,7 +458,7 @@
           "admin"
         ],
         "summary": "Update User",
-        "operationId": "update_user_api_admin_users__user_id__patch",
+        "operationId": "update_user",
         "parameters": [
           {
             "name": "user_id",
@@ -524,7 +524,7 @@
           "admin"
         ],
         "summary": "List Audit Logs",
-        "operationId": "list_audit_logs_api_admin_audit_logs_get",
+        "operationId": "list_audit_logs",
         "parameters": [
           {
             "name": "limit",
@@ -582,7 +582,7 @@
         ],
         "summary": "List Positions",
         "description": "列出所有开仓持仓 (要求登录)。",
-        "operationId": "list_positions_api_positions_get",
+        "operationId": "list_positions",
         "parameters": [
           {
             "name": "authorization",
@@ -623,6 +623,73 @@
         }
       }
     },
+    "/api/positions/{position_id}/sltp": {
+      "patch": {
+        "tags": [
+          "positions"
+        ],
+        "summary": "Update Position Sltp",
+        "description": "修改持仓 SL/TP (handoff P2 §3.2): 走守卫规则校验 + 审计。\n\n权限: 暂 require_admin, P4 RBAC 落地后放宽为 trader+。",
+        "operationId": "update_position_sltp",
+        "parameters": [
+          {
+            "name": "position_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Position Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SltpUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/trades": {
       "get": {
         "tags": [
@@ -630,7 +697,7 @@
         ],
         "summary": "List Trades",
         "description": "返回最近 N 条已完成交易记录 (要求登录)。",
-        "operationId": "list_trades_api_trades_get",
+        "operationId": "list_trades",
         "parameters": [
           {
             "name": "limit",
@@ -690,7 +757,7 @@
         ],
         "summary": "List Decisions",
         "description": "返回最近 N 条 AI 决策记录 (要求登录)。",
-        "operationId": "list_decisions_api_decisions_get",
+        "operationId": "list_decisions",
         "parameters": [
           {
             "name": "limit",
@@ -750,7 +817,7 @@
         ],
         "summary": "Get Decision Detail",
         "description": "决策详情: features 快照 + review + 守卫记录 + 关联订单 (要求登录)。",
-        "operationId": "get_decision_detail_api_decisions__decision_id__get",
+        "operationId": "get_decision_detail",
         "parameters": [
           {
             "name": "decision_id",
@@ -806,7 +873,7 @@
           "risk"
         ],
         "summary": "List Risk Events",
-        "operationId": "list_risk_events_api_risk_events_get",
+        "operationId": "list_risk_events",
         "parameters": [
           {
             "name": "limit",
@@ -866,7 +933,7 @@
         ],
         "summary": "Resolve Risk Event",
         "description": "手动解除熔断事件 (admin only).\n\n走 ManualOpsService 统一路径 — 写 audit_logs + 发 manual.override 事件,\n避免与 /api/commands/resolve-breaker/{id} 形成审计盲区 (Risk #3).",
-        "operationId": "resolve_risk_event_api_risk_events__event_id__resolve_post",
+        "operationId": "resolve_risk_event",
         "parameters": [
           {
             "name": "event_id",
@@ -939,7 +1006,7 @@
           "reports"
         ],
         "summary": "List Reports",
-        "operationId": "list_reports_api_reports_get",
+        "operationId": "list_reports",
         "parameters": [
           {
             "name": "limit",
@@ -999,7 +1066,7 @@
         ],
         "summary": "Generate Report",
         "description": "手动触发今日日报生成 (admin only)。",
-        "operationId": "generate_report_api_reports_generate_post",
+        "operationId": "generate_report",
         "parameters": [
           {
             "name": "authorization",
@@ -1046,7 +1113,7 @@
           "strategy-scores"
         ],
         "summary": "List Strategy Scores",
-        "operationId": "list_strategy_scores_api_strategy_scores_get",
+        "operationId": "list_strategy_scores",
         "parameters": [
           {
             "name": "window",
@@ -1116,7 +1183,7 @@
         ],
         "summary": "Generate Strategy Scores",
         "description": "手动触发策略评分 (admin only)。",
-        "operationId": "generate_strategy_scores_api_strategy_scores_generate_post",
+        "operationId": "generate_strategy_scores",
         "parameters": [
           {
             "name": "window_days",
@@ -1175,7 +1242,7 @@
           "attribution"
         ],
         "summary": "List Attributions",
-        "operationId": "list_attributions_api_attribution_get",
+        "operationId": "list_attributions",
         "parameters": [
           {
             "name": "limit",
@@ -1234,7 +1301,7 @@
           "attribution"
         ],
         "summary": "Attribution Summary",
-        "operationId": "attribution_summary_api_attribution_summary_get",
+        "operationId": "attribution_summary",
         "parameters": [
           {
             "name": "window_days",
@@ -1294,7 +1361,7 @@
         ],
         "summary": "Generate Attribution",
         "description": "手动触发逐笔归因 (admin only)。",
-        "operationId": "generate_attribution_api_attribution_generate_post",
+        "operationId": "generate_attribution",
         "parameters": [
           {
             "name": "window_days",
@@ -1354,7 +1421,7 @@
         ],
         "summary": "Get Account",
         "description": "返回最新账户快照 (要求登录)。",
-        "operationId": "get_account_api_account_get",
+        "operationId": "get_account",
         "parameters": [
           {
             "name": "authorization",
@@ -1401,7 +1468,7 @@
           "config"
         ],
         "summary": "Get Runtime Config",
-        "operationId": "get_runtime_config_api_config_runtime_get",
+        "operationId": "get_runtime_config",
         "parameters": [
           {
             "name": "authorization",
@@ -1446,7 +1513,7 @@
           "config"
         ],
         "summary": "Update Runtime Config",
-        "operationId": "update_runtime_config_api_config_runtime_post",
+        "operationId": "update_runtime_config",
         "parameters": [
           {
             "name": "authorization",
@@ -1503,7 +1570,7 @@
           "tasks"
         ],
         "summary": "Get Task",
-        "operationId": "get_task_api_tasks__task_id__get",
+        "operationId": "get_task",
         "parameters": [
           {
             "name": "task_id",
@@ -1560,7 +1627,7 @@
         ],
         "summary": "Get Klines",
         "description": "K线查询 (要求登录): DB 新鲜够量走库, 否则交易所直取。",
-        "operationId": "get_klines_api_market_klines_get",
+        "operationId": "get_klines",
         "parameters": [
           {
             "name": "symbol",
@@ -1642,7 +1709,7 @@
         ],
         "summary": "Get Ticker",
         "description": "24h 行情统计 + 标记价/资金费率/OI (要求登录; 合约指标不可用时为 null)。",
-        "operationId": "get_ticker_api_market_ticker_get",
+        "operationId": "get_ticker",
         "parameters": [
           {
             "name": "symbol",
@@ -1701,7 +1768,7 @@
         ],
         "summary": "List Symbols",
         "description": "自选列表: 启用交易对的价格/涨跌/量 + 是否持仓 + 当前 regime (要求登录)。",
-        "operationId": "list_symbols_api_market_symbols_get",
+        "operationId": "list_symbols",
         "parameters": [
           {
             "name": "authorization",
@@ -1742,13 +1809,129 @@
         }
       }
     },
+    "/api/orders/precheck": {
+      "post": {
+        "tags": [
+          "orders"
+        ],
+        "summary": "Precheck Order",
+        "description": "守卫预检: 逐项 PASS/FAIL + 总判定 (只读, 下单时服务端会再跑一遍)。",
+        "operationId": "precheck_order",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManualOrderCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/orders": {
+      "post": {
+        "tags": [
+          "orders"
+        ],
+        "summary": "Place Order",
+        "description": "手动下单: 服务端重跑守卫, HALTED 仅接受 reduce-only 平仓, 幂等 + 审计。",
+        "operationId": "place_order",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManualOrderCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/commands/close-position/{position_id}": {
       "post": {
         "tags": [
           "commands"
         ],
         "summary": "Close Position",
-        "operationId": "close_position_api_commands_close_position__position_id__post",
+        "operationId": "close_position",
         "parameters": [
           {
             "name": "position_id",
@@ -1815,7 +1998,7 @@
         ],
         "summary": "Close All",
         "description": "一键全平 — HTTP 触发的耗时业务, 走 task_requests 异步入队 (project.md §8)。\n\n立即返回 task_id; 执行结果通过 GET /api/tasks/{task_id} 查询,\n或订阅 WS 的 task.status_changed 事件。",
-        "operationId": "close_all_api_commands_close_all_post",
+        "operationId": "close_all",
         "parameters": [
           {
             "name": "authorization",
@@ -1872,7 +2055,7 @@
           "commands"
         ],
         "summary": "Resolve Breaker",
-        "operationId": "resolve_breaker_api_commands_resolve_breaker__event_id__post",
+        "operationId": "resolve_breaker",
         "parameters": [
           {
             "name": "event_id",
@@ -1938,7 +2121,7 @@
           "commands"
         ],
         "summary": "Pause",
-        "operationId": "pause_api_commands_pause_post",
+        "operationId": "pause",
         "parameters": [
           {
             "name": "authorization",
@@ -1995,7 +2178,7 @@
           "commands"
         ],
         "summary": "Resume",
-        "operationId": "resume_api_commands_resume_post",
+        "operationId": "resume",
         "parameters": [
           {
             "name": "authorization",
@@ -2052,7 +2235,7 @@
           "commands"
         ],
         "summary": "Kill Switch State",
-        "operationId": "kill_switch_state_api_commands_kill_switch_get",
+        "operationId": "kill_switch_state",
         "parameters": [
           {
             "name": "authorization",
@@ -2100,7 +2283,7 @@
         ],
         "summary": "Catchup",
         "description": "返回 [event_id 比 since 大] 的事件 envelope, 按 id 升序.",
-        "operationId": "catchup_api_events_catchup_get",
+        "operationId": "catchup",
         "parameters": [
           {
             "name": "since",
@@ -2249,6 +2432,100 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "ManualOrderCreate": {
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Symbol"
+          },
+          "side": {
+            "type": "string",
+            "enum": [
+              "BUY",
+              "SELL"
+            ],
+            "title": "Side"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "MARKET",
+              "LIMIT"
+            ],
+            "title": "Type",
+            "default": "MARKET"
+          },
+          "qty": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Qty"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price"
+          },
+          "sl": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sl"
+          },
+          "tp": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tp"
+          },
+          "reduce_only": {
+            "type": "boolean",
+            "title": "Reduce Only",
+            "default": false
+          },
+          "client_order_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Order Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "symbol",
+          "side",
+          "qty"
+        ],
+        "title": "ManualOrderCreate",
+        "description": "POST /api/orders 与 /api/orders/precheck 共用入参。"
       },
       "PauseCreate": {
         "properties": {
@@ -2427,6 +2704,37 @@
         "type": "object",
         "title": "RuntimeConfigUpdate",
         "description": "POST /api/config/runtime 入参 (admin 在线改运行时配置)."
+      },
+      "SltpUpdate": {
+        "properties": {
+          "stop_loss": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stop Loss"
+          },
+          "take_profit": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Take Profit"
+          }
+        },
+        "type": "object",
+        "title": "SltpUpdate",
+        "description": "PATCH /api/positions/{id}/sltp 入参; 至少给一个字段。"
       },
       "SymbolConfigCreate": {
         "properties": {
