@@ -18,6 +18,7 @@ from src.controllers.api.v1.market.market import router as _market_router
 
 # ── risk 域 ────────────────────────────────────────────────────────────
 from src.controllers.api.v1.risk.risk_events import router as _risk_router
+from src.controllers.api.v1.risk.risk_state import router as _risk_state_router
 
 # ── strategy 域 ────────────────────────────────────────────────────────
 from src.controllers.api.v1.strategy.attribution import router as _attribution_router
@@ -56,3 +57,4 @@ router.include_router(_runtime_config_router)
 router.include_router(_tasks_router)
 router.include_router(_market_router)
 router.include_router(_orders_router)
+router.include_router(_risk_state_router)

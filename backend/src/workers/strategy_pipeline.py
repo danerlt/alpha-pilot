@@ -451,8 +451,8 @@ def run_strategy_pipeline_once(
                 summary[f"{s}:{tf}"] = {"action": "SKIP", "reason": "blocked_by_kill_switch"}
         return summary
 
-    # 1+6. 同步账户快照 (整轮共享)
-    account_svc = AccountStateService(db, adapter)
+    # 1+6. 同步账户快照 (整轮共享); outbox 注入让 account.snapshot 事件发布 (B2)
+    account_svc = AccountStateService(db, adapter, outbox=outbox)
     snap = account_svc.sync_snapshot(account_id=account_id, trading_mode=trading_mode)
     available_usdt = float(snap.available_balance_usdt)
     daily_pnl = float(snap.daily_pnl)

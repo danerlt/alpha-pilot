@@ -156,6 +156,14 @@ class PositionMonitor:
                         reason=f"daily_loss:{daily_pnl_pct:.4f}",
                     ),
                 )
+                # risk.state 快照事件 (webapp 架构 B2): HALTED 联动实时驱动。
+                # 延迟 import 避免 risk ↔ execution 域顶层循环依赖。
+                from src.services.risk.risk_state import RiskStateService
+
+                RiskStateService(self._session, outbox=self._outbox).publish(
+                    trading_mode=trading_mode, account_id=account_id,
+                    trace_id=f"breaker_trigger:{trading_mode}",
+                )
             out.circuit_breaker_triggered = True
 
         return out

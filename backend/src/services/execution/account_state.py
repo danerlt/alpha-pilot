@@ -16,14 +16,22 @@ from src.core.exchange.adapter import ExchangeAdapter
 from src.models.account import AccountSnapshot
 from src.models.position import Position
 from src.models.trade import Trade
+from src.services.events.contracts import AccountSnapshotTaken
+from src.services.events.outbox import OutboxWriter
 
 logger = logging.getLogger(__name__)
 
 
 class AccountStateService:
-    def __init__(self, session: Session, adapter: ExchangeAdapter):
+    def __init__(
+        self,
+        session: Session,
+        adapter: ExchangeAdapter,
+        outbox: OutboxWriter | None = None,
+    ):
         self._session = session
         self._adapter = adapter
+        self._outbox = outbox
 
     def sync_snapshot(
         self, *, account_id: int, trading_mode: str,
@@ -77,6 +85,23 @@ class AccountStateService:
         )
         self._session.add(snap)
         self._session.flush()
+
+        # account.snapshot 事件 (webapp 架构 B2): 驱动前端权益曲线实时生长
+        if self._outbox is not None:
+            self._outbox.record(
+                self._session,
+                aggregate_type="account_snapshot", aggregate_id=snap.id,
+                event=AccountSnapshotTaken(
+                    total_balance_usdt=float(snap.total_balance_usdt),
+                    available_balance_usdt=float(snap.available_balance_usdt),
+                    unrealized_pnl=float(snap.unrealized_pnl),
+                    daily_pnl=float(snap.daily_pnl),
+                    daily_pnl_pct=float(snap.daily_pnl_pct),
+                    snapshot_at=snap.snapshot_at,
+                ),
+                account_id=account_id, trading_mode=trading_mode,
+                trace_id=f"account_sync:{trading_mode}:{snap.id}",
+            )
         return snap
 
     def get_current_balance_usdt(

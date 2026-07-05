@@ -30,3 +30,46 @@ def test_all_operation_ids_unique():
 def test_openapi_schema_generates():
     schema = app.openapi()
     assert len(schema["paths"]) >= 37
+
+
+def test_risk_state_endpoint(engine_and_client=None):
+    """GET /api/risk/state 登录可见 + 匿名拒绝 (B2)。"""
+    import os
+
+    from fastapi.testclient import TestClient
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+
+    from src.controllers.dependencies import get_current_user
+    from src.db.session import get_db
+    from src.models import Base
+
+    eng = create_engine(os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:"))
+    Base.metadata.create_all(eng)
+
+    def _override():
+        s = Session(eng)
+        try:
+            yield s
+        finally:
+            s.close()
+
+    from types import SimpleNamespace
+
+    app.dependency_overrides[get_db] = _override
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
+        id=1, username="u", role="user", status="active",
+    )
+    try:
+        cli = TestClient(app)
+        r = cli.get("/api/risk/state")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["success"] is True
+        assert body["data"]["state"] in {"OK", "WARN", "HALTED"}
+        assert set(body["data"]) == {"state", "day_loss_pct", "positions_pct", "regime"}
+    finally:
+        app.dependency_overrides.clear()
+
+    r2 = TestClient(app).get("/api/risk/state")
+    assert r2.json()["code"] == "400003"

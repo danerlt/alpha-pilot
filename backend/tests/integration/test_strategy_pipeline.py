@@ -318,3 +318,23 @@ def test_pipeline_without_emitter_still_works(session, profile):
         symbols=["BTCUSDT"], timeframes=["1h"],
     )
     assert summary["BTCUSDT:1h"]["action"] == "OPEN_LONG"
+
+
+def test_pipeline_publishes_account_snapshot_event(session, profile):
+    """webapp 架构 B2: 账户快照同步后发 account.snapshot 事件。"""
+    from src.models.event_store import EventOutbox
+    from src.services.events.outbox import OutboxWriter
+
+    adapter = _PipelineAdapter(ticker_price=50_000.0, fill_price=50_000.0)
+    llm = MockLLMClient(canned_response=VALID_OPEN_LONG)
+    run_strategy_pipeline_once(
+        db=session, account_id=1, trading_mode="testnet",
+        adapter=adapter, llm_client=llm, risk_profile=profile,
+        symbols=["BTCUSDT"], timeframes=["1h"],
+        outbox=OutboxWriter(),
+    )
+    rows = session.execute(select(EventOutbox)).scalars().all()
+    snap_events = [r for r in rows if r.event_type == "account.snapshot"]
+    assert len(snap_events) == 1
+    payload = snap_events[0].payload_json["payload"]
+    assert "total_balance_usdt" in payload and "daily_pnl_pct" in payload

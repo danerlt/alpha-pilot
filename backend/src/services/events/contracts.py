@@ -259,6 +259,16 @@ class TradeClosed(_Event):
 # risk.*
 # ---------------------------------------------------------------------------
 
+class RiskState(_Event):
+    """风控状态快照 (webapp 架构 B2) — 顶栏胶囊/HALTED 联动的实时驱动。"""
+
+    event_type: ClassVar[str] = "risk.state"
+    state: Literal["OK", "WARN", "HALTED"]
+    day_loss_pct: float
+    positions_pct: float
+    regime: str | None = None
+
+
 class RiskEventTriggered(_Event):
     event_type: ClassVar[str] = "risk.event.triggered"
     risk_event_id: int
@@ -278,6 +288,22 @@ class ManualOverride(_Event):
     action: str
     target: str
     reason: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# account.*
+# ---------------------------------------------------------------------------
+
+class AccountSnapshotTaken(_Event):
+    """账户权益快照落库 (webapp 架构 B2) — 驱动前端权益曲线实时生长。"""
+
+    event_type: ClassVar[str] = "account.snapshot"
+    total_balance_usdt: float
+    available_balance_usdt: float
+    unrealized_pnl: float
+    daily_pnl: float
+    daily_pnl_pct: float
+    snapshot_at: datetime
 
 
 # ---------------------------------------------------------------------------
@@ -363,7 +389,8 @@ def _all_event_classes() -> list[type[_Event]]:
         OrderSubmitted, OrderFilled, OrderFailed,
         PositionOpened, PositionUpdated, PositionClosed,
         TradeClosed,
-        RiskEventTriggered, CircuitBreakerTriggered, ManualOverride,
+        RiskState, RiskEventTriggered, CircuitBreakerTriggered, ManualOverride,
+        AccountSnapshotTaken,
         TaskStatusChanged,
         ControlCommand,
         ParamsCandidateProposed, ParamsCandidateValidated,

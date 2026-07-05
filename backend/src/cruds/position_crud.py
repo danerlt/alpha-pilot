@@ -19,6 +19,17 @@ class PositionCrud(BaseCrud[Position]):
             .order_by(Position.id)
         ).scalars())
 
+    def find_open(
+        self, session: Session, *, trading_mode: str, account_id: int = 1,
+    ) -> list[Position]:
+        return list(session.execute(
+            select(Position).where(
+                Position.account_id == account_id,
+                Position.trading_mode == trading_mode,
+                Position.status == PositionStatus.OPEN.value,
+            ).order_by(Position.id)
+        ).scalars())
+
     def find_open_symbols(
         self, session: Session, *, trading_mode: str, account_id: int = 1,
     ) -> set[str]:

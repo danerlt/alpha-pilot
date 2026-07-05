@@ -28,12 +28,24 @@ from src.schemas.command import (
     PauseCreate,
     ResolveBreakerCreate,
 )
+from src.configs.app_configs import get_settings
 from src.services.events.outbox import OutboxWriter
 from src.services.manual_ops import ManualOpsService
 from src.services.risk.kill_switch import KillSwitchService
+from src.services.risk.risk_state import RiskStateService
 from src.services.task_dispatcher import get_task_dispatcher
 
 router = APIRouter(prefix="/api/commands", tags=["commands"])
+
+
+def _publish_risk_state(db: Session, *, trace: str) -> None:
+    """状态迁移点发布 risk.state 事件 (webapp 架构 B2); 与业务写同事务。"""
+    settings = get_settings()
+    mode = settings.TRADING_MODE
+    RiskStateService(db, outbox=OutboxWriter()).publish(
+        trading_mode=mode.value if hasattr(mode, "value") else mode,
+        trace_id=trace,
+    )
 
 
 # 旧名 _adapter 保留为别名 — 测试通过 monkeypatch src.controllers.api.v1.risk.commands._adapter
@@ -104,6 +116,8 @@ def resolve_breaker(
         risk_event_id=event_id, reason=body.reason,
         operator_user_id=current_admin.id,
     )
+    if ok:
+        _publish_risk_state(db, trace=f"resolve_breaker:{event_id}")
     db.commit()
     if not ok:
         raise DBException(error_code=ErrorCode.NOT_FOUND, message="risk_event not found")
@@ -119,6 +133,7 @@ def pause(
 ):
     svc = KillSwitchService(db)
     svc.pause(operator_user_id=current_admin.id, reason=body.reason)
+    _publish_risk_state(db, trace=f"pause:{current_admin.id}")
     db.commit()
     return {"state": "paused"}
 
@@ -132,6 +147,7 @@ def resume(
 ):
     svc = KillSwitchService(db)
     svc.resume(operator_user_id=current_admin.id, reason=body.reason)
+    _publish_risk_state(db, trace=f"resume:{current_admin.id}")
     db.commit()
     return {"state": "active"}
 

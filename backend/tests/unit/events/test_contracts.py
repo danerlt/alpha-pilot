@@ -145,3 +145,13 @@ def test_decision_complete_in_registry_and_roundtrip():
     parsed = DecisionComplete(**ev.model_dump())
     assert parsed.action == "OPEN_LONG"
     assert parsed.guard_result == "PASS"
+
+
+def test_b2_events_in_registry():
+    """webapp 架构 B2: risk.state / account.snapshot 必须在注册表。"""
+    from src.services.events.contracts import AccountSnapshotTaken, RiskState
+
+    assert EVENT_TYPE_REGISTRY["risk.state"] is RiskState
+    assert EVENT_TYPE_REGISTRY["account.snapshot"] is AccountSnapshotTaken
+    ev = RiskState(state="HALTED", day_loss_pct=-0.031, positions_pct=0.4, regime="chaotic")
+    assert RiskState(**ev.model_dump()).state == "HALTED"
