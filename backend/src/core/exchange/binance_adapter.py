@@ -13,6 +13,7 @@ BinanceAPIException is mapped to our error hierarchy:
 """
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from typing import Literal
 
@@ -26,7 +27,16 @@ from src.core.exchange.retry import (
     PermanentExchangeError,
     with_retry,
 )
-from src.core.exchange.types import Kline, OrderRequest, OrderResult, Ticker
+from src.core.exchange.types import (
+    FuturesMetrics,
+    Kline,
+    OrderRequest,
+    OrderResult,
+    Ticker,
+    Ticker24h,
+)
+
+logger = logging.getLogger(__name__)
 
 # python-binance interval constants for the timeframes V0.1 uses.
 _TIMEFRAME_MAP = {
@@ -120,6 +130,56 @@ class BinanceAdapter(ExchangeAdapter):
                 )
             )
         return klines
+
+    def get_ticker_24h(self, symbol: str) -> Ticker24h | None:
+        """24h 行情统计; 失败静默返 None (装饰性数据, 不重试不上抛)。"""
+        try:
+            self._limiter.acquire(1)
+            raw = self._client.get_ticker(symbol=symbol)
+            return Ticker24h(
+                symbol=raw["symbol"],
+                last_price=float(raw["lastPrice"]),
+                price_change_pct=float(raw["priceChangePercent"]) / 100.0,
+                high_24h=float(raw["highPrice"]),
+                low_24h=float(raw["lowPrice"]),
+                volume_24h=float(raw["volume"]),
+                quote_volume_24h=float(raw["quoteVolume"]),
+            )
+        except Exception:
+            logger.warning("get_ticker_24h failed for %s (non-fatal)", symbol, exc_info=True)
+            return None
+
+    def get_futures_metrics(self, symbol: str) -> FuturesMetrics | None:
+        """USDT-M 公共指标 (标记价/资金费率/OI); 失败静默返 None。
+
+        交易链路是现货, 这里只借合约公共端点给行情页取装饰性指标
+        (handoff P2 口径决策, 见 worklog 20260705)。
+        """
+        try:
+            self._limiter.acquire(1)
+            raw = self._client.futures_mark_price(symbol=symbol)
+        except Exception:
+            logger.warning("futures_mark_price failed for %s (non-fatal)", symbol, exc_info=True)
+            return None
+        next_funding = None
+        ts = raw.get("nextFundingTime")
+        if ts:
+            next_funding = datetime.fromtimestamp(int(ts) / 1000, tz=timezone.utc)
+        open_interest = None
+        try:
+            self._limiter.acquire(1)
+            oi_raw = self._client.futures_open_interest(symbol=symbol)
+            open_interest = float(oi_raw["openInterest"])
+        except Exception:
+            logger.warning("futures_open_interest failed for %s (non-fatal)", symbol, exc_info=True)
+        return FuturesMetrics(
+            symbol=symbol,
+            mark_price=float(raw["markPrice"]) if raw.get("markPrice") else None,
+            index_price=float(raw["indexPrice"]) if raw.get("indexPrice") else None,
+            funding_rate=float(raw["lastFundingRate"]) if raw.get("lastFundingRate") else None,
+            next_funding_time=next_funding,
+            open_interest=open_interest,
+        )
 
     # --------------------------------------------------------------
     # Orders

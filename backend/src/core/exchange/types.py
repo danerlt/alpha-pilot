@@ -30,6 +30,29 @@ class Ticker(BaseModel):
     fetched_at: datetime | None = None
 
 
+class Ticker24h(BaseModel):
+    """24h 行情统计 (handoff P2 行情页)。"""
+
+    symbol: str
+    last_price: float
+    price_change_pct: float  # 24h 涨跌幅小数 (-0.05 = -5%)
+    high_24h: float
+    low_24h: float
+    volume_24h: float  # base asset 量
+    quote_volume_24h: float  # USDT 量
+
+
+class FuturesMetrics(BaseModel):
+    """USDT-M 公共行情指标 (装饰性数据; 不可用时字段为 None)。"""
+
+    symbol: str
+    mark_price: float | None = None
+    index_price: float | None = None
+    funding_rate: float | None = None
+    next_funding_time: datetime | None = None
+    open_interest: float | None = None
+
+
 class OrderRequest(BaseModel):
     symbol: str
     side: Literal["BUY", "SELL"]

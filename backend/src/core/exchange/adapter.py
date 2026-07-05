@@ -4,7 +4,14 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Literal
 
-from src.core.exchange.types import Kline, OrderRequest, OrderResult, Ticker
+from src.core.exchange.types import (
+    FuturesMetrics,
+    Kline,
+    OrderRequest,
+    OrderResult,
+    Ticker,
+    Ticker24h,
+)
 
 
 class ExchangeAdapter(ABC):
@@ -42,3 +49,14 @@ class ExchangeAdapter(ABC):
     @property
     @abstractmethod
     def trading_mode(self) -> Literal["testnet", "mainnet"]: ...
+
+    # ------------------------------------------------------------------
+    # 行情装饰数据 (handoff P2) — 非抽象默认实现, 既有 stub 无需变更;
+    # 不可用时返回 None, 调用方按 None 降级展示。
+    # ------------------------------------------------------------------
+
+    def get_ticker_24h(self, symbol: str) -> Ticker24h | None:
+        return None
+
+    def get_futures_metrics(self, symbol: str) -> FuturesMetrics | None:
+        return None
