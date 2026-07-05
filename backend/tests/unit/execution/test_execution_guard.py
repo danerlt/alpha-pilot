@@ -270,3 +270,34 @@ def test_no_outbox_no_publish(session, profile):
     _check(session, profile, _open_long(), regime="chaotic")  # 默认无 outbox
     rows = session.execute(select(EventOutbox)).scalars().all()
     assert rows == []
+
+
+def test_guard_record_writes_decision_id_on_risk_event(session, profile):
+    """守卫审计行落 decision_id, 详情端点可反查 (handoff P1)。"""
+    g = ExecutionGuard(session, risk_profile=profile)
+    g.check(
+        proposal=_open_long(), trading_mode="testnet",
+        current_price=50_000.0, regime="trending_up",
+        available_usdt=10_000.0, daily_pnl=0.0, daily_pnl_pct=0.0,
+        atr=200.0, decision_id=77,
+    )
+    ev = session.execute(
+        select(RiskEvent).order_by(RiskEvent.id.desc())
+    ).scalars().first()
+    assert ev is not None
+    assert ev.decision_id == 77
+
+
+def test_guard_record_decision_id_nullable(session, profile):
+    """未带 decision_id 调用时审计行 decision_id 为空。"""
+    p = DecisionProposal(
+        account_id=1, symbol="BTCUSDT", timeframe="1h",
+        action="HOLD", confidence=0.0,
+        strategy_mode="ai_observation", source="ai_trader",
+    )
+    _check(session, profile, p)
+    ev = session.execute(
+        select(RiskEvent).order_by(RiskEvent.id.desc())
+    ).scalars().first()
+    assert ev is not None
+    assert ev.decision_id is None

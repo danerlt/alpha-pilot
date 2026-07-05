@@ -21,3 +21,4 @@ class RiskEvent(Base):
     resolved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     position_id: Mapped[int | None] = mapped_column(BigInteger)
+    decision_id: Mapped[int | None] = mapped_column(BigInteger, index=True)

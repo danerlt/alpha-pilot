@@ -199,6 +199,7 @@ class ExecutionGuard:
         modified: str | None = None,
     ) -> GuardDecision:
         """写 risk_events + 视情况发 decision.degraded / decision.rejected + 返回 GuardDecision。"""
+        decision_id = getattr(self, "_cur_decision_id", None)
         self._session.add(RiskEvent(
             account_id=proposal.account_id,
             event_type=f"GUARD_{result}",
@@ -206,11 +207,11 @@ class ExecutionGuard:
             triggered_at=datetime.now(tz=timezone.utc),
             description=reason,
             resolved=(result == "PASS"),
+            decision_id=decision_id,
         ))
         self._session.flush()
 
         # publish 给 Notifier / UI: 只在有 outbox + decision_id 时发, PASS / HOLD 不发
-        decision_id = getattr(self, "_cur_decision_id", None)
         if (
             self._outbox is not None
             and decision_id is not None
