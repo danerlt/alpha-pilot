@@ -22,6 +22,9 @@
 
 ## 待做（按序）
 
+0. **联调缺口收口（小项，优先插队）**：前端已对真后端跑通浏览器级联调（2026-07-05），
+   发现 7 个契约缺口，清单+复现环境见 **[`docs/webapp联调-后端待办.md`](../../docs/webapp联调-后端待办.md)**
+   —— 高优先三项：DecisionRead 补守卫裁决字段 / GET /api/account/history / GET /api/orders 列表
 1. **P2b**：`market.{symbol}` WS 行情代理（盘口/逐笔 Binance WS 转发、节流 ≥250ms、不落库）
 2. **P3**：Pilot AI 对话（agent 域 SSE + 工具白名单 + pending action confirm，handoff 3.4）
 3. **P4**：settings 三组接口 + RBAC（owner/admin/trader/viewer 落 user 表）+ 2FA（handoff 3.6/3.7）

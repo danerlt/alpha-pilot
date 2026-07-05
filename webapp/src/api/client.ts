@@ -8,7 +8,8 @@ import { config } from "@/config";
 
 const BASE = config.apiBaseUrl;
 
-export const USE_MOCK = BASE === "";
+// --mode real：本地真后端联调（vite dev proxy 同源转发），禁用 MSW
+export const USE_MOCK = BASE === "" && import.meta.env.MODE !== "real";
 
 export interface ApiEnvelope<T> {
   success: boolean;

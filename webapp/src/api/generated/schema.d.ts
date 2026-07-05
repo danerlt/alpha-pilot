@@ -12,7 +12,7 @@ export interface paths {
             cookie?: never;
         };
         /** Root */
-        get: operations["root__get"];
+        get: operations["root"];
         put?: never;
         post?: never;
         delete?: never;
@@ -29,7 +29,7 @@ export interface paths {
             cookie?: never;
         };
         /** Health Check */
-        get: operations["health_check_api_health_get"];
+        get: operations["health_check"];
         put?: never;
         post?: never;
         delete?: never;
@@ -46,7 +46,7 @@ export interface paths {
             cookie?: never;
         };
         /** Health Check */
-        get: operations["health_check_health_get"];
+        get: operations["health_check_bare"];
         put?: never;
         post?: never;
         delete?: never;
@@ -76,7 +76,7 @@ export interface paths {
          *
          *     V0.1.x 多账户场景重启用时, 必须改成 invite-token 流程 + 限速 + 邮箱验证.
          */
-        post: operations["register_api_auth_register_post"];
+        post: operations["register"];
         delete?: never;
         options?: never;
         head?: never;
@@ -103,7 +103,27 @@ export interface paths {
          *
          *     timing-equal: user 不存在时也跑一次 verify_password 让响应时延一致.
          */
-        post: operations["login_api_auth_login_post"];
+        post: operations["login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Logout
+         * @description 清 httpOnly cookie (webapp 架构 B3)。不要求有效 token — 过期也能登出。
+         */
+        post: operations["logout"];
         delete?: never;
         options?: never;
         head?: never;
@@ -118,7 +138,7 @@ export interface paths {
             cookie?: never;
         };
         /** Auth Me */
-        get: operations["auth_me_api_auth_me_get"];
+        get: operations["auth_me"];
         put?: never;
         post?: never;
         delete?: never;
@@ -135,10 +155,10 @@ export interface paths {
             cookie?: never;
         };
         /** List Symbol Configs */
-        get: operations["list_symbol_configs_api_admin_symbols_get"];
+        get: operations["list_symbol_configs"];
         put?: never;
         /** Create Symbol Config */
-        post: operations["create_symbol_config_api_admin_symbols_post"];
+        post: operations["create_symbol_config"];
         delete?: never;
         options?: never;
         head?: never;
@@ -159,7 +179,7 @@ export interface paths {
         options?: never;
         head?: never;
         /** Update Symbol Config */
-        patch: operations["update_symbol_config_api_admin_symbols__symbol_id__patch"];
+        patch: operations["update_symbol_config"];
         trace?: never;
     };
     "/api/admin/users": {
@@ -170,13 +190,13 @@ export interface paths {
             cookie?: never;
         };
         /** List Users */
-        get: operations["list_users_api_admin_users_get"];
+        get: operations["list_users"];
         put?: never;
         /**
          * Create User
          * @description admin 创建账号 — 公开注册按安全审计 C5 禁用, 这是唯一的运行时建号入口。
          */
-        post: operations["create_user_api_admin_users_post"];
+        post: operations["create_user"];
         delete?: never;
         options?: never;
         head?: never;
@@ -197,7 +217,7 @@ export interface paths {
         options?: never;
         head?: never;
         /** Update User */
-        patch: operations["update_user_api_admin_users__user_id__patch"];
+        patch: operations["update_user"];
         trace?: never;
     };
     "/api/admin/audit-logs": {
@@ -208,7 +228,30 @@ export interface paths {
             cookie?: never;
         };
         /** List Audit Logs */
-        get: operations["list_audit_logs_api_admin_audit_logs_get"];
+        get: operations["list_audit_logs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Roles Matrix
+         * @description 权限矩阵下发 (webapp 架构 B3) — 前端 usePermission() 的唯一数据源。
+         *
+         *     登录即可读 (viewer 也要知道自己不能做什么); 端点级强制仍走 require_admin,
+         *     P4 RBAC 落地后本矩阵接入 require_permission 依赖项。
+         */
+        get: operations["get_roles_matrix"];
         put?: never;
         post?: never;
         delete?: never;
@@ -228,13 +271,35 @@ export interface paths {
          * List Positions
          * @description 列出所有开仓持仓 (要求登录)。
          */
-        get: operations["list_positions_api_positions_get"];
+        get: operations["list_positions"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/positions/{position_id}/sltp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Position Sltp
+         * @description 修改持仓 SL/TP (handoff P2 §3.2): 走守卫规则校验 + 审计。
+         *
+         *     权限: 暂 require_admin, P4 RBAC 落地后放宽为 trader+。
+         */
+        patch: operations["update_position_sltp"];
         trace?: never;
     };
     "/api/trades": {
@@ -248,7 +313,7 @@ export interface paths {
          * List Trades
          * @description 返回最近 N 条已完成交易记录 (要求登录)。
          */
-        get: operations["list_trades_api_trades_get"];
+        get: operations["list_trades"];
         put?: never;
         post?: never;
         delete?: never;
@@ -268,7 +333,7 @@ export interface paths {
          * List Decisions
          * @description 返回最近 N 条 AI 决策记录 (要求登录)。
          */
-        get: operations["list_decisions_api_decisions_get"];
+        get: operations["list_decisions"];
         put?: never;
         post?: never;
         delete?: never;
@@ -288,7 +353,7 @@ export interface paths {
          * Get Decision Detail
          * @description 决策详情: features 快照 + review + 守卫记录 + 关联订单 (要求登录)。
          */
-        get: operations["get_decision_detail_api_decisions__decision_id__get"];
+        get: operations["get_decision_detail"];
         put?: never;
         post?: never;
         delete?: never;
@@ -305,7 +370,7 @@ export interface paths {
             cookie?: never;
         };
         /** List Risk Events */
-        get: operations["list_risk_events_api_risk_events_get"];
+        get: operations["list_risk_events"];
         put?: never;
         post?: never;
         delete?: never;
@@ -330,7 +395,7 @@ export interface paths {
          *     走 ManualOpsService 统一路径 — 写 audit_logs + 发 manual.override 事件,
          *     避免与 /api/commands/resolve-breaker/{id} 形成审计盲区 (Risk #3).
          */
-        post: operations["resolve_risk_event_api_risk_events__event_id__resolve_post"];
+        post: operations["resolve_risk_event"];
         delete?: never;
         options?: never;
         head?: never;
@@ -345,7 +410,7 @@ export interface paths {
             cookie?: never;
         };
         /** List Reports */
-        get: operations["list_reports_api_reports_get"];
+        get: operations["list_reports"];
         put?: never;
         post?: never;
         delete?: never;
@@ -367,7 +432,7 @@ export interface paths {
          * Generate Report
          * @description 手动触发今日日报生成 (admin only)。
          */
-        post: operations["generate_report_api_reports_generate_post"];
+        post: operations["generate_report"];
         delete?: never;
         options?: never;
         head?: never;
@@ -382,7 +447,7 @@ export interface paths {
             cookie?: never;
         };
         /** List Strategy Scores */
-        get: operations["list_strategy_scores_api_strategy_scores_get"];
+        get: operations["list_strategy_scores"];
         put?: never;
         post?: never;
         delete?: never;
@@ -404,7 +469,7 @@ export interface paths {
          * Generate Strategy Scores
          * @description 手动触发策略评分 (admin only)。
          */
-        post: operations["generate_strategy_scores_api_strategy_scores_generate_post"];
+        post: operations["generate_strategy_scores"];
         delete?: never;
         options?: never;
         head?: never;
@@ -419,7 +484,7 @@ export interface paths {
             cookie?: never;
         };
         /** List Attributions */
-        get: operations["list_attributions_api_attribution_get"];
+        get: operations["list_attributions"];
         put?: never;
         post?: never;
         delete?: never;
@@ -436,7 +501,7 @@ export interface paths {
             cookie?: never;
         };
         /** Attribution Summary */
-        get: operations["attribution_summary_api_attribution_summary_get"];
+        get: operations["attribution_summary"];
         put?: never;
         post?: never;
         delete?: never;
@@ -458,7 +523,7 @@ export interface paths {
          * Generate Attribution
          * @description 手动触发逐笔归因 (admin only)。
          */
-        post: operations["generate_attribution_api_attribution_generate_post"];
+        post: operations["generate_attribution"];
         delete?: never;
         options?: never;
         head?: never;
@@ -476,7 +541,7 @@ export interface paths {
          * Get Account
          * @description 返回最新账户快照 (要求登录)。
          */
-        get: operations["get_account_api_account_get"];
+        get: operations["get_account"];
         put?: never;
         post?: never;
         delete?: never;
@@ -493,10 +558,10 @@ export interface paths {
             cookie?: never;
         };
         /** Get Runtime Config */
-        get: operations["get_runtime_config_api_config_runtime_get"];
+        get: operations["get_runtime_config"];
         put?: never;
         /** Update Runtime Config */
-        post: operations["update_runtime_config_api_config_runtime_post"];
+        post: operations["update_runtime_config"];
         delete?: never;
         options?: never;
         head?: never;
@@ -511,7 +576,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get Task */
-        get: operations["get_task_api_tasks__task_id__get"];
+        get: operations["get_task"];
         put?: never;
         post?: never;
         delete?: never;
@@ -531,7 +596,7 @@ export interface paths {
          * Get Klines
          * @description K线查询 (要求登录): DB 新鲜够量走库, 否则交易所直取。
          */
-        get: operations["get_klines_api_market_klines_get"];
+        get: operations["get_klines"];
         put?: never;
         post?: never;
         delete?: never;
@@ -551,7 +616,7 @@ export interface paths {
          * Get Ticker
          * @description 24h 行情统计 + 标记价/资金费率/OI (要求登录; 合约指标不可用时为 null)。
          */
-        get: operations["get_ticker_api_market_ticker_get"];
+        get: operations["get_ticker"];
         put?: never;
         post?: never;
         delete?: never;
@@ -571,7 +636,67 @@ export interface paths {
          * List Symbols
          * @description 自选列表: 启用交易对的价格/涨跌/量 + 是否持仓 + 当前 regime (要求登录)。
          */
-        get: operations["list_symbols_api_market_symbols_get"];
+        get: operations["list_symbols"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/orders/precheck": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Precheck Order
+         * @description 守卫预检: 逐项 PASS/FAIL + 总判定 (只读, 下单时服务端会再跑一遍)。
+         */
+        post: operations["precheck_order"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Place Order
+         * @description 手动下单: 服务端重跑守卫, HALTED 仅接受 reduce-only 平仓, 幂等 + 审计。
+         */
+        post: operations["place_order"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/risk/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Risk State
+         * @description 风控状态快照: OK|WARN|HALTED + 日亏/仓位占比/regime (要求登录)。
+         */
+        get: operations["get_risk_state"];
         put?: never;
         post?: never;
         delete?: never;
@@ -590,7 +715,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Close Position */
-        post: operations["close_position_api_commands_close_position__position_id__post"];
+        post: operations["close_position"];
         delete?: never;
         options?: never;
         head?: never;
@@ -613,7 +738,7 @@ export interface paths {
          *     立即返回 task_id; 执行结果通过 GET /api/tasks/{task_id} 查询,
          *     或订阅 WS 的 task.status_changed 事件。
          */
-        post: operations["close_all_api_commands_close_all_post"];
+        post: operations["close_all"];
         delete?: never;
         options?: never;
         head?: never;
@@ -630,7 +755,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Resolve Breaker */
-        post: operations["resolve_breaker_api_commands_resolve_breaker__event_id__post"];
+        post: operations["resolve_breaker"];
         delete?: never;
         options?: never;
         head?: never;
@@ -647,7 +772,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Pause */
-        post: operations["pause_api_commands_pause_post"];
+        post: operations["pause"];
         delete?: never;
         options?: never;
         head?: never;
@@ -664,7 +789,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Resume */
-        post: operations["resume_api_commands_resume_post"];
+        post: operations["resume"];
         delete?: never;
         options?: never;
         head?: never;
@@ -679,7 +804,7 @@ export interface paths {
             cookie?: never;
         };
         /** Kill Switch State */
-        get: operations["kill_switch_state_api_commands_kill_switch_get"];
+        get: operations["kill_switch_state"];
         put?: never;
         post?: never;
         delete?: never;
@@ -699,7 +824,7 @@ export interface paths {
          * Catchup
          * @description 返回 [event_id 比 since 大] 的事件 envelope, 按 id 升序.
          */
-        get: operations["catchup_api_events_catchup_get"];
+        get: operations["catchup"];
         put?: never;
         post?: never;
         delete?: never;
@@ -712,6 +837,26 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AccountSnapshotRead
+         * @description 无快照时只有 message 字段 (历史行为保留), 其余为 None。
+         */
+        AccountSnapshotRead: {
+            /** Total Balance Usdt */
+            total_balance_usdt?: number | null;
+            /** Available Balance Usdt */
+            available_balance_usdt?: number | null;
+            /** Unrealized Pnl */
+            unrealized_pnl?: number | null;
+            /** Daily Pnl */
+            daily_pnl?: number | null;
+            /** Daily Pnl Pct */
+            daily_pnl_pct?: number | null;
+            /** Snapshot At */
+            snapshot_at?: string | null;
+            /** Message */
+            message?: string | null;
+        };
         /**
          * AuthLoginCreate
          * @description POST /api/auth/login 入参.
@@ -753,10 +898,252 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /** DecisionDetailOut */
+        DecisionDetailOut: {
+            /** Id */
+            id: number;
+            /** Symbol */
+            symbol: string;
+            /** Timeframe */
+            timeframe: string;
+            /** Decided At */
+            decided_at: string;
+            /** Action */
+            action: string;
+            /** Confidence */
+            confidence?: number | null;
+            /** Entry Type */
+            entry_type?: string | null;
+            /** Entry Price */
+            entry_price?: number | null;
+            /** Stop Loss */
+            stop_loss?: number | null;
+            /** Take Profit */
+            take_profit?: number | null;
+            /** Position Size Pct */
+            position_size_pct?: number | null;
+            /** Strategy Mode */
+            strategy_mode?: string | null;
+            /** Reasoning */
+            reasoning?: unknown[] | null;
+            /** Risk Note */
+            risk_note?: string | null;
+            /** Is Fallback */
+            is_fallback: boolean;
+            /** Source */
+            source?: string | null;
+            /** Llm Provider */
+            llm_provider?: string | null;
+            /** Llm Model */
+            llm_model?: string | null;
+            /** Tokens Used */
+            tokens_used?: number | null;
+            /** Latency Ms */
+            latency_ms?: number | null;
+            features: components["schemas"]["DecisionFeaturesOut"];
+            /** Reviews */
+            reviews: components["schemas"]["DecisionReviewRead"][];
+            /** Guard Events */
+            guard_events: components["schemas"]["DecisionGuardEventRead"][];
+            /** Orders */
+            orders: components["schemas"]["DecisionOrderRead"][];
+            /** Position Ids */
+            position_ids: number[];
+        };
+        /** DecisionFeaturesOut */
+        DecisionFeaturesOut: {
+            /** Factor Snapshot Id */
+            factor_snapshot_id?: number | null;
+            /** Factors */
+            factors?: {
+                [key: string]: unknown;
+            } | null;
+            /** Factor Def Versions */
+            factor_def_versions?: {
+                [key: string]: unknown;
+            } | null;
+            /** Prompt Input */
+            prompt_input?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** DecisionGuardEventRead */
+        DecisionGuardEventRead: {
+            /** Id */
+            id: number;
+            /** Event Type */
+            event_type: string;
+            /** Description */
+            description: string;
+            /** Triggered At */
+            triggered_at: string;
+            /** Resolved */
+            resolved: boolean;
+        };
+        /** DecisionOrderRead */
+        DecisionOrderRead: {
+            /** Id */
+            id: number;
+            /** Side */
+            side: string;
+            /** Order Type */
+            order_type: string;
+            /** Status */
+            status: string;
+            /** Quantity */
+            quantity?: number | null;
+            /** Avg Fill Price */
+            avg_fill_price?: number | null;
+            /** Trace Id */
+            trace_id: string;
+            /** Submitted At */
+            submitted_at?: string | null;
+            /** Filled At */
+            filled_at?: string | null;
+        };
+        /** DecisionRead */
+        DecisionRead: {
+            /** Id */
+            id: number;
+            /** Symbol */
+            symbol: string;
+            /** Timeframe */
+            timeframe: string;
+            /** Action */
+            action: string;
+            /** Confidence */
+            confidence?: number | null;
+            /** Strategy Mode */
+            strategy_mode?: string | null;
+            /** Reasoning */
+            reasoning?: unknown[] | null;
+            /** Risk Note */
+            risk_note?: string | null;
+            /** Is Fallback */
+            is_fallback: boolean;
+            /** Decided At */
+            decided_at: string;
+        };
+        /** DecisionReviewRead */
+        DecisionReviewRead: {
+            /** Id */
+            id: number;
+            /** Reviewer Type */
+            reviewer_type: string;
+            /** Result */
+            result: string;
+            /** Adjustments */
+            adjustments?: {
+                [key: string]: unknown;
+            } | null;
+            /** Notes */
+            notes?: string | null;
+        };
+        /** GuardCheckItem */
+        GuardCheckItem: {
+            /** Check */
+            check: string;
+            /** Pass */
+            pass: boolean;
+            /** Note */
+            note: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** KlineRead */
+        KlineRead: {
+            /** Open Time */
+            open_time: string;
+            /** Open */
+            open: number;
+            /** High */
+            high: number;
+            /** Low */
+            low: number;
+            /** Close */
+            close: number;
+            /** Volume */
+            volume: number;
+        };
+        /** LoginOut */
+        LoginOut: {
+            /** Access Token */
+            access_token: string;
+            /** Token Type */
+            token_type: string;
+            user: components["schemas"]["UserRead"];
+        };
+        /** LogoutOut */
+        LogoutOut: {
+            /** Ok */
+            ok: boolean;
+        };
+        /**
+         * ManualOrderCreate
+         * @description POST /api/orders 与 /api/orders/precheck 共用入参。
+         */
+        ManualOrderCreate: {
+            /** Symbol */
+            symbol: string;
+            /**
+             * Side
+             * @enum {string}
+             */
+            side: "BUY" | "SELL";
+            /**
+             * Type
+             * @default MARKET
+             * @enum {string}
+             */
+            type: "MARKET" | "LIMIT";
+            /** Qty */
+            qty: number;
+            /** Price */
+            price?: number | null;
+            /** Sl */
+            sl?: number | null;
+            /** Tp */
+            tp?: number | null;
+            /**
+             * Reduce Only
+             * @default false
+             */
+            reduce_only: boolean;
+            /** Client Order Id */
+            client_order_id?: string | null;
+        };
+        /** MarketSymbolRead */
+        MarketSymbolRead: {
+            /** Symbol */
+            symbol: string;
+            /** Base Asset */
+            base_asset: string;
+            /** Last Price */
+            last_price?: number | null;
+            /** Price Change Pct */
+            price_change_pct?: number | null;
+            /** Quote Volume 24H */
+            quote_volume_24h?: number | null;
+            /** Has Position */
+            has_position: boolean;
+            /** Regime */
+            regime?: string | null;
+        };
+        /** OrderPlacedOut */
+        OrderPlacedOut: {
+            /** Order Id */
+            order_id?: number | null;
+            /** Trace Id */
+            trace_id?: string | null;
+            /** Status */
+            status?: string | null;
+            /** Position Id */
+            position_id?: number | null;
+            /** Trade Id */
+            trade_id?: number | null;
         };
         /**
          * PauseCreate
@@ -766,6 +1153,64 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /** PermissionGroupRead */
+        PermissionGroupRead: {
+            /** Group */
+            group: string;
+            /** Items */
+            items: components["schemas"]["PermissionItemRead"][];
+        };
+        /** PermissionItemRead */
+        PermissionItemRead: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Owner */
+            owner: boolean;
+            /** Admin */
+            admin: boolean;
+            /** Trader */
+            trader: boolean;
+            /** Viewer */
+            viewer: boolean;
+        };
+        /** PositionRead */
+        PositionRead: {
+            /** Id */
+            id: number;
+            /** Symbol */
+            symbol: string;
+            /** Quantity */
+            quantity: number;
+            /** Entry Price */
+            entry_price: number;
+            /** Current Price */
+            current_price: number;
+            /** Stop Loss */
+            stop_loss: number;
+            /** Take Profit */
+            take_profit?: number | null;
+            /** Unrealized Pnl */
+            unrealized_pnl: number;
+            /** Unrealized Pnl Pct */
+            unrealized_pnl_pct: number;
+            /** Opened At */
+            opened_at: string;
+        };
+        /** PrecheckOut */
+        PrecheckOut: {
+            /** Verdict */
+            verdict: string;
+            /** Halted */
+            halted: boolean;
+            /** Checks */
+            checks: components["schemas"]["GuardCheckItem"][];
+            /** Context */
+            context: {
+                [key: string]: unknown;
+            };
+        };
         /**
          * ResolveBreakerCreate
          * @description POST /api/commands/resolve-breaker/{id} 入参.
@@ -773,6 +1218,420 @@ export interface components {
         ResolveBreakerCreate: {
             /** Reason */
             reason: string;
+        };
+        /** Response[AccountSnapshotRead] */
+        Response_AccountSnapshotRead_: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            data?: components["schemas"]["AccountSnapshotRead"] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
+        /** Response[DecisionDetailOut] */
+        Response_DecisionDetailOut_: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            data?: components["schemas"]["DecisionDetailOut"] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
+        /** Response[LoginOut] */
+        Response_LoginOut_: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            data?: components["schemas"]["LoginOut"] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
+        /** Response[LogoutOut] */
+        Response_LogoutOut_: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            data?: components["schemas"]["LogoutOut"] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
+        /** Response[OrderPlacedOut] */
+        Response_OrderPlacedOut_: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            data?: components["schemas"]["OrderPlacedOut"] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
+        /** Response[PrecheckOut] */
+        Response_PrecheckOut_: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            data?: components["schemas"]["PrecheckOut"] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
+        /** Response[RiskStateOut] */
+        Response_RiskStateOut_: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            data?: components["schemas"]["RiskStateOut"] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
+        /** Response[RolesOut] */
+        Response_RolesOut_: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            data?: components["schemas"]["RolesOut"] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
+        /** Response[SltpOut] */
+        Response_SltpOut_: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            data?: components["schemas"]["SltpOut"] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
+        /** Response[TickerOut] */
+        Response_TickerOut_: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            data?: components["schemas"]["TickerOut"] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
+        /** Response[UserRead] */
+        Response_UserRead_: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            data?: components["schemas"]["UserRead"] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
+        /** Response[list[DecisionRead]] */
+        Response_list_DecisionRead__: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            /** Data */
+            data?: components["schemas"]["DecisionRead"][] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
+        /** Response[list[KlineRead]] */
+        Response_list_KlineRead__: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            /** Data */
+            data?: components["schemas"]["KlineRead"][] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
+        /** Response[list[MarketSymbolRead]] */
+        Response_list_MarketSymbolRead__: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            /** Data */
+            data?: components["schemas"]["MarketSymbolRead"][] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
+        /** Response[list[PositionRead]] */
+        Response_list_PositionRead__: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            /** Data */
+            data?: components["schemas"]["PositionRead"][] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
+        /** Response[list[RiskEventRead]] */
+        Response_list_RiskEventRead__: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            /** Data */
+            data?: components["schemas"]["RiskEventRead"][] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
+        /** Response[list[TradeRead]] */
+        Response_list_TradeRead__: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            /** Data */
+            data?: components["schemas"]["TradeRead"][] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
+        /** RiskEventRead */
+        RiskEventRead: {
+            /** Id */
+            id: number;
+            /** Event Type */
+            event_type: string;
+            /** Symbol */
+            symbol?: string | null;
+            /** Description */
+            description: string;
+            /** Resolved */
+            resolved: boolean;
+            /** Triggered At */
+            triggered_at: string;
+            /** Resolved At */
+            resolved_at?: string | null;
         };
         /**
          * RiskEventResolveCreate
@@ -786,6 +1645,33 @@ export interface components {
              * @default ui_resolve_via_risk_events
              */
             reason: string;
+        };
+        /** RiskStateOut */
+        RiskStateOut: {
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "OK" | "WARN" | "HALTED";
+            /** Day Loss Pct */
+            day_loss_pct: number;
+            /** Positions Pct */
+            positions_pct: number;
+            /** Regime */
+            regime?: string | null;
+        };
+        /** RolesOut */
+        RolesOut: {
+            /** Roles */
+            roles: string[];
+            /** Matrix */
+            matrix: components["schemas"]["PermissionGroupRead"][];
+            /** Role Aliases */
+            role_aliases: {
+                [key: string]: string;
+            };
+            /** Current Role */
+            current_role: string;
         };
         /**
          * RuntimeConfigUpdate
@@ -815,6 +1701,25 @@ export interface components {
             max_consecutive_losses?: number | null;
             /** Max Single Risk Pct */
             max_single_risk_pct?: number | null;
+        };
+        /** SltpOut */
+        SltpOut: {
+            /** Position Id */
+            position_id: number;
+            /** Stop Loss */
+            stop_loss?: number | null;
+            /** Take Profit */
+            take_profit?: number | null;
+        };
+        /**
+         * SltpUpdate
+         * @description PATCH /api/positions/{id}/sltp 入参; 至少给一个字段。
+         */
+        SltpUpdate: {
+            /** Stop Loss */
+            stop_loss?: number | null;
+            /** Take Profit */
+            take_profit?: number | null;
         };
         /**
          * SymbolConfigCreate
@@ -877,6 +1782,62 @@ export interface components {
             /** Notes */
             notes?: string | null;
         };
+        /** TickerOut */
+        TickerOut: {
+            /** Symbol */
+            symbol: string;
+            /** Last Price */
+            last_price: number;
+            /** Price Change Pct */
+            price_change_pct?: number | null;
+            /** High 24H */
+            high_24h?: number | null;
+            /** Low 24H */
+            low_24h?: number | null;
+            /** Volume 24H */
+            volume_24h?: number | null;
+            /** Quote Volume 24H */
+            quote_volume_24h?: number | null;
+            /** Mark Price */
+            mark_price?: number | null;
+            /** Index Price */
+            index_price?: number | null;
+            /** Funding Rate */
+            funding_rate?: number | null;
+            /** Next Funding Time */
+            next_funding_time?: string | null;
+            /** Open Interest */
+            open_interest?: number | null;
+        };
+        /** TradeRead */
+        TradeRead: {
+            /** Id */
+            id: number;
+            /** Symbol */
+            symbol: string;
+            /** Quantity */
+            quantity: number;
+            /** Entry Price */
+            entry_price: number;
+            /** Exit Price */
+            exit_price: number;
+            /** Pnl */
+            pnl: number;
+            /** Pnl Pct */
+            pnl_pct: number;
+            /** Exit Reason */
+            exit_reason: string;
+            /** Strategy Mode */
+            strategy_mode?: string | null;
+            /** Regime */
+            regime?: string | null;
+            /** Opened At */
+            opened_at: string;
+            /** Closed At */
+            closed_at: string;
+            /** Holding Seconds */
+            holding_seconds?: number | null;
+        };
         /**
          * TradingMode
          * @enum {string}
@@ -900,6 +1861,19 @@ export interface components {
             role: components["schemas"]["UserRole"];
             /** @default active */
             status: components["schemas"]["UserStatus"];
+        };
+        /** UserRead */
+        UserRead: {
+            /** Id */
+            id: number;
+            /** Username */
+            username: string;
+            /** Email */
+            email: string;
+            /** Role */
+            role: string;
+            /** Status */
+            status: string;
         };
         /**
          * UserRegisterCreate
@@ -956,7 +1930,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    root__get: {
+    root: {
         parameters: {
             query?: never;
             header?: never;
@@ -976,7 +1950,7 @@ export interface operations {
             };
         };
     };
-    health_check_api_health_get: {
+    health_check: {
         parameters: {
             query?: never;
             header?: never;
@@ -996,7 +1970,7 @@ export interface operations {
             };
         };
     };
-    health_check_health_get: {
+    health_check_bare: {
         parameters: {
             query?: never;
             header?: never;
@@ -1016,7 +1990,7 @@ export interface operations {
             };
         };
     };
-    register_api_auth_register_post: {
+    register: {
         parameters: {
             query?: never;
             header?: never;
@@ -1049,7 +2023,7 @@ export interface operations {
             };
         };
     };
-    login_api_auth_login_post: {
+    login: {
         parameters: {
             query?: never;
             header?: never;
@@ -1068,7 +2042,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Response_LoginOut_"];
                 };
             };
             /** @description Validation Error */
@@ -1082,14 +2056,69 @@ export interface operations {
             };
         };
     };
-    auth_me_api_auth_me_get: {
+    logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_LogoutOut_"];
+                };
+            };
+        };
+    };
+    auth_me: {
         parameters: {
             query?: never;
             header?: {
                 authorization?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_UserRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_symbol_configs: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1113,45 +2142,16 @@ export interface operations {
             };
         };
     };
-    list_symbol_configs_api_admin_symbols_get: {
+    create_symbol_config: {
         parameters: {
             query?: never;
             header?: {
                 authorization?: string | null;
             };
             path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
+            cookie?: {
+                ap_token?: string | null;
             };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_symbol_config_api_admin_symbols_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
         };
         requestBody: {
             content: {
@@ -1179,7 +2179,7 @@ export interface operations {
             };
         };
     };
-    update_symbol_config_api_admin_symbols__symbol_id__patch: {
+    update_symbol_config: {
         parameters: {
             query?: never;
             header?: {
@@ -1188,7 +2188,9 @@ export interface operations {
             path: {
                 symbol_id: number;
             };
-            cookie?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -1216,14 +2218,16 @@ export interface operations {
             };
         };
     };
-    list_users_api_admin_users_get: {
+    list_users: {
         parameters: {
             query?: never;
             header?: {
                 authorization?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1247,14 +2251,16 @@ export interface operations {
             };
         };
     };
-    create_user_api_admin_users_post: {
+    create_user: {
         parameters: {
             query?: never;
             header?: {
                 authorization?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -1282,7 +2288,7 @@ export interface operations {
             };
         };
     };
-    update_user_api_admin_users__user_id__patch: {
+    update_user: {
         parameters: {
             query?: never;
             header?: {
@@ -1291,7 +2297,9 @@ export interface operations {
             path: {
                 user_id: number;
             };
-            cookie?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -1319,7 +2327,7 @@ export interface operations {
             };
         };
     };
-    list_audit_logs_api_admin_audit_logs_get: {
+    list_audit_logs: {
         parameters: {
             query?: {
                 limit?: number;
@@ -1328,7 +2336,9 @@ export interface operations {
                 authorization?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1352,14 +2362,16 @@ export interface operations {
             };
         };
     };
-    list_positions_api_positions_get: {
+    get_roles_matrix: {
         parameters: {
             query?: never;
             header?: {
                 authorization?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1369,7 +2381,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Response_RolesOut_"];
                 };
             };
             /** @description Validation Error */
@@ -1383,7 +2395,79 @@ export interface operations {
             };
         };
     };
-    list_trades_api_trades_get: {
+    list_positions: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_list_PositionRead__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_position_sltp: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                position_id: number;
+            };
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SltpUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_SltpOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_trades: {
         parameters: {
             query?: {
                 limit?: number;
@@ -1392,7 +2476,9 @@ export interface operations {
                 authorization?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1402,7 +2488,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Response_list_TradeRead__"];
                 };
             };
             /** @description Validation Error */
@@ -1416,7 +2502,7 @@ export interface operations {
             };
         };
     };
-    list_decisions_api_decisions_get: {
+    list_decisions: {
         parameters: {
             query?: {
                 limit?: number;
@@ -1425,7 +2511,9 @@ export interface operations {
                 authorization?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1435,7 +2523,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Response_list_DecisionRead__"];
                 };
             };
             /** @description Validation Error */
@@ -1449,7 +2537,7 @@ export interface operations {
             };
         };
     };
-    get_decision_detail_api_decisions__decision_id__get: {
+    get_decision_detail: {
         parameters: {
             query?: never;
             header?: {
@@ -1458,7 +2546,9 @@ export interface operations {
             path: {
                 decision_id: number;
             };
-            cookie?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1468,7 +2558,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Response_DecisionDetailOut_"];
                 };
             };
             /** @description Validation Error */
@@ -1482,7 +2572,7 @@ export interface operations {
             };
         };
     };
-    list_risk_events_api_risk_events_get: {
+    list_risk_events: {
         parameters: {
             query?: {
                 limit?: number;
@@ -1491,7 +2581,9 @@ export interface operations {
                 authorization?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1501,7 +2593,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Response_list_RiskEventRead__"];
                 };
             };
             /** @description Validation Error */
@@ -1515,7 +2607,7 @@ export interface operations {
             };
         };
     };
-    resolve_risk_event_api_risk_events__event_id__resolve_post: {
+    resolve_risk_event: {
         parameters: {
             query?: never;
             header?: {
@@ -1524,7 +2616,9 @@ export interface operations {
             path: {
                 event_id: number;
             };
-            cookie?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
         };
         requestBody?: {
             content: {
@@ -1552,7 +2646,7 @@ export interface operations {
             };
         };
     };
-    list_reports_api_reports_get: {
+    list_reports: {
         parameters: {
             query?: {
                 limit?: number;
@@ -1561,7 +2655,9 @@ export interface operations {
                 authorization?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1585,14 +2681,16 @@ export interface operations {
             };
         };
     };
-    generate_report_api_reports_generate_post: {
+    generate_report: {
         parameters: {
             query?: never;
             header?: {
                 authorization?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1616,7 +2714,7 @@ export interface operations {
             };
         };
     };
-    list_strategy_scores_api_strategy_scores_get: {
+    list_strategy_scores: {
         parameters: {
             query?: {
                 window?: string;
@@ -1626,7 +2724,9 @@ export interface operations {
                 authorization?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1650,7 +2750,7 @@ export interface operations {
             };
         };
     };
-    generate_strategy_scores_api_strategy_scores_generate_post: {
+    generate_strategy_scores: {
         parameters: {
             query?: {
                 window_days?: number;
@@ -1659,7 +2759,9 @@ export interface operations {
                 authorization?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1683,7 +2785,7 @@ export interface operations {
             };
         };
     };
-    list_attributions_api_attribution_get: {
+    list_attributions: {
         parameters: {
             query?: {
                 limit?: number;
@@ -1692,7 +2794,9 @@ export interface operations {
                 authorization?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1716,7 +2820,7 @@ export interface operations {
             };
         };
     };
-    attribution_summary_api_attribution_summary_get: {
+    attribution_summary: {
         parameters: {
             query?: {
                 window_days?: number;
@@ -1725,7 +2829,9 @@ export interface operations {
                 authorization?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1749,7 +2855,7 @@ export interface operations {
             };
         };
     };
-    generate_attribution_api_attribution_generate_post: {
+    generate_attribution: {
         parameters: {
             query?: {
                 window_days?: number;
@@ -1758,7 +2864,9 @@ export interface operations {
                 authorization?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1782,14 +2890,49 @@ export interface operations {
             };
         };
     };
-    get_account_api_account_get: {
+    get_account: {
         parameters: {
             query?: never;
             header?: {
                 authorization?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_AccountSnapshotRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_runtime_config: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1813,45 +2956,16 @@ export interface operations {
             };
         };
     };
-    get_runtime_config_api_config_runtime_get: {
+    update_runtime_config: {
         parameters: {
             query?: never;
             header?: {
                 authorization?: string | null;
             };
             path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
+            cookie?: {
+                ap_token?: string | null;
             };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_runtime_config_api_config_runtime_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
         };
         requestBody: {
             content: {
@@ -1879,7 +2993,7 @@ export interface operations {
             };
         };
     };
-    get_task_api_tasks__task_id__get: {
+    get_task: {
         parameters: {
             query?: never;
             header?: {
@@ -1888,7 +3002,9 @@ export interface operations {
             path: {
                 task_id: number;
             };
-            cookie?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1912,7 +3028,7 @@ export interface operations {
             };
         };
     };
-    get_klines_api_market_klines_get: {
+    get_klines: {
         parameters: {
             query: {
                 symbol: string;
@@ -1923,7 +3039,9 @@ export interface operations {
                 authorization?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1933,7 +3051,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Response_list_KlineRead__"];
                 };
             };
             /** @description Validation Error */
@@ -1947,7 +3065,7 @@ export interface operations {
             };
         };
     };
-    get_ticker_api_market_ticker_get: {
+    get_ticker: {
         parameters: {
             query: {
                 symbol: string;
@@ -1956,7 +3074,9 @@ export interface operations {
                 authorization?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1966,7 +3086,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Response_TickerOut_"];
                 };
             };
             /** @description Validation Error */
@@ -1980,14 +3100,16 @@ export interface operations {
             };
         };
     };
-    list_symbols_api_market_symbols_get: {
+    list_symbols: {
         parameters: {
             query?: never;
             header?: {
                 authorization?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1997,7 +3119,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Response_list_MarketSymbolRead__"];
                 };
             };
             /** @description Validation Error */
@@ -2011,7 +3133,114 @@ export interface operations {
             };
         };
     };
-    close_position_api_commands_close_position__position_id__post: {
+    precheck_order: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ManualOrderCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_PrecheckOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    place_order: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ManualOrderCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_OrderPlacedOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_risk_state: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_RiskStateOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    close_position: {
         parameters: {
             query?: never;
             header?: {
@@ -2020,7 +3249,9 @@ export interface operations {
             path: {
                 position_id: number;
             };
-            cookie?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -2048,14 +3279,16 @@ export interface operations {
             };
         };
     };
-    close_all_api_commands_close_all_post: {
+    close_all: {
         parameters: {
             query?: never;
             header?: {
                 authorization?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -2083,7 +3316,7 @@ export interface operations {
             };
         };
     };
-    resolve_breaker_api_commands_resolve_breaker__event_id__post: {
+    resolve_breaker: {
         parameters: {
             query?: never;
             header?: {
@@ -2092,7 +3325,9 @@ export interface operations {
             path: {
                 event_id: number;
             };
-            cookie?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -2120,14 +3355,16 @@ export interface operations {
             };
         };
     };
-    pause_api_commands_pause_post: {
+    pause: {
         parameters: {
             query?: never;
             header?: {
                 authorization?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -2155,14 +3392,16 @@ export interface operations {
             };
         };
     };
-    resume_api_commands_resume_post: {
+    resume: {
         parameters: {
             query?: never;
             header?: {
                 authorization?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -2190,14 +3429,16 @@ export interface operations {
             };
         };
     };
-    kill_switch_state_api_commands_kill_switch_get: {
+    kill_switch_state: {
         parameters: {
             query?: never;
             header?: {
                 authorization?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -2221,7 +3462,7 @@ export interface operations {
             };
         };
     };
-    catchup_api_events_catchup_get: {
+    catchup: {
         parameters: {
             query?: {
                 /** @description last event_id; 返回此 id 之后的事件 */
@@ -2232,7 +3473,9 @@ export interface operations {
                 authorization?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
         };
         requestBody?: never;
         responses: {

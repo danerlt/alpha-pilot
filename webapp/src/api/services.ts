@@ -4,48 +4,82 @@
  * 路径契约见 handoff/03 与 docs/webapp前端架构.md §3。
  */
 import { http } from "./client";
+import {
+  fromWireAccount,
+  fromWireDecision,
+  fromWireDecisionDetail,
+  fromWireKline,
+  fromWireMarketSymbol,
+  fromWirePosition,
+  fromWirePrecheck,
+  fromWireRiskState,
+  fromWireRoles,
+  fromWireTicker,
+  fromWireTrade,
+  fromWireUser,
+  type WireAccount,
+  type WireDecision,
+  type WireDecisionDetail,
+  type WireKline,
+  type WireLogin,
+  type WireMarketSymbol,
+  type WirePosition,
+  type WirePrecheck,
+  type WireRiskState,
+  type WireRoles,
+  type WireTicker,
+  type WireTrade,
+  type WireUser,
+} from "./wire";
 import type {
-  AccountOverview,
   AccountSnapshot,
   AttributionDim,
   AttributionRow,
   AuditLog,
   DailyReport,
-  Decision,
   EventItem,
   HardLimit,
-  Kline,
   LabCandidate,
   LabHistoryItem,
-  MarketSymbol,
   MonthlyPnl,
   Order,
   OrderBook,
   OrderTicketPayload,
   PerformanceSummary,
-  PermissionRow,
-  Position,
-  PrecheckResult,
   RecentTrade,
-  RiskState,
   StrategyCard,
   SymbolConfig,
-  Ticker,
-  Trade,
-  User,
 } from "./types";
 
+/** 手动下单 payload → 后端 ManualOrderCreate（snake_case wire 形状） */
+function toWireOrder(payload: OrderTicketPayload) {
+  return {
+    symbol: payload.symbol,
+    side: payload.side,
+    type: payload.type,
+    qty: payload.qty,
+    price: payload.price ?? null,
+    sl: payload.sl ?? null,
+    tp: payload.tp ?? null,
+    reduce_only: payload.reduceOnly,
+  };
+}
+
 export const riskApi = {
-  state: () => http<RiskState>("/api/risk/state"),
+  state: () =>
+    http<WireRiskState>("/api/risk/state").then(fromWireRiskState),
 };
 
 export const accountApi = {
-  overview: () => http<AccountOverview>("/api/account"),
+  overview: () => http<WireAccount>("/api/account").then(fromWireAccount),
+  // 后端暂缺权益序列端点（见 docs/webapp联调-后端待办.md），真实模式下曲线由
+  // account.snapshot 事件增量生长
   history: () => http<AccountSnapshot[]>("/api/account/history"),
 };
 
 export const positionsApi = {
-  list: () => http<Position[]>("/api/positions"),
+  list: () =>
+    http<WirePosition[]>("/api/positions").then((ws) => ws.map(fromWirePosition)),
   close: (id: string) =>
     http<{ ok: boolean }>(`/api/commands/close-position/${id}`, {
       method: "POST",
@@ -53,44 +87,81 @@ export const positionsApi = {
   updateSltp: (id: string, sl: number, tp: number) =>
     http<{ ok: boolean }>(`/api/positions/${id}/sltp`, {
       method: "PATCH",
-      body: JSON.stringify({ sl, tp }),
+      body: JSON.stringify({ stop_loss: sl, take_profit: tp }),
     }),
 };
 
 export const ordersApi = {
-  list: () => http<Order[]>("/api/orders"),
+  // 后端暂缺订单列表端点（见联调待办），真实模式下该调用会 404 → 页面容错为空
+  list: () => http<Order[]>("/api/orders/list"),
   precheck: (payload: OrderTicketPayload) =>
-    http<PrecheckResult>("/api/orders/precheck", {
+    http<WirePrecheck>("/api/orders/precheck", {
       method: "POST",
-      body: JSON.stringify(payload),
-    }),
+      body: JSON.stringify(toWireOrder(payload)),
+    }).then(fromWirePrecheck),
   place: (payload: OrderTicketPayload) =>
-    http<{ ok: boolean }>("/api/orders", {
+    http<{ order_id?: number }>("/api/orders", {
       method: "POST",
-      body: JSON.stringify(payload),
-    }),
+      body: JSON.stringify(toWireOrder(payload)),
+    }).then(() => ({ ok: true })),
 };
 
 export const tradesApi = {
-  list: () => http<Trade[]>("/api/trades"),
+  list: () => http<WireTrade[]>("/api/trades").then((ws) => ws.map(fromWireTrade)),
 };
 
 export const decisionsApi = {
-  list: () => http<Decision[]>("/api/decisions"),
-  detail: (id: string) => http<Decision | null>(`/api/decisions/${id}`),
+  list: () =>
+    http<WireDecision[]>("/api/decisions").then((ws) => ws.map(fromWireDecision)),
+  detail: (id: string) =>
+    http<WireDecisionDetail | null>(`/api/decisions/${id}`).then((w) =>
+      w ? fromWireDecisionDetail(w) : null,
+    ),
 };
 
 export const eventsApi = {
-  recent: () => http<EventItem[]>("/api/events/catchup"),
+  // catchup 无 response_model（后端待补）：兼容 EventItem 直出与 EventEnvelope 两种形状
+  recent: () =>
+    http<unknown[]>("/api/events/catchup").then((rows) =>
+      rows.map((r) => toEventItem(r)),
+    ),
 };
 
+function toEventItem(r: unknown): EventItem {
+  const o = r as Record<string, unknown>;
+  if (typeof o.msg === "string") return o as unknown as EventItem; // mock 直出形状
+  const eventType = String(o.event_type ?? "event");
+  return {
+    id: String(o.event_id ?? o.id ?? Math.random()),
+    ts: String(o.occurred_at ?? "").slice(11, 19),
+    kind: eventType.startsWith("decision.")
+      ? "ai"
+      : eventType.startsWith("order.") || eventType.startsWith("trade.")
+        ? "fill"
+        : eventType.startsWith("risk.") || eventType.startsWith("circuit")
+          ? "breaker"
+          : "system",
+    msg: eventType,
+    tone: eventType.startsWith("decision.")
+      ? "violet"
+      : eventType.startsWith("risk.") || eventType.startsWith("circuit")
+        ? "rose"
+        : "fg",
+  };
+}
+
 export const marketApi = {
-  symbols: () => http<MarketSymbol[]>("/api/market/symbols"),
-  klines: (symbol: string, interval: string, limit = 180) =>
-    http<Kline[]>(
-      `/api/market/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`,
+  symbols: () =>
+    http<WireMarketSymbol[]>("/api/market/symbols").then((ws) =>
+      ws.map(fromWireMarketSymbol),
     ),
-  ticker: (symbol: string) => http<Ticker>(`/api/market/ticker?symbol=${symbol}`),
+  klines: (symbol: string, interval: string, limit = 180) =>
+    http<WireKline[]>(
+      `/api/market/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`,
+    ).then((ws) => ws.map(fromWireKline)),
+  ticker: (symbol: string) =>
+    http<WireTicker>(`/api/market/ticker?symbol=${symbol}`).then(fromWireTicker),
+  // 盘口/逐笔为 P2b WS 代理范围（后端进行中），暂 mock-only
   orderBook: (symbol: string) =>
     http<OrderBook>(`/api/market/depth?symbol=${symbol}`),
   recentTrades: (symbol: string) =>
@@ -136,19 +207,21 @@ export const auditApi = {
 };
 
 export const adminApi = {
-  users: () => http<User[]>("/api/admin/users"),
-  permissions: () => http<PermissionRow[]>("/api/admin/roles"),
+  users: () =>
+    http<WireUser[]>("/api/admin/users").then((ws) => ws.map(fromWireUser)),
+  permissions: () =>
+    http<WireRoles>("/api/admin/roles").then(fromWireRoles),
   approveUser: (id: string) =>
     http<{ ok: boolean }>(`/api/admin/users/${id}/approve`, { method: "POST" }),
 };
 
 export const authApi = {
   login: (email: string, password: string) =>
-    http<User>("/api/auth/login", {
+    http<WireLogin>("/api/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
-    }),
-  me: () => http<User>("/api/auth/me"),
+    }).then((w) => fromWireUser(w.user)),
+  me: () => http<WireUser>("/api/auth/me").then(fromWireUser),
   logout: () => http<{ ok: boolean }>("/api/auth/logout", { method: "POST" }),
 };
 
