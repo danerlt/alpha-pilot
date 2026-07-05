@@ -112,3 +112,26 @@ def test_precheck_rejects_anonymous():
     r = cli.post("/api/orders/precheck", json=_BUY)
     assert r.status_code == 200
     assert r.json()["code"] == "400003"
+
+
+def test_place_order_buy_full_chain(admin_client):
+    cli, engine = admin_client
+    r = cli.post("/api/orders", json={**_BUY, "client_order_id": "api-c1"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["success"] is True
+    data = body["data"]
+    assert data["order_id"] is not None
+    assert data["position_id"] is not None
+    # 幂等重放
+    r2 = cli.post("/api/orders", json={**_BUY, "client_order_id": "api-c1"})
+    assert r2.json()["data"]["order_id"] == data["order_id"]
+
+
+def test_place_order_rejected_returns_risk_code(admin_client):
+    cli, _ = admin_client
+    r = cli.post("/api/orders", json={**_BUY, "qty": 0.06, "client_order_id": "api-c2"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["success"] is False
+    assert body["code"] == "600002"  # RISK_REJECTED

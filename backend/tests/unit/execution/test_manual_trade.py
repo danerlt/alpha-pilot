@@ -157,3 +157,88 @@ def test_precheck_buy_oversize_rejected(session):
     assert out.verdict == "REJECT"
     ps = next(c for c in out.checks if c.check == "position_size")
     assert ps.passed is False
+
+
+# ── place_order (handoff P2 Task 6) ─────────────────────────────────────
+
+
+def _place(session, body, **kw):
+    defaults = dict(trading_mode="testnet", operator_user_id=1)
+    defaults.update(kw)
+    return _svc(session).place_order(body=body, **defaults)
+
+
+def test_place_order_buy_writes_order_and_position(session):
+    out = _place(session, _buy(client_order_id="c1"))
+    assert out["order_id"] is not None
+    assert out["position_id"] is not None
+    assert out["status"] in {"FILLED", "filled"}
+    from src.models.order import Order
+    from sqlalchemy import select as _select
+
+    order = session.execute(_select(Order)).scalars().one()
+    assert order.ai_decision_id is None
+    assert order.side == "BUY"
+    # 审计行
+    from src.models.audit_log import AuditLog
+
+    logs = session.execute(_select(AuditLog)).scalars().all()
+    assert any(log.action == "manual_order" for log in logs)
+
+
+def test_place_order_idempotent_same_client_order_id(session):
+    out1 = _place(session, _buy(client_order_id="dup1"))
+    out2 = _place(session, _buy(client_order_id="dup1"))
+    assert out1["order_id"] == out2["order_id"]
+    from src.models.order import Order
+    from sqlalchemy import select as _select
+
+    assert len(session.execute(_select(Order)).scalars().all()) == 1
+
+
+def test_place_order_rejected_writes_nothing(session):
+    from src.common.exception.errors import RiskRejectedException
+    from src.models.order import Order
+    from sqlalchemy import select as _select
+
+    with pytest.raises(RiskRejectedException):
+        _place(session, _buy(qty=0.06, client_order_id="c2"))  # oversize 30%
+    assert session.execute(_select(Order)).scalars().all() == []
+
+
+def test_place_order_limit_not_supported(session):
+    from src.common.exception.errors import ServiceException
+
+    with pytest.raises(ServiceException):
+        _place(session, _buy(type="LIMIT", price=49_000.0, client_order_id="c3"))
+
+
+def test_place_order_halted_buy_rejected(session):
+    from src.common.exception.errors import RiskRejectedException
+    from src.services.risk.kill_switch import KillSwitchService
+
+    KillSwitchService(session).pause(operator_user_id=1, reason="halt")
+    session.commit()
+    with pytest.raises(RiskRejectedException):
+        _place(session, _buy(client_order_id="c4"))
+
+
+def test_place_order_sell_closes_position(session):
+    session.add(Position(
+        account_id=1, trading_mode="testnet", symbol="BTCUSDT",
+        status=PositionStatus.OPEN.value, side="LONG",
+        quantity=0.02, entry_price=49_000.0, stop_loss=48_000.0,
+        opened_at=datetime.now(tz=timezone.utc),
+    ))
+    session.commit()
+    out = _place(
+        session, _buy(side="SELL", reduce_only=True, client_order_id="c5"),
+    )
+    assert out["trade_id"] is not None
+    from src.models.trade import Trade
+    from sqlalchemy import select as _select
+
+    trade = session.execute(_select(Trade)).scalars().one()
+    assert trade.exit_reason == "manual"
+    pos = session.execute(_select(Position)).scalars().one()
+    assert pos.status == PositionStatus.CLOSED.value

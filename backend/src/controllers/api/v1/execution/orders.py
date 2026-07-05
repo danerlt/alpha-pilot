@@ -13,6 +13,7 @@ from src.configs.app_configs import get_settings
 from src.controllers.dependencies import get_adapter, require_admin
 from src.db.session import get_db
 from src.schemas.manual_order import ManualOrderCreate
+from src.services.events.outbox import OutboxWriter
 from src.services.execution.manual_trade import ManualTradeService
 
 router = APIRouter(prefix="/api/orders", tags=["orders"])
@@ -36,3 +37,18 @@ def precheck_order(
     return ManualTradeService(db, adapter).precheck(
         body=body, trading_mode=_trading_mode(),
     ).to_dict()
+
+
+@router.post("")
+@api_response()
+def place_order(
+    body: ManualOrderCreate,
+    db: Session = Depends(get_db),
+    current_admin=Depends(require_admin),
+    adapter=Depends(get_adapter),
+):
+    """手动下单: 服务端重跑守卫, HALTED 仅接受 reduce-only 平仓, 幂等 + 审计。"""
+    return ManualTradeService(db, adapter, outbox=OutboxWriter()).place_order(
+        body=body, trading_mode=_trading_mode(),
+        operator_user_id=current_admin.id,
+    )

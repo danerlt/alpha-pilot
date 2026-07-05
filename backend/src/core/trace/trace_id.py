@@ -17,6 +17,17 @@ from __future__ import annotations
 import hashlib
 
 
+def generate_manual_trace_id(user_id: int, client_order_id: str) -> str:
+    """手动下单幂等 trace_id (handoff P2 §3.2)。
+
+    键空间 ``manual:{user_id}:{client_order_id}`` 与 AI 单的
+    ``decision_id:symbol:action`` 天然隔离, 同一用户同一 client_order_id
+    重复提交返回既有订单。
+    """
+    raw = f"manual:{user_id}:{client_order_id}"
+    return hashlib.sha256(raw.encode()).hexdigest()[:32]
+
+
 def generate_trace_id(decision_id: int, symbol: str, action: str) -> str:
     """生成订单级幂等 trace_id。
 

@@ -86,6 +86,49 @@ class OrderExecutor:
             return None
         quantity = round(notional / current_price, 8)
 
+        return self._execute_open(
+            proposal=proposal, quantity=quantity, trace_id=trace_id,
+            decision_id=decision_id, account_id=account_id,
+            trading_mode=trading_mode, current_price=current_price,
+        )
+
+    def manual_open(
+        self,
+        *,
+        proposal: DecisionProposal,
+        quantity: float,
+        trace_id: str,
+        account_id: int,
+        trading_mode: str,
+        current_price: float,
+    ) -> tuple[Order, Position] | None:
+        """手动开多 (handoff P2): 显式数量 + 外部幂等 trace_id, 无关联决策。"""
+        existing = self._session.execute(
+            select(Order).where(Order.trace_id == trace_id)
+        ).scalars().first()
+        if existing is not None:
+            pos = self._session.get(Position, existing.position_id) if existing.position_id else None
+            return (existing, pos) if pos else None
+        if current_price <= 0 or quantity <= 0:
+            return None
+        return self._execute_open(
+            proposal=proposal, quantity=round(quantity, 8), trace_id=trace_id,
+            decision_id=None, account_id=account_id,
+            trading_mode=trading_mode, current_price=current_price,
+        )
+
+    def _execute_open(
+        self,
+        *,
+        proposal: DecisionProposal,
+        quantity: float,
+        trace_id: str,
+        decision_id: int | None,
+        account_id: int,
+        trading_mode: str,
+        current_price: float,
+    ) -> tuple[Order, Position] | None:
+        """开多执行内核: AI 单与手动单共用 (下单/写行/发事件路径唯一)。"""
         request = OrderRequest(
             symbol=proposal.symbol,
             side="BUY",
@@ -199,9 +242,13 @@ class OrderExecutor:
         decision_id: int | None,
         account_id: int,
         trading_mode: str,
+        trace_id: str | None = None,
     ) -> Trade | None:
-        """市价平仓。返回写入的 Trade 记录, 失败返回 None。"""
-        trace_id = make_trace_id(
+        """市价平仓。返回写入的 Trade 记录, 失败返回 None。
+
+        trace_id 缺省按决策键生成; 手动单传入 manual 键 (handoff P2)。
+        """
+        trace_id = trace_id or make_trace_id(
             decision_id or 0, position.symbol, f"CLOSE_LONG_{position.id}",
         )
 

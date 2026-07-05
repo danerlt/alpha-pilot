@@ -11,6 +11,11 @@ from src.models.order import Order
 class OrderCrud(BaseCrud[Order]):
     model = Order
 
+    def get_by_trace_id(self, session: Session, trace_id: str) -> Order | None:
+        return session.execute(
+            select(Order).where(Order.trace_id == trace_id)
+        ).scalars().first()
+
     def find_by_decision_id(self, session: Session, decision_id: int) -> list[Order]:
         return list(session.execute(
             select(Order)

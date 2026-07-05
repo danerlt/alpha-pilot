@@ -6,25 +6,34 @@ derive_verdict 同源裁决); HALTED 时仅放行 SELL + reduce_only 平仓单�
 from __future__ import annotations
 
 import logging
+import uuid
 from dataclasses import dataclass, field
+from typing import Optional
 
 from sqlalchemy.orm import Session
 
 from src.common.enums import PositionStatus
-from src.common.exception.errors import ServiceException
+from src.common.exception.errors import RiskRejectedException, ServiceException
 from src.core.exchange.adapter import ExchangeAdapter
+from src.core.trace.trace_id import generate_manual_trace_id
 from src.cruds.account_crud import account_snapshot_crud
 from src.cruds.account_entity_crud import risk_profile_crud
 from src.cruds.indicator_crud import indicator_snapshot_crud
+from src.cruds.order_crud import order_crud
 from src.cruds.position_crud import position_crud
 from src.cruds.regime_crud import regime_snapshot_crud
+from src.models.audit_log import AuditLog
+from src.models.order import Order
 from src.models.position import Position
 from src.schemas.manual_order import ManualOrderCreate
+from src.services.events.contracts import ManualOverride
+from src.services.events.outbox import OutboxWriter
 from src.services.execution.execution_guard import (
     ExecutionGuard,
     GuardCheckResult,
     derive_verdict,
 )
+from src.services.execution.order_executor import OrderExecutor
 from src.services.risk.kill_switch import KillSwitchService
 from src.services.strategy.proposal import DecisionProposal
 
@@ -53,9 +62,15 @@ class PrecheckOutcome:
 
 
 class ManualTradeService:
-    def __init__(self, session: Session, adapter: ExchangeAdapter):
+    def __init__(
+        self,
+        session: Session,
+        adapter: ExchangeAdapter,
+        outbox: Optional[OutboxWriter] = None,
+    ):
         self._session = session
         self._adapter = adapter
+        self._outbox = outbox
 
     def precheck(
         self,
@@ -176,6 +191,108 @@ class ManualTradeService:
         )
 
     # ------------------------------------------------------------------
+
+    def place_order(
+        self,
+        *,
+        body: ManualOrderCreate,
+        trading_mode: str,
+        operator_user_id: int,
+        account_id: int = 1,
+    ) -> dict:
+        """手动下单: 服务端重跑守卫 (不信任预检结果) + 幂等 + 审计。
+
+        本方法负责 commit (含失败订单行的持久化)。
+        """
+        if body.type == "LIMIT":
+            raise ServiceException("LIMIT 暂不支持: V0.1 手动单为市价 + 监控式 SL/TP")
+
+        client_order_id = body.client_order_id or uuid.uuid4().hex[:32]
+        trace_id = generate_manual_trace_id(operator_user_id, client_order_id)
+
+        # 幂等: 同 trace_id 直接返回既有订单
+        existing = order_crud.get_by_trace_id(self._session, trace_id)
+        if existing is not None:
+            return self._order_summary(existing, trade_id=None)
+
+        outcome = self.precheck(
+            body=body, trading_mode=trading_mode, account_id=account_id,
+        )
+        if outcome.verdict != "PASS":
+            first_fail = next(c for c in outcome.checks if not c.passed)
+            raise RiskRejectedException(f"{first_fail.check}:{first_fail.note}")
+
+        executor = OrderExecutor(self._session, self._adapter, outbox=self._outbox)
+        if body.side == "BUY":
+            res = executor.manual_open(
+                proposal=outcome.proposal, quantity=body.qty, trace_id=trace_id,
+                account_id=account_id, trading_mode=trading_mode,
+                current_price=float(outcome.context["current_price"]),
+            )
+            if res is None:
+                self._session.commit()  # 持久化 FAILED 订单行 + order.failed 事件
+                raise ServiceException("手动开仓失败 (交易所异常), 详见 orders 表 error_message")
+            order_row, position = res
+            summary = self._order_summary(order_row, trade_id=None)
+            summary["position_id"] = position.id
+        else:
+            trade = executor.close_long(
+                position=outcome.position, reason="manual",
+                decision_id=None,
+                account_id=account_id, trading_mode=trading_mode,
+                trace_id=trace_id,
+            )
+            if trade is None:
+                self._session.commit()
+                raise ServiceException("手动平仓失败 (交易所异常), 详见 orders 表 error_message")
+            order_row = order_crud.get_by_trace_id(self._session, trace_id)
+            summary = self._order_summary(order_row, trade_id=trade.id)
+            summary["position_id"] = outcome.position.id
+
+        self._audit(
+            operator_user_id=operator_user_id, account_id=account_id,
+            trading_mode=trading_mode, body=body, trace_id=trace_id,
+        )
+        self._session.commit()
+        return summary
+
+    @staticmethod
+    def _order_summary(order: Order | None, *, trade_id: int | None) -> dict:
+        return {
+            "order_id": order.id if order else None,
+            "trace_id": order.trace_id if order else None,
+            "status": order.status if order else None,
+            "position_id": order.position_id if order else None,
+            "trade_id": trade_id,
+        }
+
+    def _audit(
+        self, *, operator_user_id: int, account_id: int,
+        trading_mode: str, body: ManualOrderCreate, trace_id: str,
+    ) -> None:
+        """审计行 + manual.override 事件 (与 ManualOpsService 同模式)。"""
+        detail = {
+            "symbol": body.symbol, "side": body.side, "qty": body.qty,
+            "sl": body.sl, "tp": body.tp, "reduce_only": body.reduce_only,
+        }
+        self._session.add(AuditLog(
+            account_id=account_id, user_id=operator_user_id,
+            action="manual_order", resource_type="order", resource_id=trace_id,
+            after_json=detail,
+        ))
+        self._session.flush()
+        if self._outbox is not None:
+            self._outbox.record(
+                self._session,
+                aggregate_type="manual_op", aggregate_id=None,
+                event=ManualOverride(
+                    operator_user_id=operator_user_id,
+                    action="manual_order", target=f"{body.symbol}:{body.side}",
+                    reason=f"trace_id={trace_id}",
+                ),
+                account_id=account_id, trading_mode=trading_mode,
+                trace_id=trace_id,
+            )
 
     def _build_guard(self, *, account_id: int) -> ExecutionGuard:
         profile = risk_profile_crud.find_active(self._session, account_id=account_id)
