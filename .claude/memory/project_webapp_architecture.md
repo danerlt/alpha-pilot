@@ -8,6 +8,11 @@
 数据层升级为：OpenAPI 生成类型 + TanStack Query + WS 直写 Query 缓存 + MSW 网络层 mock +
 httpOnly cookie 认证 + build-once 部署。
 
+> **进度（2026-07-05）：S1-S4 前端侧已全部完成**（commit 512718c/1b1bc01/b879bbb/07d2a75，
+> 见 docs/worklog/20260705_webapp_架构升级S1-S4.md）。B1 的 export_openapi 脚本已建
+> （backend/scripts/export_openapi.py）；待后端：B2 事件补齐、B3 cookie 认证+roles 端点、
+> 路由显式 operation_id；待运维：dev 外层 nginx 加 /ap-dev-next 与 /ap-dev/ws 两个 location。
+
 ## 对后端会话的要求（做 handoff 后端实现时必看）
 
 按 `docs/webapp前端架构.md` §3 执行，优先级：
