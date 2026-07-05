@@ -5,16 +5,18 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from src.common.api_response import api_response
+from src.common.response.response_schema import Response
 from src.configs.app_configs import get_settings
 from src.controllers.dependencies import get_current_user
 from src.db.session import get_db
 from src.models.decision import AIDecision
+from src.schemas.strategy_read import DecisionDetailOut, DecisionRead
 from src.services.strategy.decision_detail import DecisionDetailService
 
 router = APIRouter(prefix="/api/decisions", tags=["decisions"])
 
 
-@router.get("")
+@router.get("", response_model=Response[list[DecisionRead]])
 @api_response()
 def list_decisions(
     # post-Plan5 安全审计 M3: limit 加上限防 DoS / OOM
@@ -46,7 +48,7 @@ def list_decisions(
     ]
 
 
-@router.get("/{decision_id}")
+@router.get("/{decision_id}", response_model=Response[DecisionDetailOut])
 @api_response()
 def get_decision_detail(
     decision_id: int,

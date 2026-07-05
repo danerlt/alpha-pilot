@@ -9,15 +9,17 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from src.common.api_response import api_response
+from src.common.response.response_schema import Response
 from src.configs.app_configs import get_settings
 from src.controllers.dependencies import get_current_user
 from src.db.session import get_db
+from src.schemas.risk_read import RiskStateOut
 from src.services.risk.risk_state import RiskStateService
 
 router = APIRouter(prefix="/api/risk", tags=["risk"])
 
 
-@router.get("/state")
+@router.get("/state", response_model=Response[RiskStateOut])
 @api_response()
 def get_risk_state(
     db: Session = Depends(get_db),

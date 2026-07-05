@@ -10,12 +10,14 @@ from sqlalchemy.orm import Session
 from src.common.api_response import api_response
 from src.common.exception.errors import ServiceException
 from src.common.response.response_code import ErrorCode
+from src.common.response.response_schema import Response
 from src.configs.app_configs import get_app_config as get_base_settings
 from src.controllers.dependencies import get_current_user
 from src.controllers.rate_limit import login_email_limiter, login_ip_limiter
 from src.db.session import get_db
 from src.models.user import User
 from src.schemas.auth import AuthLoginCreate, UserRegisterCreate
+from src.schemas.system_read import LoginOut, LogoutOut, UserRead
 from src.services.auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     create_access_token,
@@ -59,7 +61,7 @@ def _cookie_secure() -> bool:
     return get_base_settings().ENVIRONMENT in ("uat", "prod")
 
 
-@router.post("/login")
+@router.post("/login", response_model=Response[LoginOut])
 @api_response()
 def login(
     payload: AuthLoginCreate,
@@ -121,7 +123,7 @@ def login(
     }
 
 
-@router.post("/logout")
+@router.post("/logout", response_model=Response[LogoutOut])
 @api_response()
 def logout(response: HTTPResponse):
     """清 httpOnly cookie (webapp 架构 B3)。不要求有效 token — 过期也能登出。"""
@@ -129,7 +131,7 @@ def logout(response: HTTPResponse):
     return {"ok": True}
 
 
-@router.get("/me")
+@router.get("/me", response_model=Response[UserRead])
 @api_response()
 def auth_me(current_user=Depends(get_current_user)):
     return {

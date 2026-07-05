@@ -5,15 +5,17 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from src.common.api_response import api_response
+from src.common.response.response_schema import Response
 from src.configs.app_configs import get_settings
 from src.controllers.dependencies import get_current_user
 from src.db.session import get_db
 from src.models.trade import Trade
+from src.schemas.execution_read import TradeRead
 
 router = APIRouter(prefix="/api/trades", tags=["trades"])
 
 
-@router.get("")
+@router.get("", response_model=Response[list[TradeRead]])
 @api_response()
 def list_trades(
     # post-Plan5 安全审计 M3: limit 加上限防 DoS / OOM

@@ -7,12 +7,14 @@ from sqlalchemy.orm import Session
 from src.common.api_response import api_response
 from src.common.exception.errors import DBException, ParamsException, ServiceException
 from src.common.response.response_code import ErrorCode
+from src.common.response.response_schema import Response
 from src.controllers.dependencies import client_meta, get_current_user, require_admin
 from src.db.session import get_db
 from src.models.audit_log import AuditLog
 from src.models.symbol_config import SymbolConfig
 from src.models.user import User
 from src.schemas.symbol_config import SymbolConfigCreate, SymbolConfigUpdate
+from src.schemas.system_read import RolesOut
 from src.schemas.user import UserCreate, UserUpdate
 from src.services.auth import hash_password
 from src.services.system.permissions import PERMISSION_MATRIX, ROLE_ALIASES, ROLES, resolve_role
@@ -284,7 +286,7 @@ def list_audit_logs(
     ]
 
 
-@router.get("/roles")
+@router.get("/roles", response_model=Response[RolesOut])
 @api_response()
 def get_roles_matrix(current_user=Depends(get_current_user)):
     """权限矩阵下发 (webapp 架构 B3) — 前端 usePermission() 的唯一数据源。

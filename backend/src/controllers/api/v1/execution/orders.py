@@ -9,9 +9,11 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from src.common.api_response import api_response
+from src.common.response.response_schema import Response
 from src.configs.app_configs import get_settings
 from src.controllers.dependencies import get_adapter, require_admin
 from src.db.session import get_db
+from src.schemas.execution_read import OrderPlacedOut, PrecheckOut
 from src.schemas.manual_order import ManualOrderCreate
 from src.services.events.outbox import OutboxWriter
 from src.services.execution.manual_trade import ManualTradeService
@@ -25,7 +27,7 @@ def _trading_mode() -> str:
     return mode.value if hasattr(mode, "value") else mode
 
 
-@router.post("/precheck")
+@router.post("/precheck", response_model=Response[PrecheckOut])
 @api_response()
 def precheck_order(
     body: ManualOrderCreate,
@@ -39,7 +41,7 @@ def precheck_order(
     ).to_dict()
 
 
-@router.post("")
+@router.post("", response_model=Response[OrderPlacedOut])
 @api_response()
 def place_order(
     body: ManualOrderCreate,

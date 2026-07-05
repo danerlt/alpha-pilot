@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from src.common.api_response import api_response
 from src.common.exception.errors import DBException, ParamsException
 from src.common.response.response_code import ErrorCode
+from src.configs.app_configs import get_settings
 from src.controllers.dependencies import get_adapter, require_admin
 from src.db.session import get_db
 from src.schemas.command import (
@@ -28,7 +29,6 @@ from src.schemas.command import (
     PauseCreate,
     ResolveBreakerCreate,
 )
-from src.configs.app_configs import get_settings
 from src.services.events.outbox import OutboxWriter
 from src.services.manual_ops import ManualOpsService
 from src.services.risk.kill_switch import KillSwitchService

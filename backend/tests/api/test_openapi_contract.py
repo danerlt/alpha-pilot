@@ -73,3 +73,17 @@ def test_risk_state_endpoint(engine_and_client=None):
 
     r2 = TestClient(app).get("/api/risk/state")
     assert r2.json()["code"] == "400003"
+
+
+def test_core_read_models_present_in_openapi_components():
+    """B1: 核心端点 data 有具体模型, 前端生成的不再是 unknown。"""
+    schema = app.openapi()
+    components = set(schema.get("components", {}).get("schemas", {}).keys())
+    required = {
+        "PositionRead", "TradeRead", "AccountSnapshotRead", "DecisionRead",
+        "DecisionDetailOut", "RiskEventRead", "RiskStateOut",
+        "KlineRead", "TickerOut", "MarketSymbolRead",
+        "PrecheckOut", "OrderPlacedOut", "LoginOut", "UserRead", "RolesOut",
+    }
+    missing = required - components
+    assert not missing, f"OpenAPI components 缺模型: {missing}"

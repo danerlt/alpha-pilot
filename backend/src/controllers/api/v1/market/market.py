@@ -5,9 +5,11 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from src.common.api_response import api_response
+from src.common.response.response_schema import Response
 from src.configs.app_configs import get_settings
 from src.controllers.dependencies import get_adapter, get_current_user
 from src.db.session import get_db
+from src.schemas.market_read import KlineRead, MarketSymbolRead, TickerOut
 from src.services.execution.market_query import MarketQueryService
 
 router = APIRouter(prefix="/api/market", tags=["market"])
@@ -19,7 +21,7 @@ def _trading_mode() -> str:
     return mode.value if hasattr(mode, "value") else mode
 
 
-@router.get("/klines")
+@router.get("/klines", response_model=Response[list[KlineRead]])
 @api_response()
 def get_klines(
     symbol: str = Query(min_length=1, max_length=20),
@@ -35,7 +37,7 @@ def get_klines(
     )
 
 
-@router.get("/ticker")
+@router.get("/ticker", response_model=Response[TickerOut])
 @api_response()
 def get_ticker(
     symbol: str = Query(min_length=1, max_length=20),
@@ -47,7 +49,7 @@ def get_ticker(
     return MarketQueryService(db, adapter).get_ticker(symbol=symbol)
 
 
-@router.get("/symbols")
+@router.get("/symbols", response_model=Response[list[MarketSymbolRead]])
 @api_response()
 def list_symbols(
     db: Session = Depends(get_db),
