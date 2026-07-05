@@ -12,6 +12,7 @@ import { OrderBookView, RecentTradesView } from "@/components/market/OrderBookPa
 import { OrderTicket } from "@/components/market/OrderTicket";
 import { CoinAvatar } from "@/components/positions/PositionsTable";
 import { marketApi, positionsApi } from "@/api/services";
+import { stream } from "@/api/stream";
 import type {
   Kline,
   MarketSymbol,
@@ -53,6 +54,19 @@ export default function Market() {
   useEffect(() => {
     marketApi.symbols().then(setSymbols).catch(() => {});
     positionsApi.list().then(setPositions).catch(() => {});
+  }, []);
+
+  // 实时 ticker：更新自选列表价格（头部大数字随 AnimatedNumber 滚动）
+  useEffect(() => {
+    return stream.subscribe("market.ticker", (t) =>
+      setSymbols((prev) =>
+        prev.map((s) =>
+          s.symbol === t.symbol
+            ? { ...s, price: t.price, changePct24h: t.changePct24h }
+            : s,
+        ),
+      ),
+    );
   }, []);
 
   useEffect(() => {

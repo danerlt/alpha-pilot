@@ -15,6 +15,7 @@ import { SparkLive } from "@/components/charts/SparkLive";
 import { PositionsTable } from "@/components/positions/PositionsTable";
 import { EventRow } from "@/components/events/EventRow";
 import { useApp } from "@/context/AppContext";
+import { stream } from "@/api/stream";
 import {
   accountApi,
   decisionsApi,
@@ -32,7 +33,7 @@ import { fmt, fmtPct, fmtSigned } from "@/lib/format";
 const RANGES = ["1D", "1W", "1M", "3M", "ALL"] as const;
 
 export default function Dashboard() {
-  const { risk, account } = useApp();
+  const { risk, account, setScene } = useApp();
   const navigate = useNavigate();
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
@@ -49,7 +50,30 @@ export default function Dashboard() {
     accountApi.history().then(setEquitySeries).catch(() => {});
   }, []);
 
+  // 实时驱动：事件流追加 / 新决策置顶（触发流式重放）/ 权益曲线生长
+  useEffect(() => {
+    const offEvent = stream.subscribe("event.append", (e) =>
+      setEvents((prev) => [e, ...prev].slice(0, 60)),
+    );
+    const offDecision = stream.subscribe("decision.complete", (d) =>
+      setDecisions((prev) => [d, ...prev].slice(0, 20)),
+    );
+    const offSnap = stream.subscribe("account.snapshot", (s) =>
+      setEquitySeries((prev) => [...prev, s].slice(-120)),
+    );
+    return () => {
+      offEvent();
+      offDecision();
+      offSnap();
+    };
+  }, []);
+
   const halted = risk?.state === "HALTED";
+
+  // 风控状态变化时重置横幅关闭态（再次 WARN/HALTED 要重新出现）
+  useEffect(() => {
+    setAckHalt(false);
+  }, [risk?.state]);
 
   // HALTED 时 hero 决策显示被拒（设计稿 pages.jsx 同款处理）
   const heroDecision = useMemo<Decision | null>(() => {
@@ -70,7 +94,11 @@ export default function Dashboard() {
   return (
     <PageShell title="主控制台" sub="COCKPIT">
       {risk && !ackHalt && (
-        <HaltBanner risk={risk} onAck={() => setAckHalt(true)} />
+        <HaltBanner
+          risk={risk}
+          onAck={() => setAckHalt(true)}
+          onResolve={() => setScene("ok")}
+        />
       )}
       <div className="grid gap-5 min-[1180px]:grid-cols-[minmax(0,1fr)_360px]">
         {/* 左主列 */}

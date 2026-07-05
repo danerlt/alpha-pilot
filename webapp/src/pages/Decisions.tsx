@@ -28,7 +28,7 @@ const VARIANTS: { k: CardVariant; l: string }[] = [
 ];
 
 export default function Decisions() {
-  const { risk } = useApp();
+  const { risk, setScene } = useApp();
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
   const [variant, setVariantState] = useState<CardVariant>(getVariant());
@@ -75,7 +75,13 @@ export default function Decisions() {
   return (
     <PageShell title="AI 决策流" sub="AI DECISIONS">
       <div className="mx-auto flex max-w-[1100px] flex-col gap-4">
-        {risk && !ackHalt && <HaltBanner risk={risk} onAck={() => setAckHalt(true)} />}
+        {risk && !ackHalt && (
+          <HaltBanner
+            risk={risk}
+            onAck={() => setAckHalt(true)}
+            onResolve={() => setScene("ok")}
+          />
+        )}
 
         <div className="flex flex-wrap items-center gap-2">
           {tabs.map((t) => (
