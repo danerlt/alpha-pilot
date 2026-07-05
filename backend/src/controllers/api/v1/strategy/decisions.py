@@ -9,6 +9,7 @@ from src.configs.app_configs import get_settings
 from src.controllers.dependencies import get_current_user
 from src.db.session import get_db
 from src.models.decision import AIDecision
+from src.services.strategy.decision_detail import DecisionDetailService
 
 router = APIRouter(prefix="/api/decisions", tags=["decisions"])
 
@@ -43,3 +44,17 @@ def list_decisions(
         }
         for d in rows
     ]
+
+
+@router.get("/{decision_id}")
+@api_response()
+def get_decision_detail(
+    decision_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """决策详情: features 快照 + review + 守卫记录 + 关联订单 (要求登录)。"""
+    settings = get_settings()
+    return DecisionDetailService(db).get_detail(
+        decision_id, trading_mode=settings.TRADING_MODE.value,
+    )
