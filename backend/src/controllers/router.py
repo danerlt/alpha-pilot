@@ -12,6 +12,9 @@ from src.controllers.api.v1.execution.account import router as _account_router
 from src.controllers.api.v1.execution.positions import router as _positions_router
 from src.controllers.api.v1.execution.trades import router as _trades_router
 
+# ── market 域 (handoff P2) ─────────────────────────────────────────────
+from src.controllers.api.v1.market.market import router as _market_router
+
 # ── risk 域 ────────────────────────────────────────────────────────────
 from src.controllers.api.v1.risk.risk_events import router as _risk_router
 
@@ -50,3 +53,4 @@ router.include_router(_attribution_router)
 router.include_router(_account_router)
 router.include_router(_runtime_config_router)
 router.include_router(_tasks_router)
+router.include_router(_market_router)
