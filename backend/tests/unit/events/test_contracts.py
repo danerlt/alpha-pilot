@@ -114,3 +114,34 @@ def test_registry_event_type_matches_key():
         assert cls.event_type == key, (
             f"registry key {key!r} doesn't match {cls.__name__}.event_type = {cls.event_type!r}"
         )
+
+
+def test_decision_progress_in_registry_and_roundtrip():
+    from src.services.events.contracts import DecisionProgress
+
+    assert EVENT_TYPE_REGISTRY["decision.progress"] is DecisionProgress
+    ev = DecisionProgress(
+        stage="reasoning", status="done",
+        symbol="BTCUSDT", timeframe="1h",
+        decision_id=42, detail={"action": "OPEN_LONG", "confidence": 0.7},
+    )
+    parsed = DecisionProgress(**ev.model_dump())
+    assert parsed.stage == "reasoning"
+    assert parsed.decision_id == 42
+
+
+def test_decision_complete_in_registry_and_roundtrip():
+    from src.services.events.contracts import DecisionComplete
+
+    assert EVENT_TYPE_REGISTRY["decision.complete"] is DecisionComplete
+    ev = DecisionComplete(
+        decision_id=42, symbol="BTCUSDT", timeframe="1h",
+        action="OPEN_LONG", proposal_action="OPEN_LONG",
+        confidence=0.72, guard_result="PASS", guard_reason="all_checks_passed",
+        regime="trending_up", is_fallback=False,
+        entry_price=50_000.0, stop_loss=49_000.0, take_profit=52_000.0,
+        position_size_pct=0.1,
+    )
+    parsed = DecisionComplete(**ev.model_dump())
+    assert parsed.action == "OPEN_LONG"
+    assert parsed.guard_result == "PASS"

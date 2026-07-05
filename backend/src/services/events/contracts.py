@@ -10,6 +10,7 @@ V0.1 实际 publish 范围 (Plan 5 收口):
                      factors.updated                    (strategy_pipeline worker)
                      regime.classified                  (strategy_pipeline worker)
   - decision.*     : decision.proposed                  (strategy_pipeline worker)
+                     decision.progress / decision.complete (strategy_pipeline worker, handoff P1)
   - order.*        : order.submitted / order.filled / order.failed (OrderExecutor)
   - position.*     : position.opened / updated / closed (OrderExecutor / monitor)
   - trade.*        : trade.closed                       (OrderExecutor close)
@@ -149,6 +150,38 @@ class DecisionRejected(_Event):
     event_type: ClassVar[str] = "decision.rejected"
     decision_id: int
     reason: str
+
+
+class DecisionProgress(_Event):
+    """决策管道阶段进度 (handoff 3.3) — 前端 StreamingDecision 逐段点亮。"""
+
+    event_type: ClassVar[str] = "decision.progress"
+    stage: Literal["snapshot", "reasoning", "guard", "verdict", "execute"]
+    status: Literal["start", "done", "fail"]
+    symbol: str
+    timeframe: str
+    decision_id: int | None = None
+    detail: dict[str, Any] | None = None
+
+
+class DecisionComplete(_Event):
+    """决策管道完整结束 (handoff 3.3) — 前端展开完整决策卡。"""
+
+    event_type: ClassVar[str] = "decision.complete"
+    decision_id: int
+    symbol: str
+    timeframe: str
+    action: Literal["OPEN_LONG", "CLOSE_LONG", "SKIP"]
+    proposal_action: str
+    confidence: float
+    guard_result: Literal["PASS", "REJECT", "DEGRADE"]
+    guard_reason: str
+    regime: str
+    is_fallback: bool = False
+    entry_price: float | None = None
+    stop_loss: float | None = None
+    take_profit: float | None = None
+    position_size_pct: float | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -326,6 +359,7 @@ def _all_event_classes() -> list[type[_Event]]:
         IndicatorsComputed, FactorsUpdated, RegimeClassified,
         ProposalDrafted, DecisionProposed, DecisionReviewed,
         DecisionDegraded, DecisionRejected,
+        DecisionProgress, DecisionComplete,
         OrderSubmitted, OrderFilled, OrderFailed,
         PositionOpened, PositionUpdated, PositionClosed,
         TradeClosed,
