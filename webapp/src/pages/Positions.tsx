@@ -4,19 +4,23 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Layers } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { PageShell } from "@/components/shell/PageShell";
 import { Card, Dot, Pill, Stat } from "@/components/ui/atoms";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { PositionsTable } from "@/components/positions/PositionsTable";
+import { useOrders, usePositions } from "@/api/queries";
+import { qk } from "@/api/queryClient";
 import { ordersApi, positionsApi } from "@/api/services";
-import type { Order, Position, PrecheckResult } from "@/api/types";
+import type { Position, PrecheckResult } from "@/api/types";
 import { fmt, fmtSigned } from "@/lib/format";
 
 export default function Positions() {
-  const [positions, setPositions] = useState<Position[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
+  const queryClient = useQueryClient();
+  const { data: positions = [] } = usePositions();
+  const { data: orders = [] } = useOrders();
   const [editing, setEditing] = useState<Position | null>(null);
   const [closing, setClosing] = useState<Position | null>(null);
   const [busy, setBusy] = useState(false);
@@ -25,13 +29,9 @@ export default function Positions() {
   const [precheck, setPrecheck] = useState<PrecheckResult | null>(null);
 
   const reload = useCallback(() => {
-    positionsApi.list().then(setPositions).catch(() => {});
-    ordersApi.list().then(setOrders).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    reload();
-  }, [reload]);
+    void queryClient.invalidateQueries({ queryKey: qk.positions });
+    void queryClient.invalidateQueries({ queryKey: qk.orders });
+  }, [queryClient]);
 
   // 编辑 SL/TP：打开时预填 + 守卫预检
   useEffect(() => {

@@ -1,12 +1,12 @@
 /**
  * 审计日志（handoff/02 P9）—— 事件流全量 + 类型过滤 + AI 日报卡。
  */
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { PageShell } from "@/components/shell/PageShell";
 import { Card } from "@/components/ui/atoms";
 import { EventRow } from "@/components/events/EventRow";
-import { auditApi, eventsApi } from "@/api/services";
-import type { DailyReport, EventItem, EventKind } from "@/api/types";
+import { useEvents, useReports } from "@/api/queries";
+import type { EventKind } from "@/api/types";
 import { fmtSigned } from "@/lib/format";
 
 type Filter = "all" | EventKind;
@@ -20,14 +20,9 @@ const FILTERS: { k: Filter; l: string }[] = [
 ];
 
 export default function Audit() {
-  const [events, setEvents] = useState<EventItem[]>([]);
-  const [reports, setReports] = useState<DailyReport[]>([]);
+  const { data: events = [] } = useEvents();
+  const { data: reports = [] } = useReports();
   const [filter, setFilter] = useState<Filter>("all");
-
-  useEffect(() => {
-    eventsApi.recent().then(setEvents).catch(() => {});
-    auditApi.reports().then(setReports).catch(() => {});
-  }, []);
 
   const filtered = useMemo(
     () => events.filter((e) => filter === "all" || e.kind === filter),

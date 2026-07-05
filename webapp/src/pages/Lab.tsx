@@ -1,13 +1,16 @@
 /**
  * 策略实验室（handoff/02 P8）—— 受控进化流水线图示 + 候选卡（影子进度/对比/门槛）+ 进化历史。
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { ArrowDown, ArrowUp, FlaskConical, Layers, Pause } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { PageShell } from "@/components/shell/PageShell";
 import { Card, Pill } from "@/components/ui/atoms";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { useLabCandidates, useLabHistory } from "@/api/queries";
+import { qk } from "@/api/queryClient";
 import { labApi } from "@/api/services";
-import type { LabCandidate, LabHistoryItem, LabStage } from "@/api/types";
+import type { LabCandidate, LabStage } from "@/api/types";
 
 const STAGE_CFG: Record<LabStage, { l: string; tone: "violet" | "default" | "amber" | "mint" }> = {
   shadow: { l: "SHADOW 影子运行", tone: "violet" },
@@ -142,8 +145,9 @@ function CandidateCard({
 }
 
 export default function Lab() {
-  const [candidates, setCandidates] = useState<LabCandidate[]>([]);
-  const [history, setHistory] = useState<LabHistoryItem[]>([]);
+  const queryClient = useQueryClient();
+  const { data: candidates = [] } = useLabCandidates();
+  const { data: history = [] } = useLabHistory();
   const [confirm, setConfirm] = useState<{
     kind: "promote" | "terminate";
     c: LabCandidate;
@@ -151,13 +155,9 @@ export default function Lab() {
   const [busy, setBusy] = useState(false);
 
   const reload = useCallback(() => {
-    labApi.candidates().then(setCandidates).catch(() => {});
-    labApi.history().then(setHistory).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    reload();
-  }, [reload]);
+    void queryClient.invalidateQueries({ queryKey: qk.labCandidates });
+    void queryClient.invalidateQueries({ queryKey: qk.labHistory });
+  }, [queryClient]);
 
   const start = async (c: LabCandidate) => {
     await labApi.start(c.id);

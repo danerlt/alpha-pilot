@@ -1,7 +1,8 @@
 /**
  * 行情页（handoff/02 P3）—— 自选 220px | K线主区 | 右栏 260px（下单+盘口+合约信息）。
+ * 数据来自 Query 缓存；实时价格由 streamBridge 写入 marketSymbols 缓存。
  */
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { BrainCircuit, Search } from "lucide-react";
 import { PageShell } from "@/components/shell/PageShell";
@@ -11,17 +12,15 @@ import { KlineChart } from "@/components/market/KlineChart";
 import { OrderBookView, RecentTradesView } from "@/components/market/OrderBookPanel";
 import { OrderTicket } from "@/components/market/OrderTicket";
 import { CoinAvatar } from "@/components/positions/PositionsTable";
-import { marketApi, positionsApi } from "@/api/services";
-import { stream } from "@/api/stream";
-import type {
-  Kline,
-  MarketSymbol,
-  OrderBook,
-  Position,
-  RecentTrade,
-  Regime,
-  Ticker,
-} from "@/api/types";
+import {
+  useKlines,
+  useMarketSymbols,
+  useOrderBook,
+  usePositions,
+  useRecentTrades,
+  useTicker,
+} from "@/api/queries";
+import type { Regime } from "@/api/types";
 import { fmt } from "@/lib/format";
 
 const TIMEFRAMES = ["1m", "5m", "15m", "1h", "4h", "1d"];
@@ -44,41 +43,13 @@ export default function Market() {
   const symbol = params.get("symbol") ?? "BTCUSDT";
   const [tf, setTf] = useState("15m");
   const [obTab, setObTab] = useState<"book" | "trades">("book");
-  const [symbols, setSymbols] = useState<MarketSymbol[]>([]);
-  const [klines, setKlines] = useState<Kline[]>([]);
-  const [ticker, setTicker] = useState<Ticker | null>(null);
-  const [book, setBook] = useState<OrderBook | null>(null);
-  const [recent, setRecent] = useState<RecentTrade[]>([]);
-  const [positions, setPositions] = useState<Position[]>([]);
 
-  useEffect(() => {
-    marketApi.symbols().then(setSymbols).catch(() => {});
-    positionsApi.list().then(setPositions).catch(() => {});
-  }, []);
-
-  // 实时 ticker：更新自选列表价格（头部大数字随 AnimatedNumber 滚动）
-  useEffect(() => {
-    return stream.subscribe("market.ticker", (t) =>
-      setSymbols((prev) =>
-        prev.map((s) =>
-          s.symbol === t.symbol
-            ? { ...s, price: t.price, changePct24h: t.changePct24h }
-            : s,
-        ),
-      ),
-    );
-  }, []);
-
-  useEffect(() => {
-    setKlines([]);
-    marketApi.klines(symbol, tf, 64).then(setKlines).catch(() => {});
-  }, [symbol, tf]);
-
-  useEffect(() => {
-    marketApi.ticker(symbol).then(setTicker).catch(() => {});
-    marketApi.orderBook(symbol).then(setBook).catch(() => {});
-    marketApi.recentTrades(symbol).then(setRecent).catch(() => {});
-  }, [symbol]);
+  const { data: symbols = [] } = useMarketSymbols();
+  const { data: klines = [] } = useKlines(symbol, tf);
+  const { data: ticker } = useTicker(symbol);
+  const { data: book } = useOrderBook(symbol);
+  const { data: recent = [] } = useRecentTrades(symbol);
+  const { data: positions = [] } = usePositions();
 
   const cur = symbols.find((s) => s.symbol === symbol);
   const price = cur?.price ?? 0;

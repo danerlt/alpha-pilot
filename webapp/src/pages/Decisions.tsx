@@ -2,7 +2,7 @@
  * AI 决策流（handoff/02 P4）—— 过滤 tab（全部/已执行/已拦截）+ 决策卡列表（首条流式重放）
  * + 卡片点击详情（features 快照/守卫逐项/reasoning 全文/关联订单）。
  */
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { PageShell } from "@/components/shell/PageShell";
 import { Card, Dot, Pill } from "@/components/ui/atoms";
 import { Modal } from "@/components/ui/Modal";
@@ -15,8 +15,8 @@ import {
 } from "@/components/decision/variant";
 import { HaltBanner } from "@/components/risk/HaltBanner";
 import { useApp } from "@/context/AppContext";
-import { decisionsApi, ordersApi } from "@/api/services";
-import type { Decision, Order } from "@/api/types";
+import { useDecisions, useOrders } from "@/api/queries";
+import type { Decision } from "@/api/types";
 import { fmt } from "@/lib/format";
 
 type Filter = "all" | "exec" | "blocked";
@@ -29,26 +29,20 @@ const VARIANTS: { k: CardVariant; l: string }[] = [
 
 export default function Decisions() {
   const { risk, setScene } = useApp();
-  const [decisions, setDecisions] = useState<Decision[]>([]);
+  const { data: decisions = [] } = useDecisions();
+  const { data: orders = [] } = useOrders();
   const [filter, setFilter] = useState<Filter>("all");
   const [variant, setVariantState] = useState<CardVariant>(getVariant());
   const [detail, setDetail] = useState<Decision | null>(null);
-  const [relatedOrders, setRelatedOrders] = useState<Order[]>([]);
   const [ackHalt, setAckHalt] = useState(false);
 
-  useEffect(() => {
-    decisionsApi.list().then(setDecisions).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    if (!detail) return;
-    ordersApi
-      .list()
-      .then((os) =>
-        setRelatedOrders(os.filter((o) => o.symbol === detail.symbol).slice(0, 4)),
-      )
-      .catch(() => {});
-  }, [detail]);
+  const relatedOrders = useMemo(
+    () =>
+      detail
+        ? orders.filter((o) => o.symbol === detail.symbol).slice(0, 4)
+        : [],
+    [orders, detail],
+  );
 
   const filtered = useMemo(
     () =>

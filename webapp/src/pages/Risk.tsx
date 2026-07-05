@@ -2,35 +2,33 @@
  * 策略与风控（handoff/02 P7）—— 受限策略集（启停开关）+ 硬风控表（只读 + 修改走确认）
  * + 交易对管理。
  */
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AlertTriangle, Plus } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { PageShell } from "@/components/shell/PageShell";
 import { Card, Dot, Pill } from "@/components/ui/atoms";
 import { Switch } from "@/components/ui/form";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { CoinAvatar } from "@/components/positions/PositionsTable";
+import { useHardLimits, useStrategies, useSymbolConfigs } from "@/api/queries";
+import { qk } from "@/api/queryClient";
 import { strategyApi } from "@/api/services";
-import type { HardLimit, StrategyCard, SymbolConfig } from "@/api/types";
+import type { StrategyCard } from "@/api/types";
 
 export default function Risk() {
-  const [strategies, setStrategies] = useState<StrategyCard[]>([]);
-  const [limits, setLimits] = useState<HardLimit[]>([]);
-  const [symbols, setSymbols] = useState<SymbolConfig[]>([]);
+  const queryClient = useQueryClient();
+  const { data: strategies = [] } = useStrategies();
+  const { data: limits = [] } = useHardLimits();
+  const { data: symbols = [] } = useSymbolConfigs();
   const [toggling, setToggling] = useState<StrategyCard | null>(null);
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    strategyApi.list().then(setStrategies).catch(() => {});
-    strategyApi.hardLimits().then(setLimits).catch(() => {});
-    strategyApi.symbolConfigs().then(setSymbols).catch(() => {});
-  }, []);
 
   const doToggle = async () => {
     if (!toggling) return;
     setBusy(true);
     try {
       await strategyApi.toggle(toggling.id, !toggling.enabled);
-      setStrategies(await strategyApi.list());
+      await queryClient.invalidateQueries({ queryKey: qk.strategies });
       setToggling(null);
     } finally {
       setBusy(false);

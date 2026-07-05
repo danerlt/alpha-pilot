@@ -1,6 +1,5 @@
 import { Suspense, lazy } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
-import { AppProvider } from "./context/AppContext";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Market = lazy(() => import("./pages/Market"));
@@ -24,9 +23,8 @@ function Fallback() {
 
 export default function App() {
   return (
-    <AppProvider>
-      <Suspense fallback={<Fallback />}>
-        <Routes>
+    <Suspense fallback={<Fallback />}>
+      <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/market" element={<Market />} />
           <Route path="/decisions" element={<Decisions />} />
@@ -38,9 +36,8 @@ export default function App() {
           <Route path="/admin" element={<Admin />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/login" element={<Login />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Suspense>
-    </AppProvider>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
   );
 }

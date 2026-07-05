@@ -2,13 +2,16 @@
  * 回测与绩效（handoff/02 P6）—— 6 指标磁贴 + 策略 vs HODL 曲线 + 月度 PnL 零轴柱图
  * + 交易统计 + 归因维度切换。
  */
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { PageShell } from "@/components/shell/PageShell";
 import { Card, Dot, Stat } from "@/components/ui/atoms";
-import { performanceApi } from "@/api/services";
+import {
+  useAttribution,
+  usePerformanceMonthly,
+  usePerformanceSummary,
+} from "@/api/queries";
 import type {
   AttributionDim,
-  AttributionRow,
   MonthlyPnl,
   PerformanceSummary,
 } from "@/api/types";
@@ -93,19 +96,10 @@ function MonthlyBars({ data }: { data: MonthlyPnl[] }) {
 }
 
 export default function Performance() {
-  const [summary, setSummary] = useState<PerformanceSummary | null>(null);
-  const [monthly, setMonthly] = useState<MonthlyPnl[]>([]);
   const [dim, setDim] = useState<AttributionDim>("symbol");
-  const [rows, setRows] = useState<AttributionRow[]>([]);
-
-  useEffect(() => {
-    performanceApi.summary().then(setSummary).catch(() => {});
-    performanceApi.monthly().then(setMonthly).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    performanceApi.attribution(dim).then(setRows).catch(() => {});
-  }, [dim]);
+  const { data: summary } = usePerformanceSummary();
+  const { data: monthly = [] } = usePerformanceMonthly();
+  const { data: rows = [] } = useAttribution(dim);
 
   return (
     <PageShell title="回测与绩效" sub="PERFORMANCE">

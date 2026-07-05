@@ -203,19 +203,63 @@ class MockStream implements Stream {
 }
 
 // ============================================================
-// 真后端 WebSocket 流
+// 真后端 WebSocket 流 —— 适配后端 EventEnvelope
+// （src/services/events/contracts.py：event_id/event_type/occurred_at/payload）
 // ============================================================
+
+/** 后端事件类型 → 事件流 UI 的 kind/tone 映射 */
+function envelopeToEventItem(env: BackendEnvelope): EventItem {
+  const t = env.event_type;
+  const kind: EventItem["kind"] = t.startsWith("decision.")
+    ? "ai"
+    : t.startsWith("order.") || t.startsWith("trade.")
+      ? "fill"
+      : t.startsWith("position.")
+        ? "order"
+        : t.startsWith("risk.") || t.startsWith("circuit_breaker.")
+          ? "breaker"
+          : "system";
+  const tone: EventItem["tone"] =
+    kind === "ai"
+      ? "violet"
+      : kind === "breaker"
+        ? "rose"
+        : kind === "fill"
+          ? "mint"
+          : "fg";
+  const symbol =
+    typeof env.payload?.symbol === "string" ? ` · ${env.payload.symbol}` : "";
+  return {
+    id: env.event_id,
+    ts: env.occurred_at?.slice(11, 19) ?? "",
+    kind,
+    msg: `${t}${symbol}`,
+    tone,
+  };
+}
+
+interface BackendEnvelope {
+  event_id: string;
+  event_type: string;
+  occurred_at?: string;
+  payload: Record<string, unknown> & { symbol?: unknown };
+}
+
 class WsStream implements Stream {
   private handlers = new Map<StreamTopic, Set<(p: never) => void>>();
   private ws: WebSocket | null = null;
   private retry = 0;
   private subscriberCount = 0;
+  private seenIds = new Set<string>();
+  private lastEventId: string | null = null;
 
   private url(): string {
     const explicit = import.meta.env.VITE_WS_URL as string | undefined;
-    if (explicit) return explicit;
-    const base = (import.meta.env.VITE_API_BASE_URL as string) ?? "";
-    return base.replace(/^http/, "ws") + "/ws";
+    const base = explicit
+      ? explicit
+      : ((import.meta.env.VITE_API_BASE_URL as string) ?? "").replace(/^http/, "ws") + "/ws";
+    // 断线重连带 since，后端 _replay_since 回放缺口事件
+    return this.lastEventId ? `${base}?since=${this.lastEventId}` : base;
   }
 
   subscribe<T extends StreamTopic>(
@@ -241,6 +285,12 @@ class WsStream implements Stream {
     // 真后端下事件由服务端产生
   }
 
+  private dispatch<T extends StreamTopic>(topic: T, payload: StreamEvents[T]) {
+    this.handlers
+      .get(topic)
+      ?.forEach((cb) => (cb as (p: StreamEvents[T]) => void)(payload));
+  }
+
   private connect() {
     try {
       this.ws = new WebSocket(this.url());
@@ -253,11 +303,22 @@ class WsStream implements Stream {
     };
     this.ws.onmessage = (ev) => {
       try {
-        const { type, payload } = JSON.parse(ev.data as string) as {
-          type: StreamTopic;
-          payload: never;
-        };
-        this.handlers.get(type)?.forEach((cb) => cb(payload));
+        const env = JSON.parse(ev.data as string) as BackendEnvelope;
+        if (!env.event_type || !env.event_id) return;
+        // event_id 去重（回放与实时可能重叠）
+        if (this.seenIds.has(env.event_id)) return;
+        this.seenIds.add(env.event_id);
+        if (this.seenIds.size > 500) {
+          this.seenIds = new Set([...this.seenIds].slice(-250));
+        }
+        this.lastEventId = env.event_id;
+        // 精确主题分发（decision.progress / decision.complete / risk.state / account.snapshot / market.*）
+        this.dispatch(
+          env.event_type as StreamTopic,
+          env.payload as never,
+        );
+        // 全部事件映射进事件流 UI
+        this.dispatch("event.append", envelopeToEventItem(env));
       } catch {
         // 非 JSON 心跳帧等，忽略
       }

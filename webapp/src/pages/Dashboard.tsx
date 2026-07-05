@@ -1,5 +1,6 @@
 /**
  * 主控制台（handoff/02 P2）—— 左主列（AI hero / 权益 / 磁贴 / 持仓）+ 右事件流。
+ * 数据全部来自 Query 缓存（实时更新由 streamBridge 直写）；
  * HALTED 场景五件套联动：横幅 / hero 被拒 / 曲线变 rose / 事件流红条 / 顶栏胶囊（Topbar 内）。
  */
 import { useEffect, useMemo, useState } from "react";
@@ -15,19 +16,13 @@ import { SparkLive } from "@/components/charts/SparkLive";
 import { PositionsTable } from "@/components/positions/PositionsTable";
 import { EventRow } from "@/components/events/EventRow";
 import { useApp } from "@/context/AppContext";
-import { stream } from "@/api/stream";
 import {
-  accountApi,
-  decisionsApi,
-  eventsApi,
-  positionsApi,
-} from "@/api/services";
-import type {
-  AccountSnapshot,
-  Decision,
-  EventItem,
-  Position,
-} from "@/api/types";
+  useDecisions,
+  useEquityHistory,
+  useEvents,
+  usePositions,
+} from "@/api/queries";
+import type { Decision } from "@/api/types";
 import { fmt, fmtPct, fmtSigned } from "@/lib/format";
 
 const RANGES = ["1D", "1W", "1M", "3M", "ALL"] as const;
@@ -35,38 +30,13 @@ const RANGES = ["1D", "1W", "1M", "3M", "ALL"] as const;
 export default function Dashboard() {
   const { risk, account, setScene } = useApp();
   const navigate = useNavigate();
-  const [decisions, setDecisions] = useState<Decision[]>([]);
-  const [positions, setPositions] = useState<Position[]>([]);
-  const [events, setEvents] = useState<EventItem[]>([]);
-  const [equitySeries, setEquitySeries] = useState<AccountSnapshot[]>([]);
+  const { data: decisions = [] } = useDecisions();
+  const { data: positions = [] } = usePositions();
+  const { data: events = [] } = useEvents();
+  const { data: equitySeries = [] } = useEquityHistory();
   const [range, setRange] = useState<(typeof RANGES)[number]>("1M");
   const [ackHalt, setAckHalt] = useState(false);
   const variant = getVariant();
-
-  useEffect(() => {
-    decisionsApi.list().then(setDecisions).catch(() => {});
-    positionsApi.list().then(setPositions).catch(() => {});
-    eventsApi.recent().then(setEvents).catch(() => {});
-    accountApi.history().then(setEquitySeries).catch(() => {});
-  }, []);
-
-  // 实时驱动：事件流追加 / 新决策置顶（触发流式重放）/ 权益曲线生长
-  useEffect(() => {
-    const offEvent = stream.subscribe("event.append", (e) =>
-      setEvents((prev) => [e, ...prev].slice(0, 60)),
-    );
-    const offDecision = stream.subscribe("decision.complete", (d) =>
-      setDecisions((prev) => [d, ...prev].slice(0, 20)),
-    );
-    const offSnap = stream.subscribe("account.snapshot", (s) =>
-      setEquitySeries((prev) => [...prev, s].slice(-120)),
-    );
-    return () => {
-      offEvent();
-      offDecision();
-      offSnap();
-    };
-  }, []);
 
   const halted = risk?.state === "HALTED";
 

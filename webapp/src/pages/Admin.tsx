@@ -1,12 +1,15 @@
 /**
  * 后台管理（handoff/02 P12）—— 三分区：用户管理 / 角色权限矩阵 / 管理日志。
  */
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Check, Key, List, Settings as SettingsIcon, Users, X } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { PageShell } from "@/components/shell/PageShell";
 import { Card, Pill, Stat } from "@/components/ui/atoms";
-import { adminApi, auditApi } from "@/api/services";
-import type { AuditLog, PermissionRow, Role, User } from "@/api/types";
+import { useAuditLogs, usePermissions, useUsers } from "@/api/queries";
+import { qk } from "@/api/queryClient";
+import { adminApi } from "@/api/services";
+import type { PermissionRow, Role, User } from "@/api/types";
 
 const ROLE_CFG: Record<Role, { l: string; tone: "violet" | "rose" | "mint" | "cyan"; desc: string }> = {
   owner: { l: "Owner", tone: "violet", desc: "所有权限 + 转让所有权" },
@@ -44,13 +47,11 @@ function StatusPill({ s }: { s: User["status"] }) {
 
 // ---------- 用户管理 ----------
 function UsersTab() {
-  const [users, setUsers] = useState<User[]>([]);
-  useEffect(() => {
-    adminApi.users().then(setUsers).catch(() => {});
-  }, []);
+  const queryClient = useQueryClient();
+  const { data: users = [] } = useUsers();
   const approve = async (id: string) => {
     await adminApi.approveUser(id);
-    setUsers(await adminApi.users());
+    await queryClient.invalidateQueries({ queryKey: qk.users });
   };
   const twoFaPct = users.length
     ? Math.round((users.filter((u) => u.twoFa).length / users.length) * 100)
@@ -157,12 +158,8 @@ function UsersTab() {
 
 // ---------- 角色权限 ----------
 function RolesTab() {
-  const [perms, setPerms] = useState<PermissionRow[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
-  useEffect(() => {
-    adminApi.permissions().then(setPerms).catch(() => {});
-    adminApi.users().then(setUsers).catch(() => {});
-  }, []);
+  const { data: perms = [] } = usePermissions();
+  const { data: users = [] } = useUsers();
   const groups: { key: PermissionRow["group"]; l: string }[] = [
     { key: "trade", l: "交易" },
     { key: "strategy", l: "策略" },
@@ -243,10 +240,7 @@ function FragmentGroup({ label, rows }: { label: string; rows: PermissionRow[] }
 
 // ---------- 管理日志 ----------
 function LogTab() {
-  const [logs, setLogs] = useState<AuditLog[]>([]);
-  useEffect(() => {
-    auditApi.logs().then(setLogs).catch(() => {});
-  }, []);
+  const { data: logs = [] } = useAuditLogs();
   return (
     <Card title="管理操作日志" right={<span className="font-mono text-[10.5px] text-fg-4">不可删除</span>}>
       {logs.map((l, i) => (
