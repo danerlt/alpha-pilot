@@ -34,8 +34,10 @@ def client():
     # 鉴权 mock: 测试中绕过 JWT 解码, 注入 admin user.
     from types import SimpleNamespace
 
-    from src.controllers.dependencies import require_admin
-    app.dependency_overrides[require_admin] = lambda: SimpleNamespace(
+    # P4 RBAC: 端点守卫从 require_admin 换成 require_permission(其内部依赖
+    # get_current_user), 故测试覆盖 get_current_user 即可同时通过两类守卫。
+    from src.controllers.dependencies import get_current_user
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
         id=1, username="admin_test", role="admin", status="active",
     )
 

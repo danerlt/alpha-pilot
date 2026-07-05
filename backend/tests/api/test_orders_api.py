@@ -83,7 +83,7 @@ def test_precheck_returns_itemized_checks(admin_client):
     assert all(set(c) == {"check", "pass", "note"} for c in data["checks"])
 
 
-def test_precheck_requires_admin(engine):
+def test_precheck_requires_trade_permission(engine):
     def _override():
         s = Session(engine)
         try:
@@ -96,10 +96,11 @@ def test_precheck_requires_admin(engine):
 
     from src.controllers.dependencies import get_current_user as dep_user
     app.dependency_overrides[dep_user] = lambda: SimpleNamespace(
-        id=2, username="u", role="user", status="active",
+        id=2, username="u", role="viewer", status="active",
     )
     try:
         cli = TestClient(app)
+        # P4 RBAC: viewer 无 trade.manual_order → 403; user(→trader) 已放行
         r = cli.post("/api/orders/precheck", json=_BUY)
         assert r.status_code == 200
         assert r.json()["code"] == "400004"  # FORBIDDEN

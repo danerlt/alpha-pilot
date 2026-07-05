@@ -33,6 +33,7 @@ from src.services.events.outbox import OutboxWriter
 from src.services.manual_ops import ManualOpsService
 from src.services.risk.kill_switch import KillSwitchService
 from src.services.risk.risk_state import RiskStateService
+from src.services.system.permissions import require_permission
 from src.services.task_dispatcher import get_task_dispatcher
 
 router = APIRouter(prefix="/api/commands", tags=["commands"])
@@ -63,7 +64,7 @@ def close_position(
     position_id: int,
     body: ClosePositionCreate,
     db: Session = Depends(get_db),
-    current_admin=Depends(require_admin),
+    current_admin=Depends(require_permission("trade.manual_order")),
 ):
     svc = ManualOpsService(db, _adapter(), outbox=OutboxWriter())
     trade = svc.manual_close_position(
@@ -81,7 +82,7 @@ def close_position(
 def close_all(
     body: CloseAllCreate,
     db: Session = Depends(get_db),
-    current_admin=Depends(require_admin),
+    current_admin=Depends(require_permission("trade.manual_order")),
 ):
     """一键全平 — HTTP 触发的耗时业务, 走 task_requests 异步入队 (project.md §8)。
 
@@ -109,7 +110,7 @@ def resolve_breaker(
     event_id: int,
     body: ResolveBreakerCreate,
     db: Session = Depends(get_db),
-    current_admin=Depends(require_admin),
+    current_admin=Depends(require_permission("trade.engine_toggle")),
 ):
     svc = ManualOpsService(db, _adapter(), outbox=OutboxWriter())
     ok = svc.manual_resolve_circuit_breaker(
@@ -129,7 +130,7 @@ def resolve_breaker(
 def pause(
     body: PauseCreate,
     db: Session = Depends(get_db),
-    current_admin=Depends(require_admin),
+    current_admin=Depends(require_permission("trade.engine_toggle")),
 ):
     svc = KillSwitchService(db)
     svc.pause(operator_user_id=current_admin.id, reason=body.reason)
@@ -143,7 +144,7 @@ def pause(
 def resume(
     body: PauseCreate,
     db: Session = Depends(get_db),
-    current_admin=Depends(require_admin),
+    current_admin=Depends(require_permission("trade.engine_toggle")),
 ):
     svc = KillSwitchService(db)
     svc.resume(operator_user_id=current_admin.id, reason=body.reason)

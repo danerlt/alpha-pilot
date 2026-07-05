@@ -46,3 +46,40 @@ PERMISSION_MATRIX = [
 def resolve_role(raw_role: str) -> str:
     """users.role 现值 → 矩阵角色 (legacy 'user' → 'trader')。"""
     return ROLE_ALIASES.get(raw_role, raw_role)
+
+
+_PERM_INDEX = {
+    item["key"]: item for group in PERMISSION_MATRIX for item in group["items"]
+}
+
+
+def has_permission(role: str, perm_key: str) -> bool:
+    """矩阵判定; 未知角色/未知权限一律 False (fail-closed)。"""
+    item = _PERM_INDEX.get(perm_key)
+    if item is None:
+        return False
+    return bool(item.get(resolve_role(role), False))
+
+
+def require_permission(perm_key: str):
+    """FastAPI 依赖工厂 (handoff 3.7): require_permission("trade.manual_order")。
+
+    权限键必须在矩阵中 (创建期 fail-fast, 防拼错悄悄放行/全拒)。
+    """
+    if perm_key not in _PERM_INDEX:
+        raise ValueError(f"unknown permission key: {perm_key}")
+
+    from fastapi import Depends
+
+    from src.common.exception.errors import ServiceException
+    from src.common.response.response_code import ErrorCode
+    from src.controllers.dependencies import get_current_user
+
+    def _dep(current_user=Depends(get_current_user)):
+        if not has_permission(current_user.role, perm_key):
+            raise ServiceException(
+                f"Forbidden: requires {perm_key}", error_code=ErrorCode.FORBIDDEN,
+            )
+        return current_user
+
+    return _dep

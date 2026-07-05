@@ -7,13 +7,17 @@ class TradingMode(str, Enum):
 
 
 class UserRole(str, Enum):
-    USER = "user"
+    USER = "user"  # legacy, 权限矩阵按 trader 解释 (P4 RBAC 过渡)
     ADMIN = "admin"
+    OWNER = "owner"
+    TRADER = "trader"
+    VIEWER = "viewer"
 
 
 class UserStatus(str, Enum):
     ACTIVE = "active"
     DISABLED = "disabled"
+    PENDING = "pending"  # 注册待批准 (handoff 3.7)
 
 
 class Action(str, Enum):

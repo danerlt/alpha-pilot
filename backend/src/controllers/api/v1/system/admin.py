@@ -170,6 +170,8 @@ def create_user(
     current_admin=Depends(require_admin),
 ):
     """admin 创建账号 — 公开注册按安全审计 C5 禁用, 这是唯一的运行时建号入口。"""
+    if payload.role.value == "owner":
+        raise ServiceException("owner 唯一, 不可通过接口创建", error_code=ErrorCode.FORBIDDEN)
     username = payload.username.strip()
     email = payload.email.lower().strip()
     if db.query(User).filter(User.email == email).first():
@@ -216,6 +218,14 @@ def update_user(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise DBException(error_code=ErrorCode.NOT_FOUND, message="User not found")
+
+    # P4 RBAC 保护 (handoff 3.7): 不能动 owner 与自己; 不能把任何人升成 owner
+    if user.role == "owner":
+        raise ServiceException("owner 账户不可修改", error_code=ErrorCode.FORBIDDEN)
+    if user.id == current_admin.id:
+        raise ServiceException("不能修改自己的角色/状态", error_code=ErrorCode.FORBIDDEN)
+    if payload.role is not None and payload.role.value == "owner":
+        raise ServiceException("owner 唯一, 不可通过接口授予", error_code=ErrorCode.FORBIDDEN)
 
     before = {"role": user.role, "status": user.status}
     changed = False
@@ -300,3 +310,32 @@ def get_roles_matrix(current_user=Depends(get_current_user)):
         "role_aliases": ROLE_ALIASES,
         "current_role": resolve_role(current_user.role),
     }
+
+
+@router.post("/users/{user_id}/approve")
+@api_response()
+def approve_user(
+    user_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_admin=Depends(require_admin),
+):
+    """批准 pending 用户 (handoff 3.7): PENDING → ACTIVE + 审计。"""
+    from src.common.enums import UserStatus
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise DBException(error_code=ErrorCode.NOT_FOUND, message="User not found")
+    if user.status != UserStatus.PENDING.value:
+        raise ServiceException(f"用户状态为 {user.status}, 仅 pending 可批准")
+    user.status = UserStatus.ACTIVE.value
+    ip, user_agent = client_meta(request)
+    db.add(AuditLog(
+        user_id=current_admin.id, action="approve", resource_type="user",
+        resource_id=str(user.id),
+        before_json={"status": "pending"}, after_json={"status": "active"},
+        ip=ip, user_agent=user_agent,
+    ))
+    db.commit()
+    db.refresh(user)
+    return {"id": user.id, "status": user.status}

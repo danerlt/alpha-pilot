@@ -1,7 +1,7 @@
 """Orders — /api/orders 手动下单域 (handoff P2 §3.2)。
 
-权限口径: 手动下单是高危写操作, 当前角色体系仅 user/admin 两级, 暂定
-require_admin; P4 RBAC (owner/admin/trader/viewer) 落地后放宽为 trader+。
+权限口径 (P4 RBAC): 手动下单/预检 = require_permission("trade.manual_order")
+→ owner/admin/trader 可用, viewer 403。
 """
 from __future__ import annotations
 
@@ -11,12 +11,13 @@ from sqlalchemy.orm import Session
 from src.common.api_response import api_response
 from src.common.response.response_schema import Response
 from src.configs.app_configs import get_settings
-from src.controllers.dependencies import get_adapter, get_current_user, require_admin
+from src.controllers.dependencies import get_adapter, get_current_user
 from src.db.session import get_db
 from src.schemas.execution_read import OrderListItemRead, OrderPlacedOut, PrecheckOut
 from src.schemas.manual_order import ManualOrderCreate
 from src.services.events.outbox import OutboxWriter
 from src.services.execution.manual_trade import ManualTradeService
+from src.services.system.permissions import require_permission
 
 router = APIRouter(prefix="/api/orders", tags=["orders"])
 
@@ -32,7 +33,7 @@ def _trading_mode() -> str:
 def precheck_order(
     body: ManualOrderCreate,
     db: Session = Depends(get_db),
-    current_admin=Depends(require_admin),
+    current_admin=Depends(require_permission("trade.manual_order")),
     adapter=Depends(get_adapter),
 ):
     """守卫预检: 逐项 PASS/FAIL + 总判定 (只读, 下单时服务端会再跑一遍)。"""
@@ -46,7 +47,7 @@ def precheck_order(
 def place_order(
     body: ManualOrderCreate,
     db: Session = Depends(get_db),
-    current_admin=Depends(require_admin),
+    current_admin=Depends(require_permission("trade.manual_order")),
     adapter=Depends(get_adapter),
 ):
     """手动下单: 服务端重跑守卫, HALTED 仅接受 reduce-only 平仓, 幂等 + 审计。"""

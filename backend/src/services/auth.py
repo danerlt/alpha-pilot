@@ -48,5 +48,5 @@ def ensure_user_is_active(status: str) -> None:
 
 
 def ensure_user_is_admin(role: str) -> None:
-    if role != UserRole.ADMIN.value:
+    if role not in (UserRole.ADMIN.value, UserRole.OWNER.value):
         raise PermissionError("Admin privileges required")
