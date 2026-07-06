@@ -54,7 +54,13 @@
 - 通知渠道配置化（前一批次）
 - 基线 **697 passed + 2 skipped**
 
+## 本地 e2e 验收已完成（2026-07-06，报告 `docs/worklog/20260706_1540_本地e2e验收报告.md`）
+
+隔离环境全链路真跑 **63/63 PASS**（认证/2FA/RBAC/设置加密/行情真连/HALTED/Agent/实验室/WS/调度/配置分层）。
+**抓到并修复三个部署级真 bug**（单测覆盖不到的装配层）：testnet 行情 WS 域名、
+EventShuttle 参数名崩溃、漏传 pubsub 致 /ws 实时推送从未工作（commit f9f1e3f）。
+
 ## 待做
 
-仅 **testnet 实盘验收**：`docs/testnet验收手册.md` 已备好逐项清单，需老板亲验 + 24h 观察。
+**testnet 带真实 Key 验收**：真 LLM 决策链 + 真实下单成交（`docs/testnet验收手册.md`），需老板亲验 + 24h 观察。
 owner bootstrap 授予未做（当前 DEFAULT_ADMIN 是 admin，如需 owner 角色找老板拍板方式）。
