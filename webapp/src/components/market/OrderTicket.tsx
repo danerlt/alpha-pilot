@@ -21,7 +21,7 @@ type OType = "LIMIT" | "MARKET" | "STOP";
 export function OrderTicket({ symbol, price }: { symbol: string; price: number }) {
   const { risk, account } = useApp();
   const { can } = usePermission();
-  const canTrade = can("trade.manual");
+  const canTrade = can("trade.manual_order");
   const [side, setSide] = useState<Side>("BUY");
   const [type, setType] = useState<OType>("LIMIT");
   const [priceStr, setPriceStr] = useState(String(Math.round(price)));

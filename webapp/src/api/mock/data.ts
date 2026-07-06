@@ -477,7 +477,7 @@ export const mockUsers: User[] = [
 ];
 
 export const mockPermissions: PermissionRow[] = [
-  { key: "trade.manual", label: "手动下单 / 平仓", group: "trade", granted: { owner: true, admin: true, trader: true, viewer: false } },
+  { key: "trade.manual_order", label: "手动下单 / 平仓", group: "trade", granted: { owner: true, admin: true, trader: true, viewer: false } },
   { key: "trade.engine_toggle", label: "启停交易引擎", group: "trade", granted: { owner: true, admin: true, trader: true, viewer: false } },
   { key: "trade.resolve_breaker", label: "解除熔断", group: "trade", granted: { owner: true, admin: true, trader: false, viewer: false } },
   { key: "strategy.toggle", label: "策略启停", group: "strategy", granted: { owner: true, admin: true, trader: true, viewer: false } },

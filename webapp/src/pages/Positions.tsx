@@ -21,7 +21,7 @@ import { fmt, fmtSigned } from "@/lib/format";
 export default function Positions() {
   const queryClient = useQueryClient();
   const { can } = usePermission();
-  const canTrade = can("trade.manual");
+  const canTrade = can("trade.manual_order");
   const { data: positions = [] } = usePositions();
   const { data: orders = [] } = useOrders();
   const [editing, setEditing] = useState<Position | null>(null);

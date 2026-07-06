@@ -177,7 +177,7 @@ export const performanceApi = {
 };
 
 export const strategyApi = {
-  // 策略受限集启停端点后端暂缺（联调待办#9），mock-only
+  // 受限策略集启停 — 后端 /api/strategies 已落地（守卫 strategy_enabled 真实生效）
   list: () => http<StrategyCard[]>("/api/strategies"),
   toggle: (id: string, enabled: boolean) =>
     http<{ ok: boolean }>(`/api/strategies/${id}`, {

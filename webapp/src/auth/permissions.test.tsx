@@ -35,20 +35,20 @@ describe("usePermission", () => {
     const { result } = renderHook(() => usePermission(), { wrapper });
     await waitFor(() => expect(result.current.role).toBe("viewer"));
     await waitFor(() => expect(result.current.can("system.read")).toBe(true));
-    expect(result.current.can("trade.manual")).toBe(false);
+    expect(result.current.can("trade.manual_order")).toBe(false);
     expect(result.current.can("risk.edit_hard_limits")).toBe(false);
   });
 
   it("owner 拥有 trade.manual 与硬风控修改", async () => {
     loginAs("owner");
     const { result } = renderHook(() => usePermission(), { wrapper });
-    await waitFor(() => expect(result.current.can("trade.manual")).toBe(true));
+    await waitFor(() => expect(result.current.can("trade.manual_order")).toBe(true));
     expect(result.current.can("risk.edit_hard_limits")).toBe(true);
   });
 
   it("矩阵/用户未加载时保守返回 false", () => {
     sessionStorage.removeItem("ap.mock.authed");
     const { result } = renderHook(() => usePermission(), { wrapper });
-    expect(result.current.can("trade.manual")).toBe(false);
+    expect(result.current.can("trade.manual_order")).toBe(false);
   });
 });
