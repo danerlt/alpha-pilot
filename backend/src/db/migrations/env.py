@@ -58,11 +58,15 @@ target_metadata = Base.metadata
 
 
 def _get_database_url() -> str:
-    """优先使用 Alembic 显式传入的 URL；否则回退到应用配置。"""
+    """优先使用 Alembic 显式传入的 URL；否则回退到应用配置。
+
+    回退用 db_uri 而非 DATABASE_URL 裸字段：后者默认空串（.env 未显式设置时），
+    db_uri 会按 PG_* 字段拼接——否则 upgrade-db 在这类机器上必炸。
+    """
     configured_url = config.get_main_option("sqlalchemy.url")
     if configured_url and configured_url != "driver://user:pass@localhost/dbname":
         return configured_url
-    return get_settings().DATABASE_URL
+    return get_settings().db_uri
 
 
 def run_migrations_offline() -> None:
