@@ -347,29 +347,41 @@ export interface PermissionRow {
   granted: Record<Role, boolean>;
 }
 
-// ---------- 设置（handoff/03 §3.6） ----------
+// ---------- 设置（handoff/03 §3.6，与后端 P4 契约对齐） ----------
 export interface ExchangeSettings {
-  exchange: "binance" | "hyperliquid";
   network: "testnet" | "mainnet";
-  apiKeyMasked: string;
-  permissions: { read: boolean; trade: boolean; withdraw: boolean };
+  apiKeyMasked: string | null;
+  hasSecret: boolean;
+}
+
+export interface ExchangeTestResult {
+  ok: boolean;
+  permissions: { read: boolean; trade: boolean; withdraw: boolean } | null;
+  warning: string | null;
+  error: string | null;
 }
 
 export interface LlmSettings {
-  provider: "deepseek" | "openai" | "anthropic" | "custom";
   model: string;
   baseUrl: string;
-  apiKeyMasked: string;
+  apiKeyMasked: string | null;
   temperature: number;
-  maxTokens: number;
-  timeoutSec: number;
-  agents: { decision: string; signal: string; review: string };
+  timeoutSeconds: number;
+  agentModels: Record<string, string>;
+}
+
+export interface LlmTestResult {
+  ok: boolean;
+  latencyMs: number | null;
+  error: string | null;
 }
 
 export interface NotificationSettings {
-  telegram: boolean;
-  discord: boolean;
-  events: { key: string; label: string; critical: boolean; on: boolean }[];
+  channels: Record<string, boolean>;
+  subscriptions: Record<string, boolean>;
+  telegramBotTokenMasked: string | null;
+  telegramChatId: string | null;
+  minSeverity: string | null;
 }
 
 // ---------- Pilot AI 对话（handoff/03 §3.4） ----------

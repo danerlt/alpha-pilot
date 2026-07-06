@@ -32,6 +32,39 @@ function ok(data: unknown) {
 /** 模拟网络延迟，让 loading 态可见 */
 const LATENCY = 160;
 
+/** 设置分区的会话内模块态（形状 = 后端 P4 wire 契约） */
+const settingsState = {
+  exchange: {
+    network: "testnet" as string,
+    api_key_masked: "****3f2a" as string | null,
+    has_secret: true,
+  },
+  llm: {
+    model: "deepseek-v4-pro",
+    base_url: "https://api.deepseek.com/v1",
+    api_key_masked: "****a1b2" as string | null,
+    temperature: 0.3,
+    timeout_seconds: 30,
+    agent_models: {
+      decision: "deepseek-reasoner",
+      signal: "deepseek-chat",
+      review: "deepseek-chat",
+    } as Record<string, string>,
+  },
+  notify: {
+    channels: { telegram: true, discord: false } as Record<string, boolean>,
+    subscriptions: {
+      circuit_breaker: true,
+      order_filled: true,
+      position_closed: true,
+      daily_report: false,
+    } as Record<string, boolean>,
+    telegram_bot_token_masked: "****bot9",
+    telegram_chat_id: "-100123456",
+    min_severity: "info",
+  },
+};
+
 export const handlers = [
   // ---------- 风控 / 账户（wire 形状，与真实后端同构） ----------
   http.get("/api/risk/state", async () => {
@@ -309,6 +342,74 @@ export const handlers = [
     await delay(120);
     sessionStorage.removeItem("ap.mock.authed");
     return ok({ ok: true });
+  }),
+
+  // ---------- 设置（P4，模块态持久到会话内） ----------
+  http.get("/api/settings/exchange", async () => {
+    await delay(LATENCY);
+    return ok({ ...settingsState.exchange });
+  }),
+  http.put("/api/settings/exchange", async ({ request }) => {
+    await delay(300);
+    const b = (await request.json()) as {
+      network?: string;
+      api_key?: string;
+    };
+    if (b.network === "mainnet" || b.network === "testnet")
+      settingsState.exchange.network = b.network;
+    if (b.api_key)
+      settingsState.exchange.api_key_masked = `****${b.api_key.slice(-4)}`;
+    settingsState.exchange.has_secret = true;
+    return ok({ ...settingsState.exchange });
+  }),
+  http.post("/api/settings/exchange/test", async () => {
+    await delay(1000);
+    return ok({
+      ok: true,
+      permissions: { read: true, trade: true, withdraw: false },
+      warning: null,
+      error: null,
+    });
+  }),
+  http.get("/api/settings/llm", async () => {
+    await delay(LATENCY);
+    return ok({ ...settingsState.llm });
+  }),
+  http.put("/api/settings/llm", async ({ request }) => {
+    await delay(300);
+    const b = (await request.json()) as Record<string, unknown>;
+    const llm = settingsState.llm;
+    if (typeof b.model === "string") llm.model = b.model;
+    if (typeof b.base_url === "string") llm.base_url = b.base_url;
+    if (typeof b.api_key === "string" && b.api_key)
+      llm.api_key_masked = `****${(b.api_key as string).slice(-4)}`;
+    if (typeof b.temperature === "number") llm.temperature = b.temperature;
+    if (typeof b.timeout_seconds === "number")
+      llm.timeout_seconds = b.timeout_seconds;
+    return ok({ ...llm });
+  }),
+  http.post("/api/settings/llm/test", async () => {
+    await delay(900);
+    return ok({ ok: true, latency_ms: 842, error: null });
+  }),
+  http.get("/api/settings/notifications", async () => {
+    await delay(LATENCY);
+    return ok({ ...settingsState.notify });
+  }),
+  http.put("/api/settings/notifications", async ({ request }) => {
+    await delay(250);
+    const b = (await request.json()) as {
+      channels?: Record<string, boolean>;
+      subscriptions?: Record<string, boolean>;
+    };
+    if (b.channels)
+      settingsState.notify.channels = { ...settingsState.notify.channels, ...b.channels };
+    if (b.subscriptions)
+      settingsState.notify.subscriptions = {
+        ...settingsState.notify.subscriptions,
+        ...b.subscriptions,
+      };
+    return ok({ ...settingsState.notify });
   }),
 
   // ---------- 命令 ----------

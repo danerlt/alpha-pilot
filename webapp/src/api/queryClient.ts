@@ -38,4 +38,7 @@ export const qk = {
   reports: ["reports"] as const,
   users: ["admin", "users"] as const,
   permissions: ["admin", "roles"] as const,
+  settingsExchange: ["settings", "exchange"] as const,
+  settingsLlm: ["settings", "llm"] as const,
+  settingsNotify: ["settings", "notifications"] as const,
 };

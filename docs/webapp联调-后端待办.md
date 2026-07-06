@@ -1,5 +1,12 @@
 # webapp ⇄ 后端真联调 · 后端待办清单
 
+> **2026-07-06 前端契约刷新完成**（4 个 commit：核心域/绩效/行情流+实验室/设置+2FA），
+> 66 paths 已全量吃上，全部兼容代码已删。**新增缺口 #8**：
+>
+> | # | 缺口 | 前端现状 | 建议 |
+> |---|------|----------|------|
+> | 8 | **WS 握手只认 `?token=` 不读 cookie**（`/ws` 与 `/ws/market` 的 `_verify_token`） | 登录响应的 access_token 仅内存持有（`webapp/src/api/tokenStore.ts`），页面刷新后 WS 实时降级直到重新登录（REST 不受影响） | WS 握手增加 cookie（`ap_token`）回退：浏览器同源 WS upgrade 自动带 cookie，改一处 `_verify_token` 入参来源即可；落地后前端删 tokenStore |
+
 > **状态更新（2026-07-06 后端会话）**：**清单 #1-7 全部收口** ✅，openapi.json 已重导（66 paths），
 > 前端 `npm run gen:api` 后可删全部兼容代码。
 > - #1-4/6/7 见 2026-07-05 批次（`GET /api/account/history` / `GET /api/orders` /

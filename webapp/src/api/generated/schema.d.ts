@@ -1876,6 +1876,15 @@ export interface components {
             subscriptions: {
                 [key: string]: boolean;
             };
+            /** Telegram Bot Token Masked */
+            telegram_bot_token_masked?: string | null;
+            /** Telegram Chat Id */
+            telegram_chat_id?: string | null;
+            /**
+             * Min Severity
+             * @default warn
+             */
+            min_severity: string;
         };
         /** NotificationSettingsUpdate */
         NotificationSettingsUpdate: {
@@ -1887,6 +1896,12 @@ export interface components {
             subscriptions?: {
                 [key: string]: boolean;
             } | null;
+            /** Telegram Bot Token */
+            telegram_bot_token?: string | null;
+            /** Telegram Chat Id */
+            telegram_chat_id?: string | null;
+            /** Min Severity */
+            min_severity?: ("info" | "warn" | "critical") | null;
         };
         /**
          * OrderListItemRead

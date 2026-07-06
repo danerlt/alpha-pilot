@@ -9,6 +9,8 @@ import type {
   AccountOverview,
   AttributionRow,
   Decision,
+  ExchangeSettings,
+  ExchangeTestResult,
   GuardCheck,
   GuardVerdict,
   HardLimit,
@@ -16,6 +18,9 @@ import type {
   LabCandidate,
   LabHistoryItem,
   LabStage,
+  LlmSettings,
+  LlmTestResult,
+  NotificationSettings,
   MarketSymbol,
   MonthlyPnl,
   Order,
@@ -421,6 +426,68 @@ export function fromWireLabHistory(w: WireLabHistory): LabHistoryItem {
     kind: a.includes("promote") ? "promote" : a.includes("rollback") ? "rollback" : "retire",
     title: w.candidate_name ?? `候选 #${w.candidate_id}`,
     note: [w.reason, w.operator].filter(Boolean).join(" · ") || undefined,
+  };
+}
+
+// ---------- 设置 ----------
+export type WireExchangeSettings = S["ExchangeSettingsOut"];
+export type WireExchangeTest = S["ExchangeTestOut"];
+export type WireLlmSettings = S["LlmSettingsOut"];
+export type WireLlmTest = S["LlmTestOut"];
+export type WireNotificationSettings = S["NotificationSettingsOut"];
+
+export function fromWireExchangeSettings(
+  w: WireExchangeSettings,
+): ExchangeSettings {
+  return {
+    network: w.network === "mainnet" ? "mainnet" : "testnet",
+    apiKeyMasked: w.api_key_masked ?? null,
+    hasSecret: w.has_secret ?? false,
+  };
+}
+
+export function fromWireExchangeTest(w: WireExchangeTest): ExchangeTestResult {
+  const p = (w.permissions ?? null) as
+    | { read?: boolean; trade?: boolean; withdraw?: boolean }
+    | null;
+  return {
+    ok: w.ok,
+    permissions: p
+      ? {
+          read: p.read ?? false,
+          trade: p.trade ?? false,
+          withdraw: p.withdraw ?? false,
+        }
+      : null,
+    warning: w.warning ?? null,
+    error: w.error ?? null,
+  };
+}
+
+export function fromWireLlmSettings(w: WireLlmSettings): LlmSettings {
+  return {
+    model: w.model ?? "",
+    baseUrl: w.base_url ?? "",
+    apiKeyMasked: w.api_key_masked ?? null,
+    temperature: w.temperature ?? 0.3,
+    timeoutSeconds: w.timeout_seconds ?? 30,
+    agentModels: w.agent_models ?? {},
+  };
+}
+
+export function fromWireLlmTest(w: WireLlmTest): LlmTestResult {
+  return { ok: w.ok, latencyMs: w.latency_ms ?? null, error: w.error ?? null };
+}
+
+export function fromWireNotificationSettings(
+  w: WireNotificationSettings,
+): NotificationSettings {
+  return {
+    channels: w.channels ?? {},
+    subscriptions: w.subscriptions ?? {},
+    telegramBotTokenMasked: w.telegram_bot_token_masked ?? null,
+    telegramChatId: w.telegram_chat_id ?? null,
+    minSeverity: w.min_severity ?? null,
   };
 }
 

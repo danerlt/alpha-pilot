@@ -15,9 +15,14 @@ import {
   fromWireRiskLimits,
   fromWireDecision,
   fromWireDecisionDetail,
+  fromWireExchangeSettings,
+  fromWireExchangeTest,
   fromWireKline,
   fromWireLabCandidate,
   fromWireLabHistory,
+  fromWireLlmSettings,
+  fromWireLlmTest,
+  fromWireNotificationSettings,
   fromWireMarketSymbol,
   fromWirePosition,
   fromWirePrecheck,
@@ -31,12 +36,17 @@ import {
   type WireCatchup,
   type WireDecision,
   type WireDecisionDetail,
+  type WireExchangeSettings,
+  type WireExchangeTest,
   type WireKline,
   type WireLabCandidate,
   type WireLabHistory,
+  type WireLlmSettings,
+  type WireLlmTest,
   type WireLogin,
   type WireMarketSymbol,
   type WireMonthlyPnl,
+  type WireNotificationSettings,
   type WireOrder,
   type WirePerfSummary,
   type WirePosition,
@@ -243,6 +253,71 @@ export const authApi = {
     http<{ ok: boolean }>("/api/auth/logout", { method: "POST" }).finally(
       () => setWsToken(null),
     ),
+};
+
+export interface ExchangeSettingsUpdate {
+  network?: "testnet" | "mainnet";
+  apiKey?: string;
+  apiSecret?: string;
+}
+
+export interface LlmSettingsUpdate {
+  model?: string;
+  baseUrl?: string;
+  apiKey?: string;
+  temperature?: number;
+  timeoutSeconds?: number;
+  agentModels?: Record<string, string>;
+}
+
+export const settingsApi = {
+  getExchange: () =>
+    http<WireExchangeSettings>("/api/settings/exchange").then(
+      fromWireExchangeSettings,
+    ),
+  updateExchange: (u: ExchangeSettingsUpdate) =>
+    http<WireExchangeSettings>("/api/settings/exchange", {
+      method: "PUT",
+      body: JSON.stringify({
+        network: u.network,
+        api_key: u.apiKey,
+        api_secret: u.apiSecret,
+      }),
+    }).then(fromWireExchangeSettings),
+  testExchange: () =>
+    http<WireExchangeTest>("/api/settings/exchange/test", {
+      method: "POST",
+    }).then(fromWireExchangeTest),
+  getLlm: () =>
+    http<WireLlmSettings>("/api/settings/llm").then(fromWireLlmSettings),
+  updateLlm: (u: LlmSettingsUpdate) =>
+    http<WireLlmSettings>("/api/settings/llm", {
+      method: "PUT",
+      body: JSON.stringify({
+        model: u.model,
+        base_url: u.baseUrl,
+        api_key: u.apiKey,
+        temperature: u.temperature,
+        timeout_seconds: u.timeoutSeconds,
+        agent_models: u.agentModels,
+      }),
+    }).then(fromWireLlmSettings),
+  testLlm: () =>
+    http<WireLlmTest>("/api/settings/llm/test", { method: "POST" }).then(
+      fromWireLlmTest,
+    ),
+  getNotifications: () =>
+    http<WireNotificationSettings>("/api/settings/notifications").then(
+      fromWireNotificationSettings,
+    ),
+  updateNotifications: (u: {
+    channels?: Record<string, boolean>;
+    subscriptions?: Record<string, boolean>;
+  }) =>
+    http<WireNotificationSettings>("/api/settings/notifications", {
+      method: "PUT",
+      body: JSON.stringify(u),
+    }).then(fromWireNotificationSettings),
 };
 
 export const commandsApi = {

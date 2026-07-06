@@ -13,6 +13,7 @@ import {
   performanceApi,
   positionsApi,
   riskApi,
+  settingsApi,
   strategyApi,
   tradesApi,
 } from "./services";
@@ -95,3 +96,12 @@ export const useUsers = () =>
 
 export const usePermissions = () =>
   useQuery({ queryKey: qk.permissions, queryFn: adminApi.permissions });
+
+export const useExchangeSettings = () =>
+  useQuery({ queryKey: qk.settingsExchange, queryFn: settingsApi.getExchange });
+
+export const useLlmSettings = () =>
+  useQuery({ queryKey: qk.settingsLlm, queryFn: settingsApi.getLlm });
+
+export const useNotificationSettings = () =>
+  useQuery({ queryKey: qk.settingsNotify, queryFn: settingsApi.getNotifications });
