@@ -24,6 +24,7 @@ import {
   type TestState,
 } from "@/components/ui/form";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { TwoFaDialog } from "@/components/settings/TwoFaDialog";
 import { commandsApi, settingsApi } from "@/api/services";
 import {
   useExchangeSettings,
@@ -529,6 +530,7 @@ function AccountSection() {
   const { data: me } = useMe();
   const [stopOpen, setStopOpen] = useState(false);
   const [stopping, setStopping] = useState(false);
+  const [twoFaOpen, setTwoFaOpen] = useState(false);
 
   const emergencyStop = async () => {
     setStopping(true);
@@ -552,6 +554,16 @@ function AccountSection() {
           <Pill tone={me?.twoFa ? "mint" : "default"}>
             {me?.twoFa ? "已启用" : "未启用"}
           </Pill>
+          <button
+            onClick={() => setTwoFaOpen(true)}
+            className={`cursor-pointer rounded-sm border px-3 py-[7px] text-xs ${
+              me?.twoFa
+                ? "border-rose/40 text-rose"
+                : "border-mint/40 text-mint"
+            }`}
+          >
+            {me?.twoFa ? "关闭" : "开启"}
+          </button>
         </div>
         <div className="flex items-center gap-3 py-[11px]">
           <div className="flex-1">
@@ -577,6 +589,12 @@ function AccountSection() {
           </button>
         </div>
       </Card>
+
+      <TwoFaDialog
+        open={twoFaOpen}
+        mode={me?.twoFa ? "disable" : "enable"}
+        onClose={() => setTwoFaOpen(false)}
+      />
 
       <ConfirmDialog
         open={stopOpen}

@@ -236,6 +236,22 @@ export const adminApi = {
     http<WireRoles>("/api/admin/roles").then(fromWireRoles),
   approveUser: (id: string) =>
     http<{ ok: boolean }>(`/api/admin/users/${id}/approve`, { method: "POST" }),
+  createUser: (u: {
+    username: string;
+    email: string;
+    password: string;
+    role: string;
+    status?: string;
+  }) =>
+    http<WireUser>("/api/admin/users", {
+      method: "POST",
+      body: JSON.stringify(u),
+    }).then(fromWireUser),
+  updateUser: (id: string, u: { role?: string; status?: string }) =>
+    http<WireUser>(`/api/admin/users/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(u),
+    }).then(fromWireUser),
 };
 
 export interface LoginResult {
@@ -271,6 +287,21 @@ export const authApi = {
     http<{ ok: boolean }>("/api/auth/logout", { method: "POST" }).finally(
       () => setWsToken(null),
     ),
+  // 2FA 开启流：setup 返回 secret+otpauth_uri → verify 校验动态码开启
+  twoFaSetup: () =>
+    http<{ secret: string; otpauth_uri: string }>("/api/auth/2fa/setup", {
+      method: "POST",
+    }),
+  twoFaVerify: (code: string) =>
+    http<{ two_fa_enabled: boolean }>("/api/auth/2fa/verify", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    }),
+  twoFaDisable: (code: string) =>
+    http<{ two_fa_enabled: boolean }>("/api/auth/2fa/disable", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    }),
 };
 
 export interface ExchangeSettingsUpdate {

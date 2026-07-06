@@ -306,9 +306,43 @@ export const handlers = [
   }),
   http.post("/api/admin/users/:id/approve", async ({ params }) => {
     await delay(300);
-    const u = mock.mockUsers.find((x) => x.id === params.id);
+    const u = mock.mockUsers.find(
+      (x) => String(Number(x.id.replace(/\D/g, "")) || 1) === params.id,
+    );
     if (u) u.status = "active";
     return ok({ ok: true });
+  }),
+  http.post("/api/admin/users", async ({ request }) => {
+    await delay(400);
+    const b = (await request.json()) as {
+      username: string;
+      email: string;
+      role: string;
+      status?: string;
+    };
+    const user = {
+      id: `u_${mock.mockUsers.length + 1}`,
+      name: b.username,
+      email: b.email,
+      role: b.role as (typeof mock.mockUsers)[0]["role"],
+      status: (b.status ?? "active") as (typeof mock.mockUsers)[0]["status"],
+      twoFa: false,
+      lastActive: "刚刚",
+    };
+    mock.mockUsers.push(user);
+    return ok(wire.toWireUser(user));
+  }),
+  http.patch("/api/admin/users/:id", async ({ params, request }) => {
+    await delay(300);
+    const b = (await request.json()) as { role?: string; status?: string };
+    const u = mock.mockUsers.find(
+      (x) => String(Number(x.id.replace(/\D/g, "")) || 1) === params.id,
+    );
+    if (u) {
+      if (b.role) u.role = b.role as typeof u.role;
+      if (b.status) u.status = b.status as typeof u.status;
+    }
+    return ok(wire.toWireUser(u ?? mock.mockUsers[0]));
   }),
 
   // ---------- 认证（会话用 sessionStorage 模拟 httpOnly cookie） ----------
@@ -357,6 +391,24 @@ export const handlers = [
     await delay(120);
     sessionStorage.removeItem("ap.mock.authed");
     return ok({ ok: true });
+  }),
+  http.post("/api/auth/2fa/setup", async () => {
+    await delay(300);
+    return ok({
+      secret: "JBSWY3DPEHPK3PXP",
+      otpauth_uri:
+        "otpauth://totp/AlphaPilot:admin?secret=JBSWY3DPEHPK3PXP&issuer=AlphaPilot",
+    });
+  }),
+  http.post("/api/auth/2fa/verify", async () => {
+    await delay(300);
+    mock.mockUsers[0].twoFa = true;
+    return ok({ two_fa_enabled: true });
+  }),
+  http.post("/api/auth/2fa/disable", async () => {
+    await delay(300);
+    mock.mockUsers[0].twoFa = false;
+    return ok({ two_fa_enabled: false });
   }),
 
   // ---------- 设置（P4，模块态持久到会话内） ----------

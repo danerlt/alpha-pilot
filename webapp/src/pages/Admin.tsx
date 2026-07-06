@@ -1,15 +1,24 @@
 /**
  * 后台管理（handoff/02 P12）—— 三分区：用户管理 / 角色权限矩阵 / 管理日志。
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Key, List, Settings as SettingsIcon, Users, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { PageShell } from "@/components/shell/PageShell";
 import { Card, Pill, Stat } from "@/components/ui/atoms";
+import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
+import { Field, Input, Select } from "@/components/ui/form";
 import { useAuditLogs, usePermissions, useUsers } from "@/api/queries";
 import { qk } from "@/api/queryClient";
 import { adminApi } from "@/api/services";
 import type { PermissionRow, Role, User } from "@/api/types";
+
+const ROLE_OPTIONS = [
+  { v: "admin", l: "Admin" },
+  { v: "trader", l: "Trader" },
+  { v: "viewer", l: "Viewer" },
+];
 
 const ROLE_CFG: Record<Role, { l: string; tone: "violet" | "rose" | "mint" | "cyan"; desc: string }> = {
   owner: { l: "Owner", tone: "violet", desc: "所有权限 + 转让所有权" },
@@ -49,9 +58,18 @@ function StatusPill({ s }: { s: User["status"] }) {
 function UsersTab() {
   const queryClient = useQueryClient();
   const { data: users = [] } = useUsers();
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [editing, setEditing] = useState<User | null>(null);
+  const refresh = () => queryClient.invalidateQueries({ queryKey: qk.users });
   const approve = async (id: string) => {
     await adminApi.approveUser(id);
-    await queryClient.invalidateQueries({ queryKey: qk.users });
+    await refresh();
+  };
+  const toggleDisable = async (u: User) => {
+    await adminApi.updateUser(u.id, {
+      status: u.status === "disabled" ? "active" : "disabled",
+    });
+    await refresh();
   };
   const twoFaPct = users.length
     ? Math.round((users.filter((u) => u.twoFa).length / users.length) * 100)
@@ -72,7 +90,10 @@ function UsersTab() {
       <Card
         title="用户"
         right={
-          <button className="cursor-pointer rounded-sm border-none bg-mint px-3 py-1.5 text-xs font-bold text-bg-0 hover:brightness-110">
+          <button
+            onClick={() => setInviteOpen(true)}
+            className="cursor-pointer rounded-sm border-none bg-mint px-3 py-1.5 text-xs font-bold text-bg-0 hover:brightness-110"
+          >
             + 邀请用户
           </button>
         }
@@ -134,10 +155,16 @@ function UsersTab() {
                         ) : (
                           !self && (
                             <>
-                              <button className="cursor-pointer rounded-xs border border-line bg-bg-3 px-[11px] py-1 text-[11px] text-fg-2">
+                              <button
+                                onClick={() => setEditing(u)}
+                                className="cursor-pointer rounded-xs border border-line bg-bg-3 px-[11px] py-1 text-[11px] text-fg-2"
+                              >
                                 编辑
                               </button>
-                              <button className="cursor-pointer rounded-xs border border-rose/35 bg-transparent px-[11px] py-1 text-[11px] text-rose">
+                              <button
+                                onClick={() => toggleDisable(u)}
+                                className="cursor-pointer rounded-xs border border-rose/35 bg-transparent px-[11px] py-1 text-[11px] text-rose"
+                              >
                                 {u.status === "disabled" ? "启用" : "停用"}
                               </button>
                             </>
@@ -152,7 +179,143 @@ function UsersTab() {
           </table>
         </div>
       </Card>
+
+      <InviteUserModal
+        open={inviteOpen}
+        onClose={() => setInviteOpen(false)}
+        onDone={refresh}
+      />
+      <EditUserModal
+        user={editing}
+        onClose={() => setEditing(null)}
+        onDone={refresh}
+      />
     </>
+  );
+}
+
+function InviteUserModal({
+  open,
+  onClose,
+  onDone,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState("viewer");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const submit = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      await adminApi.createUser({ username, email, password, role, status: "active" });
+      onDone();
+      onClose();
+      setUsername("");
+      setEmail("");
+      setPassword("");
+      setRole("viewer");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "创建失败");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal open={open} onClose={onClose} title="邀请用户（建号）">
+      <div className="flex flex-col gap-3">
+        <Field label="用户名">
+          <Input value={username} onChange={setUsername} mono={false} placeholder="张三" />
+        </Field>
+        <Field label="邮箱">
+          <Input value={email} onChange={setEmail} mono={false} placeholder="user@example.com" />
+        </Field>
+        <Field label="初始密码">
+          <Input value={password} onChange={setPassword} mono={false} placeholder="强密码" />
+        </Field>
+        <Field label="角色">
+          <Select value={role} onChange={setRole} options={ROLE_OPTIONS} />
+        </Field>
+        {error && <div className="text-xs text-rose">{error}</div>}
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={onClose}>
+            取消
+          </Button>
+          <Button
+            variant="primary"
+            disabled={busy || !username || !email || !password}
+            onClick={submit}
+          >
+            {busy ? "创建中…" : "创建用户"}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function EditUserModal({
+  user,
+  onClose,
+  onDone,
+}: {
+  user: User | null;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [role, setRole] = useState("viewer");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (user) setRole(user.role);
+  }, [user]);
+
+  const submit = async () => {
+    if (!user) return;
+    setBusy(true);
+    try {
+      await adminApi.updateUser(user.id, { role });
+      onDone();
+      onClose();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal
+      open={user !== null}
+      onClose={onClose}
+      title={user ? `编辑用户 · ${user.name}` : ""}
+    >
+      {user && (
+        <div className="flex flex-col gap-3">
+          <div className="font-mono text-xs text-fg-4">{user.email}</div>
+          <Field label="角色">
+            <Select
+              value={role}
+              onChange={setRole}
+              options={ROLE_OPTIONS}
+            />
+          </Field>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={onClose}>
+              取消
+            </Button>
+            <Button variant="primary" disabled={busy} onClick={submit}>
+              {busy ? "保存中…" : "保存"}
+            </Button>
+          </div>
+        </div>
+      )}
+    </Modal>
   );
 }
 
