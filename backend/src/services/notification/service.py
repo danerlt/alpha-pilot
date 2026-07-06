@@ -26,9 +26,20 @@ _DEDUP_MAX = 2048  # 去重缓存上限 (LRU, 防内存无限增长)
 
 
 class NotificationService:
-    def __init__(self, channels: list[NotificationChannel], min_severity: str = "warn"):
+    def __init__(
+        self,
+        channels: list[NotificationChannel],
+        min_severity: str = "warn",
+        *,
+        channels_factory=None,
+        min_severity_factory=None,
+    ):
+        """channels_factory: 每次 dispatch 重建 channel (拿 DB runtime 最新配置,
+        前端改 Telegram token 后无需重启 scheduler; 构造零成本, 告警低频)。"""
         self._channels = channels
         self._min_rank = severity_rank(min_severity)
+        self._channels_factory = channels_factory
+        self._min_severity_factory = min_severity_factory
         self._seen: "OrderedDict[str, None]" = OrderedDict()
 
     def _already_sent(self, event_id: str) -> bool:
@@ -41,6 +52,13 @@ class NotificationService:
 
     def dispatch(self, envelope: EventEnvelope) -> bool:
         """返回是否实际推送了 (至少一个 channel 成功)。"""
+        if self._channels_factory is not None:
+            try:
+                self._channels = self._channels_factory()
+                if self._min_severity_factory is not None:
+                    self._min_rank = severity_rank(self._min_severity_factory())
+            except Exception:
+                logger.exception("notification channels refresh failed; keep previous")
         message = format_notification(envelope)
         if message is None:
             return False
@@ -77,8 +95,16 @@ def build_channels_from_config(cfg) -> list[NotificationChannel]:
 
 
 def build_notification_service(cfg) -> NotificationService:
-    """从 AppConfig 构建 NotificationService。"""
+    """从 AppConfig 构建 NotificationService。
+
+    channels 每次 dispatch 按当前 settings 重建 (DB runtime 配置写回 settings
+    单例后, 前端改的 Telegram token/severity 在下一条告警即生效)。
+    """
+    from src.configs.app_configs import get_settings
+
     return NotificationService(
         channels=build_channels_from_config(cfg),
         min_severity=cfg.NOTIFY_MIN_SEVERITY,
+        channels_factory=lambda: build_channels_from_config(get_settings()),
+        min_severity_factory=lambda: get_settings().NOTIFY_MIN_SEVERITY,
     )

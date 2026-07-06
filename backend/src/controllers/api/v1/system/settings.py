@@ -104,4 +104,7 @@ def put_notification_settings(
     return AppSettingsService(db).put_notifications(
         operator_user_id=current_admin.id,
         channels=body.channels, subscriptions=body.subscriptions,
+        telegram_bot_token=body.telegram_bot_token,
+        telegram_chat_id=body.telegram_chat_id,
+        min_severity=body.min_severity,
     )

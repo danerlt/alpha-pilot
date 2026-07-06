@@ -52,11 +52,17 @@ class LlmTestOut(BaseModel):
 class NotificationSettingsOut(BaseModel):
     channels: dict[str, bool]
     subscriptions: dict[str, bool]
+    telegram_bot_token_masked: str | None = None
+    telegram_chat_id: str | None = None
+    min_severity: str = "warn"
 
 
 class NotificationSettingsUpdate(BaseModel):
     channels: dict[str, bool] | None = None
     subscriptions: dict[str, bool] | None = None
+    telegram_bot_token: str | None = Field(default=None, min_length=8, max_length=100)
+    telegram_chat_id: str | None = Field(default=None, max_length=50)
+    min_severity: Literal["info", "warn", "critical"] | None = None
 
 
 class SettingsAuditContext(BaseModel):

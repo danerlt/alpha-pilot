@@ -16,6 +16,20 @@ from src.models import Base
 
 @pytest.fixture
 def admin_client():
+    # settings PUT 会触发 runtime refresh 写回全局 settings 单例 —— 快照恢复防污染
+    from src.configs.app_configs import get_settings
+
+    settings = get_settings()
+    _keep_fields = (
+        "TRADING_MODE", "BINANCE_API_KEY", "BINANCE_API_SECRET",
+        "LLM_API_KEY", "LLM_MODEL", "LLM_BASE_URL",
+        "NOTIFY_ENABLED", "NOTIFY_MIN_SEVERITY",
+        "NOTIFY_TELEGRAM_BOT_TOKEN", "NOTIFY_TELEGRAM_CHAT_ID",
+        "MAX_POSITION_SIZE_PCT", "MAX_DAILY_LOSS_PCT",
+        "MAX_CONSECUTIVE_LOSSES", "MAX_SINGLE_RISK_PCT",
+    )
+    _snapshot = {f: getattr(settings, f) for f in _keep_fields}
+
     eng = create_engine(os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:"))
     Base.metadata.create_all(eng)
 
@@ -34,6 +48,8 @@ def admin_client():
     )
     yield TestClient(app), eng
     app.dependency_overrides.clear()
+    for f, v in _snapshot.items():
+        setattr(settings, f, v)
 
 
 def test_exchange_put_returns_masked_never_plaintext(admin_client):
@@ -120,3 +136,26 @@ def test_settings_require_admin():
         assert cli.get("/api/settings/exchange").json()["code"] == "400004"
     finally:
         app.dependency_overrides.clear()
+
+
+def test_notifications_telegram_token_masked(admin_client):
+    cli, eng = admin_client
+    r = cli.put("/api/settings/notifications", json={
+        "telegram_bot_token": "123456:AAHsecretXYZ9999",
+        "telegram_chat_id": "-1001234",
+        "min_severity": "critical",
+    })
+    data = r.json()["data"]
+    assert data["telegram_bot_token_masked"] == "****9999"
+    assert data["telegram_chat_id"] == "-1001234"
+    assert data["min_severity"] == "critical"
+    assert "AAHsecret" not in r.text  # 无明文回显
+    # DB 加密存储
+    from src.models.system_setting import SystemSetting
+
+    with Session(eng) as s:
+        row = s.query(SystemSetting).filter(
+            SystemSetting.key == "notify.telegram.bot_token"
+        ).one()
+        assert row.is_secret is True
+        assert "AAHsecret" not in (row.encrypted_value or "")

@@ -4,8 +4,9 @@
   - 交易所: runtime.trading_mode + binance.{network}.api_key/secret (加密)
   - LLM:   llm.model / llm.base_url / llm.api_key (加密) / llm.temperature /
            llm.timeout_seconds / llm.agent_models (per-agent 模型分工)
-  - 通知:  notify.channels / notify.subscriptions (V1 只存开关与订阅;
-           渠道 token 仍走 env, 接入 notifier 记为后续接线)
+  - 通知:  notify.channels / notify.subscriptions / notify.min_severity /
+           notify.telegram.bot_token (加密) / notify.telegram.chat_id
+           —— notifier 每次告警按当前 settings 重建 channel, 改完即生效
 
 安全: 任何 GET 永不回明文 (只回 ****尾4位); PUT 写 AuditLog 且审计体不含明文;
 真实密钥只经 API 写入 DB, 不写 env 文件 (遵守仓库 env 黑白名单)。
@@ -222,17 +223,26 @@ class AppSettingsService:
     # ── 通知 ────────────────────────────────────────────────────────────
 
     def get_notifications(self) -> dict:
+        token = self._read("notify.telegram.bot_token")
         return {
             "channels": {**_DEFAULT_CHANNELS, **(self._read("notify.channels") or {})},
             "subscriptions": {
                 **_DEFAULT_SUBSCRIPTIONS, **(self._read("notify.subscriptions") or {}),
             },
+            "telegram_bot_token_masked": _mask(token),
+            "telegram_chat_id": self._read("notify.telegram.chat_id"),
+            "min_severity": self._read("notify.min_severity")
+            or getattr(self._settings, "NOTIFY_MIN_SEVERITY", "warn"),
         }
 
     def put_notifications(
         self, *, operator_user_id: int,
         channels: dict | None = None, subscriptions: dict | None = None,
+        telegram_bot_token: str | None = None, telegram_chat_id: str | None = None,
+        min_severity: str | None = None,
     ) -> dict:
+        """通知配置入库 (token Fernet 加密)。channels.telegram 开关语义:
+        配置 token 即启用, 关闭请清空 token (前端开关对应清 token)。"""
         changes: dict[str, Any] = {}
         if channels is not None:
             changes["notify.channels"] = {**self.get_notifications()["channels"], **channels}
@@ -240,6 +250,12 @@ class AppSettingsService:
             changes["notify.subscriptions"] = {
                 **self.get_notifications()["subscriptions"], **subscriptions,
             }
+        if telegram_bot_token is not None:
+            changes["notify.telegram.bot_token"] = telegram_bot_token
+        if telegram_chat_id is not None:
+            changes["notify.telegram.chat_id"] = telegram_chat_id
+        if min_severity is not None:
+            changes["notify.min_severity"] = min_severity
         if not changes:
             raise ServiceException("没有需要更新的字段")
         self._write(changes)
@@ -248,6 +264,7 @@ class AppSettingsService:
             changed=sorted(changes),
         )
         self._session.commit()
+        self._refresh()
         return self.get_notifications()
 
     # ── 默认工厂 ────────────────────────────────────────────────────────

@@ -77,3 +77,74 @@ def test_refresh_safe_swallows_db_errors(monkeypatch):
 
     monkeypatch.setattr("src.db.session.get_db_session", _boom)
     assert rc.refresh_runtime_settings_safe(source="unit_test") is None
+
+
+def test_notify_keys_are_mapped_to_settings(session, monkeypatch):
+    """通知配置 (含加密 token) 从 DB 写回 settings → notifier 下一条告警生效。"""
+    import src.core.exchange.binance_client as bc
+
+    monkeypatch.setattr(bc.get_binance_client, "cache_clear", lambda: None)
+    settings = get_settings()
+    keep = {
+        f: getattr(settings, f)
+        for f in ("NOTIFY_TELEGRAM_BOT_TOKEN", "NOTIFY_TELEGRAM_CHAT_ID", "NOTIFY_MIN_SEVERITY")
+    }
+    master_key = Fernet.generate_key().decode()
+    fernet = Fernet(master_key.encode())
+    try:
+        upsert_system_setting(session, key="notify.telegram.bot_token", value="123456:ABCDEF", fernet=fernet)
+        upsert_system_setting(session, key="notify.telegram.chat_id", value="-100999", fernet=fernet)
+        upsert_system_setting(session, key="notify.min_severity", value="critical", fernet=fernet)
+        session.commit()
+        # token 是 SECRET_KEYS → 加密入库
+        from src.models.system_setting import SystemSetting
+
+        row = session.query(SystemSetting).filter(
+            SystemSetting.key == "notify.telegram.bot_token"
+        ).one()
+        assert row.is_secret is True and "ABCDEF" not in (row.encrypted_value or "")
+
+        apply_runtime_settings_refresh(
+            session, master_key=master_key, default_trading_mode=settings.TRADING_MODE,
+        )
+        assert get_settings().NOTIFY_TELEGRAM_BOT_TOKEN == "123456:ABCDEF"
+        assert get_settings().NOTIFY_TELEGRAM_CHAT_ID == "-100999"
+        assert get_settings().NOTIFY_MIN_SEVERITY == "critical"
+    finally:
+        for f, v in keep.items():
+            setattr(settings, f, v)
+
+
+def test_notification_service_channels_factory_refreshes():
+    """dispatch 前按 factory 重建 channel — 前端改 token 无需重启 scheduler。"""
+    from datetime import datetime, timezone
+
+    from src.services.events.contracts import EventEnvelope
+    from src.services.notification.service import NotificationService
+
+    class _FakeChannel:
+        name = "fake"
+
+        def __init__(self):
+            self.sent = []
+
+        def send(self, message):
+            self.sent.append(message)
+
+    generation = {"n": 0}
+    built = []
+
+    def _factory():
+        generation["n"] += 1
+        ch = _FakeChannel()
+        built.append(ch)
+        return [ch]
+
+    svc = NotificationService(channels=[], min_severity="warn", channels_factory=_factory)
+    env = EventEnvelope(
+        event_id="e1", occurred_at=datetime.now(timezone.utc), trace_id="t",
+        event_type="circuit_breaker.triggered", payload={"reason": "daily_loss:-0.04"},
+    )
+    svc.dispatch(env)
+    assert generation["n"] == 1  # 每次 dispatch 重建 → 拿最新配置
+    assert built[-1].sent  # 告警送达新 channel

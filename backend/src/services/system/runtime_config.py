@@ -20,6 +20,10 @@ BINANCE_TESTNET_API_SECRET = "binance.testnet.api_secret"
 BINANCE_MAINNET_API_KEY = "binance.mainnet.api_key"
 BINANCE_MAINNET_API_SECRET = "binance.mainnet.api_secret"
 LLM_API_KEY = "llm.api_key"
+NOTIFY_ENABLED_KEY = "notify.enabled"
+NOTIFY_MIN_SEVERITY_KEY = "notify.min_severity"
+NOTIFY_TELEGRAM_BOT_TOKEN_KEY = "notify.telegram.bot_token"
+NOTIFY_TELEGRAM_CHAT_ID_KEY = "notify.telegram.chat_id"
 LLM_BASE_URL = "llm.base_url"
 LLM_MODEL = "llm.model"
 MAX_POSITION_SIZE_PCT = "risk.max_position_size_pct"
@@ -33,6 +37,7 @@ SECRET_KEYS = {
     BINANCE_MAINNET_API_KEY,
     BINANCE_MAINNET_API_SECRET,
     LLM_API_KEY,
+    NOTIFY_TELEGRAM_BOT_TOKEN_KEY,
 }
 
 
@@ -81,6 +86,10 @@ class RuntimeConfigManager:
             MAX_DAILY_LOSS_PCT: "MAX_DAILY_LOSS_PCT",
             MAX_CONSECUTIVE_LOSSES: "MAX_CONSECUTIVE_LOSSES",
             MAX_SINGLE_RISK_PCT: "MAX_SINGLE_RISK_PCT",
+            NOTIFY_ENABLED_KEY: "NOTIFY_ENABLED",
+            NOTIFY_MIN_SEVERITY_KEY: "NOTIFY_MIN_SEVERITY",
+            NOTIFY_TELEGRAM_BOT_TOKEN_KEY: "NOTIFY_TELEGRAM_BOT_TOKEN",
+            NOTIFY_TELEGRAM_CHAT_ID_KEY: "NOTIFY_TELEGRAM_CHAT_ID",
         }
         for key, field in direct_map.items():
             if key in raw and raw[key] is not None:
@@ -121,6 +130,8 @@ def coerce_setting_value(key: str, value: Any) -> Any:
         return int(value)
     if key == RUNTIME_MODE_KEY:
         return TradingMode(value).value
+    if key == NOTIFY_ENABLED_KEY:
+        return bool(value) if not isinstance(value, str) else value.lower() in ("1", "true", "yes")
     return value
 
 
