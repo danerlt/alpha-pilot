@@ -306,6 +306,19 @@ class ExecutionGuard:
         else:
             results.append(GuardCheckResult("review", True, "not rejected"))
 
+        # 11. 策略启停 (风控页开关真实生效): 被禁用模式的 OPEN_LONG 拒绝
+        from src.services.strategy.strategy_registry import get_disabled_modes
+
+        if is_open and proposal.strategy_mode in get_disabled_modes(self._session):
+            results.append(GuardCheckResult(
+                "strategy_enabled", False,
+                f"strategy_disabled:{proposal.strategy_mode}",
+            ))
+        else:
+            results.append(GuardCheckResult(
+                "strategy_enabled", True, f"mode={proposal.strategy_mode}",
+            ))
+
         return results
 
     def _record(

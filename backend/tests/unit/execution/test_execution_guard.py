@@ -325,7 +325,7 @@ def test_evaluate_returns_all_checks_for_open_long(session, profile):
     assert names == [
         "daily_loss", "consecutive_losses", "balance", "duplicate_position",
         "position_size", "single_risk", "sl_distance", "rr_ratio",
-        "chaotic_regime", "review",
+        "chaotic_regime", "review", "strategy_enabled",
     ]
     assert all(r.passed for r in results)
 
@@ -345,7 +345,7 @@ def test_evaluate_does_not_short_circuit(session, profile):
     assert results[0].check == "daily_loss"
     assert results[0].passed is False
     assert results[0].severity == "REJECT"
-    assert len(results) == 10
+    assert len(results) == 11
 
 
 def test_evaluate_chaotic_is_degrade_severity(session, profile):
@@ -384,3 +384,17 @@ def test_check_verdict_equals_first_failed_evaluate_item(session, profile, kw, e
     else:
         assert check_res.result == ("DEGRADE" if first_fail.severity == "DEGRADE" else "REJECT")
         assert check_res.reason == first_fail.note
+
+
+def test_disabled_strategy_mode_rejected(session, profile):
+    """风控页策略开关真实生效: 禁用模式的 OPEN_LONG 被守卫拒绝。"""
+    from src.services.strategy.strategy_registry import set_strategy_enabled
+
+    set_strategy_enabled(session, mode="ai_trend", enabled=False, operator_user_id=1)
+    r = _check(session, profile, _open_long())  # _open_long 是 ai_trend
+    assert r.result == "REJECT"
+    assert "strategy_disabled:ai_trend" in r.reason
+    # 重新启用 → 恢复 PASS
+    set_strategy_enabled(session, mode="ai_trend", enabled=True, operator_user_id=1)
+    r2 = _check(session, profile, _open_long())
+    assert r2.result == "PASS"

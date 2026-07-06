@@ -85,3 +85,17 @@ class DecisionDetailOut(BaseModel):
     guard_events: list[DecisionGuardEventRead]
     orders: list[DecisionOrderRead]
     position_ids: list[int]
+
+
+class StrategyCardRead(BaseModel):
+    """受限策略集卡片 (风控页, 与前端 StrategyCard 同构)。"""
+
+    id: str
+    name: str
+    enabled: bool
+    regimes: list[str]
+    desc: str
+
+
+class StrategyToggleOut(BaseModel):
+    ok: bool

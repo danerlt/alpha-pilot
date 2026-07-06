@@ -105,3 +105,12 @@ def test_market_ws_rejects_unknown_symbol(env):
         with cli.websocket_connect(f"/ws/market?token={_token()}&symbol=NOPEUSDT"):
             pass
     assert exc_info.value.code == 4404
+
+
+def test_market_ws_accepts_httponly_cookie(env):
+    """浏览器验收修复: 无 ?token= 时回退 ap_token cookie (前端刷新后场景)。"""
+    cli = env
+    cli.cookies.set("ap_token", _token())
+    with cli.websocket_connect("/ws/market?symbol=BTCUSDT") as ws:
+        msg = ws.receive_json()
+        assert msg["type"].startswith("market.")

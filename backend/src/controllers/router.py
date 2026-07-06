@@ -31,6 +31,7 @@ from src.controllers.api.v1.strategy.attribution import router as _attribution_r
 from src.controllers.api.v1.strategy.decisions import router as _decisions_router
 from src.controllers.api.v1.strategy.performance import router as _performance_router
 from src.controllers.api.v1.strategy.reports import router as _reports_router
+from src.controllers.api.v1.strategy.strategies import router as _strategies_router
 from src.controllers.api.v1.strategy.strategy_scores import router as _strategy_scores_router
 
 # ── system 域 ──────────────────────────────────────────────────────────
@@ -70,3 +71,4 @@ router.include_router(_agent_router)
 router.include_router(_settings_router)
 router.include_router(_lab_router)
 router.include_router(_performance_router)
+router.include_router(_strategies_router)

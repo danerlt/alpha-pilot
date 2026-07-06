@@ -40,7 +40,9 @@ def _verify_symbol_enabled(symbol: str) -> None:
 
 
 async def market_websocket_endpoint(ws: WebSocket) -> None:
-    token = ws.query_params.get("token")
+    # 鉴权: ?token= 优先, 回退 httpOnly cookie (ap_token) —— 前端刷新后内存
+    # token 丢失但 cookie 会话仍有效, WS 必须与 REST 同源鉴权 (浏览器验收修复)
+    token = ws.query_params.get("token") or ws.cookies.get("ap_token")
     user_id = _verify_token(token)
     _verify_user_active(user_id)
 

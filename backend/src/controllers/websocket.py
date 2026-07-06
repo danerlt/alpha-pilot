@@ -122,7 +122,9 @@ async def websocket_endpoint(ws: WebSocket) -> None:
       3. 若带 since, 回放 event_outbox > since 的事件 (catchup)
       4. 注册到 ConnectionManager 进入实时广播循环
     """
-    token = ws.query_params.get("token")
+    # 鉴权: ?token= 优先, 回退 httpOnly cookie (ap_token) —— 前端刷新后内存
+    # token 丢失但 cookie 会话仍有效, WS 必须与 REST 同源鉴权 (浏览器验收修复)
+    token = ws.query_params.get("token") or ws.cookies.get("ap_token")
     since = ws.query_params.get("since")
 
     try:

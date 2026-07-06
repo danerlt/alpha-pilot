@@ -4648,6 +4648,157 @@
         }
       }
     },
+    "/api/strategies": {
+      "get": {
+        "tags": [
+          "strategies"
+        ],
+        "summary": "Get Strategies",
+        "description": "受限策略集卡片: 启停状态 + 适用 regime (要求登录)。",
+        "operationId": "get_strategies",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "ap_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ap Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Response_list_StrategyCardRead__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/strategies/{mode}": {
+      "patch": {
+        "tags": [
+          "strategies"
+        ],
+        "summary": "Toggle Strategy",
+        "description": "启停策略 (trader+): 被禁用模式的 OPEN_LONG 会被守卫 REJECT (真实生效)。",
+        "operationId": "toggle_strategy",
+        "parameters": [
+          {
+            "name": "mode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Mode"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "ap_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ap Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StrategyToggleUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Response_StrategyToggleOut_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/commands/close-position/{position_id}": {
       "post": {
         "tags": [
@@ -8627,6 +8778,59 @@
         "type": "object",
         "title": "Response[SltpOut]"
       },
+      "Response_StrategyToggleOut_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "default": true
+          },
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "default": "0"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "成功"
+          },
+          "detailMessage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detailmessage"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StrategyToggleOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          }
+        },
+        "type": "object",
+        "title": "Response[StrategyToggleOut]"
+      },
       "Response_TickerOut_": {
         "properties": {
           "success": {
@@ -9523,6 +9727,63 @@
         "type": "object",
         "title": "Response[list[RiskEventRead]]"
       },
+      "Response_list_StrategyCardRead__": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "default": true
+          },
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "default": "0"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "成功"
+          },
+          "detailMessage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detailmessage"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/StrategyCardRead"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          }
+        },
+        "type": "object",
+        "title": "Response[list[StrategyCardRead]]"
+      },
       "Response_list_TradeRead__": {
         "properties": {
           "success": {
@@ -9988,6 +10249,69 @@
         "type": "object",
         "title": "SltpUpdate",
         "description": "PATCH /api/positions/{id}/sltp 入参; 至少给一个字段。"
+      },
+      "StrategyCardRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "regimes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Regimes"
+          },
+          "desc": {
+            "type": "string",
+            "title": "Desc"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "enabled",
+          "regimes",
+          "desc"
+        ],
+        "title": "StrategyCardRead",
+        "description": "受限策略集卡片 (风控页, 与前端 StrategyCard 同构)。"
+      },
+      "StrategyToggleOut": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "StrategyToggleOut"
+      },
+      "StrategyToggleUpdate": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "enabled"
+        ],
+        "title": "StrategyToggleUpdate"
       },
       "SymbolConfigCreate": {
         "properties": {
