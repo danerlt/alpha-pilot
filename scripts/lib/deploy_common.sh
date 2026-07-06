@@ -81,14 +81,17 @@ run_deploy() {
         echo "    构建 backend:$IMAGE_TAG"
         docker build -t "alphapilot-backend:$IMAGE_TAG" -f docker/Dockerfile.backend backend
     fi
-    if docker image inspect "alphapilot-frontend:$FRONTEND_TAG" >/dev/null 2>&1; then
-        echo "    frontend:$FRONTEND_TAG 已存在，复用"
-    else
-        echo "    构建 frontend:$FRONTEND_TAG (BASE_PATH=$FRONTEND_BASE_PATH)"
-        docker build -t "alphapilot-frontend:$FRONTEND_TAG" \
-            --build-arg "BASE_PATH=$FRONTEND_BASE_PATH" \
-            --build-arg "NEXT_PUBLIC_API_BASE=$FRONTEND_BASE_PATH/api" \
-            -f docker/Dockerfile.frontend frontend
+    # frontend（Next.js，仅当目标 compose 引用了该服务才构建；dev 已切 webapp 不再引用）
+    if grep -q "alphapilot-frontend" "$BUILD_DIR/docker/$COMPOSE_BASENAME"; then
+        if docker image inspect "alphapilot-frontend:$FRONTEND_TAG" >/dev/null 2>&1; then
+            echo "    frontend:$FRONTEND_TAG 已存在，复用"
+        else
+            echo "    构建 frontend:$FRONTEND_TAG (BASE_PATH=$FRONTEND_BASE_PATH)"
+            docker build -t "alphapilot-frontend:$FRONTEND_TAG" \
+                --build-arg "BASE_PATH=$FRONTEND_BASE_PATH" \
+                --build-arg "NEXT_PUBLIC_API_BASE=$FRONTEND_BASE_PATH/api" \
+                -f docker/Dockerfile.frontend frontend
+        fi
     fi
     # webapp（仅当目标 compose 引用了该服务才构建）
     if grep -q "alphapilot-webapp" "$BUILD_DIR/docker/$COMPOSE_BASENAME"; then

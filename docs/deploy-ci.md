@@ -30,13 +30,14 @@ feat-xxx ──PR──► dev ──PR──► test ──PR──► main
 
 | 环境 | 触发分支 | nginx 路径 | api/前端口(127.0.0.1) | 应用 compose | env 文件 | database | Redis db |
 |------|---------|-----------|----------------------|-------------|---------|----------|----------|
-| dev  | `dev`  | `/ap-dev`  | 8001/3001 | `docker-compose.dev-server.yml` | `envs/dev.env`  | alphapilot_dev  | 0 |
+| dev  | `dev`  | `/ap-dev`  | 8001/3004(webapp) | `docker-compose.dev-server.yml` | `envs/dev.env`  | alphapilot_dev  | 0 |
 | test | `test` | `/ap-test` | 8002/3002 | `docker-compose.test.yml`       | `envs/test.env` | alphapilot_test | 1 |
 | prod | `main` | `/ap`      | 8003/3003 | `docker-compose.prod.yml`       | `envs/prod.env` | alphapilot_prod | 2 |
 
 共享中间件 `docker-compose.middleware.yml`：`ap-postgres` 绑 `127.0.0.1:5432`、`ap-redis` 绑 `127.0.0.1:6379`（仅本机）。
-应用 compose 现含 **backend(API) + scheduler + frontend** 三 service（scheduler 跑定时/异步任务，缺它则不交易不监控）；
-dev 额外含 **webapp**（Vite 新前端，`127.0.0.1:3004` → nginx `/ap-dev-next`，验收后再推广到 test/prod）。
+应用 compose 含 **backend(API) + scheduler + 前端** 三 service（scheduler 跑定时/异步任务，缺它则不交易不监控）。
+前端：dev 已切 **webapp**（Vite 新前端，`127.0.0.1:3004` → nginx `/ap-dev`，2026-07-06 起）；
+test/prod 仍为 Next.js frontend，dev 验收通过后同步切换。
 
 ## 3. GitHub 配置（一次性）
 

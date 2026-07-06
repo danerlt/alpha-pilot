@@ -1,11 +1,14 @@
-# dev 应用栈（/ap-dev，api 8001 / 前端 3001）
+# dev 应用栈（/ap-dev，api 8001 / webapp 3004）
 # 不含 pg/redis：连共享中间件 docker-compose.middleware.yml（ap-postgres / ap-redis）
 # database=alphapilot_dev，Redis db=0。端口仅绑 127.0.0.1，由 nginx 经 https 反代。
 #
 # build-once / deploy-many（见 docs/superpowers/specs/2026-06-28-build-once-deploy-many-design.md）：
 #   本文件不再 build，引用预构建镜像。tag 由 scripts/deploy-dev.sh 注入：
-#     backend/scheduler  → alphapilot-backend:${IMAGE_TAG}     （跨环境同一镜像，ROOT_PATH 运行时区分）
-#     frontend           → alphapilot-frontend:${FRONTEND_TAG} （basePath 构建期烘焙，按环境构建 = <sha>-dev）
+#     backend/scheduler  → alphapilot-backend:${IMAGE_TAG}  （跨环境同一镜像，ROOT_PATH 运行时区分）
+#     webapp             → alphapilot-webapp:${WEBAPP_TAG}  （零烘焙，环境差异启动时注入 config.js）
+#
+# 2026-07-06：dev 前端切换为 webapp（Vite 新前端）直接挂 /ap-dev，
+# 老 Next.js frontend 已从 dev 下线（test/prod 仍在用，镜像按需构建）。
 
 name: ap-dev
 
@@ -40,25 +43,15 @@ services:
     networks:
       - ap-shared
 
-  frontend:
-    image: alphapilot-frontend:${FRONTEND_TAG:?FRONTEND_TAG required}
-    ports:
-      - "127.0.0.1:3001:3000"
-    depends_on:
-      - backend
-    restart: unless-stopped
-    networks:
-      - ap-shared
-
   # webapp（Vite 新前端，docs/webapp前端架构.md S4）——
   # 镜像跨环境同一 tag（真 build-once），环境差异由环境变量在启动时渲染 config.js 注入。
-  # 外层 nginx 挂载（带斜杠剥前缀）：location /ap-dev-next/ { proxy_pass http://127.0.0.1:3004/; }
-  # 端口 3004：3002/3003 已被 test/prod 的 frontend 占用（同机三环境共存不撞车）
+  # 外层 nginx 挂载（带斜杠剥前缀）：location /ap-dev/ { proxy_pass http://127.0.0.1:3004/; }
+  # 端口 3004：3001-3003 留给 Next.js frontend（dev 已下线，避免历史端口混淆）
   webapp:
     image: alphapilot-webapp:${WEBAPP_TAG:?WEBAPP_TAG required}
     environment:
-      AP_BASE_PATH: /ap-dev-next
-      AP_API_BASE_URL: /ap-dev   # 复用现有 /ap-dev/api 反代路由到 backend
+      AP_BASE_PATH: /ap-dev
+      AP_API_BASE_URL: /ap-dev   # /ap-dev/api 反代路由到 backend（比页面 location 更精确，优先匹配）
       AP_WS_URL: ""              # 空 → 由 apiBaseUrl 推导 wss://host/ap-dev/ws
     ports:
       - "127.0.0.1:3004:80"

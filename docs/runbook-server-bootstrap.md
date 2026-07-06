@@ -26,20 +26,22 @@
 
 部署脚本 `scripts/deploy-<env>.sh`（内部 `scripts/lib/deploy_common.sh::run_deploy`）在**构建目录里执行**，
 默认 `DEPLOY_DIR=/workspace/alpha-pilot-deploy/<env>`（可用环境变量覆盖）。它自动完成 7 步：
-①确保中间件健康+幂等建库 → ②`git fetch` + checkout 目标 commit → ③按 SHA inspect-or-build 三镜像
-（`alphapilot-backend:<sha>` 跨环境复用 / `alphapilot-frontend:<sha>-<env>` basePath 烘焙 / `alphapilot-webapp:<sha>` 零烘焙）→
+①确保中间件健康+幂等建库 → ②`git fetch` + checkout 目标 commit → ③按 SHA inspect-or-build 镜像
+（`alphapilot-backend:<sha>` 跨环境复用；`alphapilot-frontend:<sha>-<env>` basePath 烘焙 /
+`alphapilot-webapp:<sha>` 零烘焙，均仅当目标 compose 引用了该服务才构建）→
 ④同步 compose 到部署目录 → ⑤记录回滚点+起栈 → ⑥容器内 `python scripts/upgrade_db.py` 迁移 →
 ⑦健康三检（API `/health` + scheduler running 非 crash-loop + 启动标记），**任一步失败自动回滚到 `last-good.tag`**。
 
 ## 环境速查
 
-| 环境 | 分支 | nginx 路径 | api / frontend / webapp（127.0.0.1） | compose | database | Redis db |
-|------|------|-----------|-------------------------------------|---------|----------|----------|
-| dev  | dev  | `/ap-dev`（webapp: `/ap-dev-next`） | 8001 / 3001 / **3004** | docker-compose.dev-server.yml | alphapilot_dev | 0 |
-| test | test | `/ap-test` | 8002 / 3002 / — | docker-compose.test.yml | alphapilot_test | 1 |
-| prod | main | `/ap` | 8003 / 3003 / — | docker-compose.prod.yml | alphapilot_prod | 2 |
+| 环境 | 分支 | nginx 路径 | api / 前端（127.0.0.1） | 前端实现 | compose | database | Redis db |
+|------|------|-----------|------------------------|---------|---------|----------|----------|
+| dev  | dev  | `/ap-dev` | 8001 / **3004** | **webapp**（Vite 新前端） | docker-compose.dev-server.yml | alphapilot_dev | 0 |
+| test | test | `/ap-test` | 8002 / 3002 | frontend（Next.js 老前端） | docker-compose.test.yml | alphapilot_test | 1 |
+| prod | main | `/ap` | 8003 / 3003 | frontend（Next.js 老前端） | docker-compose.prod.yml | alphapilot_prod | 2 |
 
-> webapp（Vite 新前端）当前只挂 dev；验收通过后再复制 service 块到 test/prod（届时另分配端口）。
+> 2026-07-06 起 dev 前端已切换为 webapp 直接挂 `/ap-dev`（老 Next.js frontend 从 dev 下线）；
+> dev 验收通过后 test/prod 同样切换（复制 webapp service 块 + nginx 改指剥前缀转发）。
 
 ---
 
@@ -122,13 +124,11 @@ bash scripts/deploy-dev.sh          # 7 步全自动，失败自动回滚（首�
 **验证**（必须全过）：
 
 ```bash
-cd /workspace/alpha-pilot-deploy/dev/docker
-DC="docker compose -f docker-compose.dev-server.yml --env-file ../envs/dev.env"
-
-# 1) 四个 service 都在跑（backend / scheduler / frontend / webapp）
-IMAGE_TAG=$(cat ../current.tag) FRONTEND_TAG=$(cat ../current.tag)-dev WEBAPP_TAG=$(cat ../current.tag) $DC ps
-# 2) API 健康（宿主机侧）
+# 1) 三个 service 都在跑（backend / scheduler / webapp）
+docker ps --filter name=ap-dev --format "{{.Names}} {{.Status}}"
+# 2) API + webapp 健康（宿主机侧）
 curl -sS http://127.0.0.1:8001/health
+curl -sSI http://127.0.0.1:3004/ | head -1        # HTTP 200
 # 3) scheduler 启动标记 + 运行时配置从 DB 加载（配置分层生效的证据）
 docker logs $(docker ps -qf name=ap-dev-scheduler) 2>&1 | grep -E "APScheduler started|runtime settings"
 #    期望含 "APScheduler started: strategy_loop=..."；配置过设置页后还会有 "runtime settings loaded from DB"
@@ -143,23 +143,25 @@ docker logs $(docker ps -qf name=ap-dev-backend) --tail 30
 ## 阶段 4：nginx（一次性）
 
 把 `docker/nginx/alpha-pilot.conf` 的 location 块并入老板的 HTTPS `server{}`：
-`/ap`、`/ap-test`、`/ap-dev`、**`/ap-dev-next`（webapp → 127.0.0.1:3004）** 四段 +
+`/ap`、`/ap-test`、`/ap-dev`（页面段指向 webapp 127.0.0.1:3004，带斜杠剥前缀）三段 +
 http{} 顶层 `limit_req_zone` / `log_format`（文件头注释有说明）。
 
 > **[需老板确认]** 域名与现有 nginx 主配置位置。执行者**不要猜域名**。
+> 若服务器上已并入过旧版 conf：`/ap-dev` 页面段的 proxy_pass 要从 3001 改为 `http://127.0.0.1:3004/`
+> （注意结尾斜杠），并删掉旧的 `/ap-dev-next` 段（如有）。
 
 ```bash
 nginx -t && systemctl reload nginx
 # 验证（<DOMAIN> 用老板提供的域名）:
-curl -sS https://<DOMAIN>/ap-dev/api/health          # 后端 envelope
-curl -sSI https://<DOMAIN>/ap-dev-next/ | head -3    # webapp 200
+curl -sS https://<DOMAIN>/ap-dev/api/health      # 后端 envelope
+curl -sSI https://<DOMAIN>/ap-dev/ | head -3     # webapp 200
 ```
 
 ---
 
 ## 阶段 5：业务配置（老板在浏览器操作，Claude 只引导）
 
-1. 浏览器打开 `https://<DOMAIN>/ap-dev-next/` → 用 `DEFAULT_ADMIN_EMAIL/PASSWORD` 登录。
+1. 浏览器打开 `https://<DOMAIN>/ap-dev/` → 用 `DEFAULT_ADMIN_EMAIL/PASSWORD` 登录。
 2. **设置页**依次配置（存 DB、Fernet 加密、日志脱敏）：
    - 交易所连接：Binance **testnet** API Key/Secret → 「测试连接」通过。
    - AI 模型：LLM base_url / api_key / model → 「测试连接」通过。
@@ -262,8 +264,8 @@ docker logs -f $(docker ps -qf name=ap-dev-scheduler)
 ## 验收清单（"部署打通"达成）
 
 - [ ] 中间件 `ap-postgres`/`ap-redis` healthy，三库已建，`ap-shared` 网络在。
-- [ ] dev：backend + scheduler + frontend + webapp 四 service Up；scheduler 日志见 `APScheduler started`。
-- [ ] `https://<DOMAIN>/ap-dev/api/health` 返回正常 envelope；`/ap-dev-next/` 打开 webapp 登录页。
+- [ ] dev：backend + scheduler + webapp 三 service Up；scheduler 日志见 `APScheduler started`。
+- [ ] `https://<DOMAIN>/ap-dev/api/health` 返回正常 envelope；`/ap-dev/` 打开 webapp 登录页。
 - [ ] 老板已在设置页配好 testnet Key + LLM Key，测试连接通过；策略周期产生决策。
 - [ ] `deployer` 用户建好；GitHub Deploy key + Secrets 配齐；push dev 触发 Actions 自动部署，CI 绿。
 - [ ] 全程无真实凭据进 git / 对话；env 真实值只在服务器 `envs/`，业务 Key 只在 DB（加密）。
