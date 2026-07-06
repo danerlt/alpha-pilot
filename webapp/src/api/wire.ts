@@ -7,10 +7,16 @@
 import type { components } from "./generated/schema";
 import type {
   AccountOverview,
+  AttributionRow,
   Decision,
   GuardCheck,
+  GuardVerdict,
+  HardLimit,
   Kline,
   MarketSymbol,
+  MonthlyPnl,
+  Order,
+  PerformanceSummary,
   PermissionRow,
   Position,
   PrecheckResult,
@@ -35,6 +41,12 @@ export type WireUser = S["UserRead"];
 export type WireLogin = S["LoginOut"];
 export type WireRoles = S["RolesOut"];
 export type WireTrade = S["TradeRead"];
+export type WireOrder = S["OrderListItemRead"];
+export type WireCatchup = S["CatchupOut"];
+export type WireRiskLimits = S["RiskLimitsOut"];
+export type WirePerfSummary = S["PerformanceSummaryOut"];
+export type WireMonthlyPnl = S["MonthlyPnlRead"];
+export type WireAttribution = S["AttributionBucketRead"];
 
 const REGIMES: Regime[] = ["trending_up", "trending_down", "ranging", "chaotic"];
 
@@ -97,7 +109,7 @@ export function fromWireAccount(w: WireAccount): AccountOverview {
   };
 }
 
-// ---------- 持仓 / 交易 ----------
+// ---------- 持仓 / 交易 / 订单 ----------
 export function fromWirePosition(w: WirePosition): Position {
   return {
     id: String(w.id),
@@ -108,11 +120,41 @@ export function fromWirePosition(w: WirePosition): Position {
     mark: w.current_price ?? w.entry_price,
     pnl: w.unrealized_pnl ?? 0,
     pnlPct: w.unrealized_pnl_pct ?? 0,
-    marginPct: 0, // 后端待补（见联调待办）
+    marginPct: w.position_pct ?? 0,
     sl: w.stop_loss ?? 0,
     tp: w.take_profit ?? 0,
     age: ageFrom(w.opened_at),
-    strategy: "—", // PositionRead 缺 strategy_mode（见联调待办）
+    strategy: w.strategy_mode ?? "—",
+  };
+}
+
+const ORDER_TYPE_MAP: Record<string, Order["type"]> = {
+  MARKET: "MARKET",
+  LIMIT: "LIMIT",
+  STOP: "STOP",
+  STOP_MARKET: "STOP",
+  STOP_LOSS: "STOP",
+  TAKE_PROFIT: "TAKE_PROFIT",
+  TAKE_PROFIT_MARKET: "TAKE_PROFIT",
+};
+
+export function fromWireOrder(w: WireOrder): Order {
+  const t = (w.order_type ?? "MARKET").toUpperCase();
+  const status = (w.status ?? "").toUpperCase();
+  return {
+    id: String(w.id),
+    ts: timePart(w.submitted_at),
+    symbol: w.symbol,
+    side: w.side === "SELL" ? "SELL" : "BUY",
+    type: ORDER_TYPE_MAP[t] ?? "MARKET",
+    qty: w.quantity ?? 0,
+    price: w.avg_fill_price ?? w.price ?? 0,
+    status:
+      status === "FILLED"
+        ? "FILLED"
+        : status === "CANCELED" || status === "CANCELLED"
+          ? "CANCELED"
+          : "WORKING",
   };
 }
 
@@ -146,6 +188,13 @@ function joinReasoning(r: unknown): string {
   return r == null ? "" : String(r);
 }
 
+const VERDICTS: GuardVerdict[] = ["PASS", "REJECT", "DEGRADE"];
+
+function asVerdict(v: string | null | undefined, fallback: GuardVerdict): GuardVerdict {
+  const up = (v ?? "").toUpperCase() as GuardVerdict;
+  return VERDICTS.includes(up) ? up : fallback;
+}
+
 export function fromWireDecision(w: WireDecision): Decision {
   return {
     id: String(w.id),
@@ -155,9 +204,13 @@ export function fromWireDecision(w: WireDecision): Decision {
     action: w.action as Decision["action"],
     confidence: w.confidence ?? 0,
     strategy: w.strategy_mode ?? "—",
-    // DecisionRead 缺守卫裁决字段（见联调待办）：暂以 is_fallback 近似
-    guard: w.is_fallback ? "DEGRADE" : "PASS",
+    guard: asVerdict(w.guard_verdict, w.is_fallback ? "DEGRADE" : "PASS"),
     reason: joinReasoning(w.reasoning),
+    entry: w.entry_price ?? undefined,
+    sl: w.stop_loss ?? undefined,
+    tp: w.take_profit ?? undefined,
+    sizePct:
+      w.position_size_pct != null ? `${w.position_size_pct}%` : undefined,
   };
 }
 
@@ -238,6 +291,78 @@ export function fromWirePrecheck(w: WirePrecheck): PrecheckResult {
   };
 }
 
+// ---------- 风控阈值 ----------
+export function fromWireRiskLimits(w: WireRiskLimits): HardLimit[] {
+  return [
+    { key: "MAX_POSITION_SIZE_PCT", label: "单仓位上限", value: `${w.max_position_size_pct}%`, desc: "任一持仓占权益比例上限" },
+    { key: "MAX_DAILY_LOSS_PCT", label: "日亏损熔断", value: `${w.max_daily_loss_pct}%`, desc: "当日亏损超过即熔断，全天禁止开仓" },
+    { key: "MAX_CONSECUTIVE_LOSSES", label: "连续亏损熔断", value: `${w.max_consecutive_losses} 笔`, desc: "连续亏损达到阈值触发熔断" },
+    { key: "MAX_SINGLE_RISK_PCT", label: "单笔风险上限", value: `${w.max_single_risk_pct}%`, desc: "单笔交易最大可亏损占权益比例" },
+    { key: "MIN_RR_RATIO", label: "最小盈亏比", value: `${w.min_rr_ratio}`, desc: "开仓要求的最低风险收益比" },
+    { key: "SL_ATR_MULT", label: "止损 ATR 倍数", value: `${w.sl_atr_min_mult}–${w.sl_atr_max_mult}x`, desc: "止损距离相对 ATR 的允许区间" },
+  ];
+}
+
+// ---------- 绩效 ----------
+function humanizeSeconds(s: number | null | undefined): string {
+  if (!s || s <= 0) return "—";
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+interface CurvePoint {
+  ts?: unknown;
+  equity?: unknown;
+  hodl?: unknown;
+}
+
+/** 后端 curve 为绝对权益（HODL 已归一到同起点），前端换算为相对首点的收益率 % */
+export function fromWirePerfSummary(w: WirePerfSummary): PerformanceSummary {
+  const raw = (w.curve ?? []) as CurvePoint[];
+  const first = raw.find((p) => typeof p.equity === "number");
+  const base = typeof first?.equity === "number" ? first.equity : 0;
+  const curve = base
+    ? raw
+        .filter((p) => typeof p.equity === "number")
+        .map((p) => ({
+          ts: String(p.ts ?? ""),
+          strategy: ((p.equity as number) / base - 1) * 100,
+          hodl:
+            typeof p.hodl === "number" ? (p.hodl / base - 1) * 100 : 0,
+        }))
+    : [];
+  return {
+    netReturnPct: w.net_return_pct ?? 0,
+    hodlBtcReturnPct: w.hodl_return_pct ?? 0,
+    sharpe: w.sharpe ?? 0,
+    sortino: w.sortino ?? 0,
+    maxDD: w.max_drawdown_pct ?? 0,
+    winRate: w.win_rate ?? 0,
+    profitFactor: w.profit_factor ?? 0,
+    trades: w.trades,
+    netPnl: w.net_pnl,
+    todayTrades: w.today_trades,
+    avgHold: humanizeSeconds(w.avg_holding_seconds),
+    weekPnl: w.week_pnl,
+    monthPnl: w.month_pnl,
+    curve,
+  };
+}
+
+export function fromWireMonthly(w: WireMonthlyPnl): MonthlyPnl {
+  return { month: w.month, pnl: w.pnl, trades: w.trades };
+}
+
+export function fromWireAttribution(w: WireAttribution): AttributionRow {
+  return {
+    key: w.key,
+    trades: w.trades,
+    pnl: w.net_pnl,
+    winRate: w.win_rate ?? 0,
+  };
+}
+
 // ---------- 用户 / 权限 ----------
 const ROLE_ALIAS: Record<string, User["role"]> = {
   owner: "owner",
@@ -254,7 +379,7 @@ export function fromWireUser(w: WireUser): User {
     email: w.email ?? "",
     role: ROLE_ALIAS[w.role] ?? "viewer",
     status: (w.status as User["status"]) ?? "active",
-    twoFa: false, // P4 2FA 后接真值
+    twoFa: w.two_fa_enabled ?? false,
     lastActive: "—",
   };
 }

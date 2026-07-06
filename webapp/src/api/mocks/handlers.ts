@@ -72,10 +72,9 @@ export const handlers = [
     }
     return ok({ position_id: params.id, stop_loss: body.stop_loss, take_profit: body.take_profit });
   }),
-  // 订单列表：后端暂缺该端点（联调待办），mock-only 路径
-  http.get("/api/orders/list", async () => {
+  http.get("/api/orders", async () => {
     await delay(LATENCY);
-    return ok(mock.mockOrders.map((o) => ({ ...o })));
+    return ok(mock.mockOrders.map(wire.toWireOrder));
   }),
   http.post("/api/orders/precheck", async ({ request }) => {
     await delay(350);
@@ -138,7 +137,7 @@ export const handlers = [
   }),
   http.get("/api/events/catchup", async () => {
     await delay(LATENCY);
-    return ok(mock.mockEvents.map((e) => ({ ...e })));
+    return ok(wire.toWireCatchup(mock.mockEvents));
   }),
 
   // ---------- 行情 ----------
@@ -172,16 +171,16 @@ export const handlers = [
   // ---------- 绩效 ----------
   http.get("/api/performance/summary", async () => {
     await delay(LATENCY);
-    return ok({ ...mock.mockPerformance });
+    return ok(wire.toWirePerfSummary());
   }),
   http.get("/api/performance/monthly", async () => {
     await delay(LATENCY);
-    return ok([...mock.mockMonthlyPnl]);
+    return ok(mock.mockMonthlyPnl.map(wire.toWireMonthly));
   }),
   http.get("/api/performance/attribution", async ({ request }) => {
     await delay(LATENCY);
     const dim = new URL(request.url).searchParams.get("dim") ?? "symbol";
-    return ok([...(mock.mockAttribution[dim] ?? [])]);
+    return ok(wire.wireAttribution(dim));
   }),
 
   // ---------- 策略与风控 ----------
@@ -196,9 +195,9 @@ export const handlers = [
     if (s) s.enabled = body.enabled;
     return ok({ ok: true });
   }),
-  http.get("/api/config/runtime", async () => {
+  http.get("/api/risk/limits", async () => {
     await delay(LATENCY);
-    return ok([...mock.mockHardLimits]);
+    return ok({ ...wire.wireRiskLimits });
   }),
   http.get("/api/admin/symbols", async () => {
     await delay(LATENCY);
@@ -290,6 +289,19 @@ export const handlers = [
       access_token: "mock-token",
       token_type: "bearer",
       user: wire.toWireUser(mock.mockUsers[0]),
+      requires_2fa: false,
+      two_fa_token: null,
+    });
+  }),
+  http.post("/api/auth/2fa/login", async () => {
+    await delay(300);
+    sessionStorage.setItem("ap.mock.authed", "1");
+    return ok({
+      access_token: "mock-token",
+      token_type: "bearer",
+      user: wire.toWireUser(mock.mockUsers[0]),
+      requires_2fa: false,
+      two_fa_token: null,
     });
   }),
   http.get("/api/auth/me", async () => {

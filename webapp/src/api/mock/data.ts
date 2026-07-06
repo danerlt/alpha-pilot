@@ -347,6 +347,12 @@ export const mockPerformance: PerformanceSummary = (() => {
     maxDD: -4.23,
     winRate: 57,
     profitFactor: 1.92,
+    trades: 85,
+    netPnl: 8934.5,
+    todayTrades: 7,
+    avgHold: "2h 14m",
+    weekPnl: 5420.11,
+    monthPnl: 8934.5,
     curve,
   };
 })();

@@ -155,26 +155,27 @@ export default function Performance() {
           </Card>
 
           <Card title="交易统计">
-            {(
-              [
-                ["总交易数", "85"],
-                ["盈利笔数", "48"],
-                ["亏损笔数", "37"],
-                ["平均盈利", "+$124.80"],
-                ["平均亏损", "−$54.30"],
-                ["最大连续盈利", "8 笔"],
-                ["最大连续亏损", "3 笔"],
-                ["平均持仓", "2h 14m"],
-              ] as const
-            ).map(([l, v], i, a) => (
-              <div
-                key={l}
-                className={`flex justify-between py-2 text-xs ${i < a.length - 1 ? "border-b border-line-soft" : ""}`}
-              >
-                <span className="text-fg-3">{l}</span>
-                <span className="font-mono font-semibold text-fg-1">{v}</span>
-              </div>
-            ))}
+            {summary &&
+              (
+                [
+                  ["总交易数", String(summary.trades)],
+                  ["净盈亏", fmtSigned(summary.netPnl)],
+                  ["胜率", `${summary.winRate.toFixed(1)}%`],
+                  ["盈亏比", `${summary.profitFactor.toFixed(2)}:1`],
+                  ["今日交易", String(summary.todayTrades)],
+                  ["近 7 日盈亏", fmtSigned(summary.weekPnl)],
+                  ["近 30 日盈亏", fmtSigned(summary.monthPnl)],
+                  ["平均持仓", summary.avgHold],
+                ] as const
+              ).map(([l, v], i, a) => (
+                <div
+                  key={l}
+                  className={`flex justify-between py-2 text-xs ${i < a.length - 1 ? "border-b border-line-soft" : ""}`}
+                >
+                  <span className="text-fg-3">{l}</span>
+                  <span className="font-mono font-semibold text-fg-1">{v}</span>
+                </div>
+              ))}
           </Card>
         </div>
 

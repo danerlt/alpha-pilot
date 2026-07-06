@@ -5,7 +5,7 @@
 import { useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ChevronLeft, Eye, Lock, Mail, Shield } from "lucide-react";
-import { useLogin } from "@/auth/auth";
+import { useLogin, useTwoFaLogin } from "@/auth/auth";
 
 type Mode = "login" | "register" | "twofa";
 
@@ -63,6 +63,7 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const login = useLogin();
+  const twoFa = useTwoFaLogin();
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
@@ -70,6 +71,7 @@ export default function Login() {
   const [error, setError] = useState("");
   const [registered, setRegistered] = useState(false);
   const [code, setCode] = useState<string[]>(["", "", "", "", "", ""]);
+  const [twoFaToken, setTwoFaToken] = useState<string | null>(null);
   const codeRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const dest = (location.state as { from?: string } | null)?.from ?? "/";
@@ -88,11 +90,19 @@ export default function Login() {
       setRegistered(true);
       return;
     }
-    // 密码校验通过后进入 2FA；会话在 2FA 全满时建立
     login.mutate(
       { email, password: pw },
       {
-        onSuccess: () => setMode("twofa"),
+        onSuccess: (res) => {
+          if (res.requires2fa && res.twoFaToken) {
+            // 账号已开 2FA：进入二段验证
+            setTwoFaToken(res.twoFaToken);
+            setCode(["", "", "", "", "", ""]);
+            setMode("twofa");
+          } else {
+            navigate(dest, { replace: true });
+          }
+        },
         onError: (e) => setError(e instanceof Error ? e.message : "登录失败"),
       },
     );
@@ -114,8 +124,20 @@ export default function Login() {
     next[i] = v;
     setCode(next);
     if (v && i < 5) codeRefs.current[i + 1]?.focus();
-    if (next.every((c) => c !== ""))
-      setTimeout(() => navigate(dest, { replace: true }), 350);
+    if (next.every((c) => c !== "") && twoFaToken) {
+      twoFa.mutate(
+        { code: next.join(""), token: twoFaToken },
+        {
+          onSuccess: () => navigate(dest, { replace: true }),
+          onError: (e) => {
+            // 2FA 错误：清空重输（handoff/02 P1 异常态）
+            setError(e instanceof Error ? e.message : "验证码错误");
+            setCode(["", "", "", "", "", ""]);
+            codeRefs.current[0]?.focus();
+          },
+        },
+      );
+    }
   };
 
   return (
@@ -262,10 +284,9 @@ export default function Login() {
             </div>
             <div className="mb-1.5 text-h2 font-bold text-fg-1">双重验证</div>
             <div className="mb-[26px] text-sm text-fg-3">
-              输入验证器 App 中的 6 位动态码
-              <br />
-              <span className="font-mono text-xs text-fg-4">mock 模式：输入任意 6 位数字</span>
+              该账户已开启双重验证，输入验证器 App 中的 6 位动态码
             </div>
+            {error && <div className="mb-3 text-xs text-rose">{error}</div>}
             <div className="mb-6 flex gap-2.5">
               {code.map((c, i) => (
                 <input

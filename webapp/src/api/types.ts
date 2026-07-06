@@ -232,12 +232,19 @@ export interface PerformanceSummary {
   maxDD: number;
   winRate: number;
   profitFactor: number;
+  trades: number;
+  netPnl: number;
+  todayTrades: number;
+  avgHold: string;
+  weekPnl: number;
+  monthPnl: number;
   curve: { ts: string; strategy: number; hodl: number }[];
 }
 
 export interface MonthlyPnl {
   month: string;
   pnl: number;
+  trades?: number;
 }
 
 export type AttributionDim = "symbol" | "strategy" | "trigger";

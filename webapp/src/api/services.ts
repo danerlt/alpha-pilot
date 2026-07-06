@@ -4,8 +4,14 @@
  * 路径契约见 handoff/03 与 docs/webapp前端架构.md §3。
  */
 import { http } from "./client";
+import { envelopeToEventItem, type BackendEnvelope } from "./stream";
 import {
   fromWireAccount,
+  fromWireAttribution,
+  fromWireMonthly,
+  fromWireOrder,
+  fromWirePerfSummary,
+  fromWireRiskLimits,
   fromWireDecision,
   fromWireDecisionDetail,
   fromWireKline,
@@ -18,13 +24,19 @@ import {
   fromWireTrade,
   fromWireUser,
   type WireAccount,
+  type WireAttribution,
+  type WireCatchup,
   type WireDecision,
   type WireDecisionDetail,
   type WireKline,
   type WireLogin,
   type WireMarketSymbol,
+  type WireMonthlyPnl,
+  type WireOrder,
+  type WirePerfSummary,
   type WirePosition,
   type WirePrecheck,
+  type WireRiskLimits,
   type WireRiskState,
   type WireRoles,
   type WireTicker,
@@ -34,21 +46,16 @@ import {
 import type {
   AccountSnapshot,
   AttributionDim,
-  AttributionRow,
   AuditLog,
   DailyReport,
-  EventItem,
-  HardLimit,
   LabCandidate,
   LabHistoryItem,
-  MonthlyPnl,
-  Order,
   OrderBook,
   OrderTicketPayload,
-  PerformanceSummary,
   RecentTrade,
   StrategyCard,
   SymbolConfig,
+  User,
 } from "./types";
 
 /** 手动下单 payload → 后端 ManualOrderCreate（snake_case wire 形状） */
@@ -92,8 +99,8 @@ export const positionsApi = {
 };
 
 export const ordersApi = {
-  // 后端暂缺订单列表端点（见联调待办），真实模式下该调用会 404 → 页面容错为空
-  list: () => http<Order[]>("/api/orders/list"),
+  list: () =>
+    http<WireOrder[]>("/api/orders").then((ws) => ws.map(fromWireOrder)),
   precheck: (payload: OrderTicketPayload) =>
     http<WirePrecheck>("/api/orders/precheck", {
       method: "POST",
@@ -120,35 +127,13 @@ export const decisionsApi = {
 };
 
 export const eventsApi = {
-  // catchup 无 response_model（后端待补）：兼容 EventItem 直出与 EventEnvelope 两种形状
   recent: () =>
-    http<unknown[]>("/api/events/catchup").then((rows) =>
-      rows.map((r) => toEventItem(r)),
+    http<WireCatchup>("/api/events/catchup").then((o) =>
+      o.events.map((e) =>
+        envelopeToEventItem(e.envelope as unknown as BackendEnvelope),
+      ),
     ),
 };
-
-function toEventItem(r: unknown): EventItem {
-  const o = r as Record<string, unknown>;
-  if (typeof o.msg === "string") return o as unknown as EventItem; // mock 直出形状
-  const eventType = String(o.event_type ?? "event");
-  return {
-    id: String(o.event_id ?? o.id ?? Math.random()),
-    ts: String(o.occurred_at ?? "").slice(11, 19),
-    kind: eventType.startsWith("decision.")
-      ? "ai"
-      : eventType.startsWith("order.") || eventType.startsWith("trade.")
-        ? "fill"
-        : eventType.startsWith("risk.") || eventType.startsWith("circuit")
-          ? "breaker"
-          : "system",
-    msg: eventType,
-    tone: eventType.startsWith("decision.")
-      ? "violet"
-      : eventType.startsWith("risk.") || eventType.startsWith("circuit")
-        ? "rose"
-        : "fg",
-  };
-}
 
 export const marketApi = {
   symbols: () =>
@@ -169,10 +154,16 @@ export const marketApi = {
 };
 
 export const performanceApi = {
-  summary: () => http<PerformanceSummary>("/api/performance/summary"),
-  monthly: () => http<MonthlyPnl[]>("/api/performance/monthly"),
+  summary: () =>
+    http<WirePerfSummary>("/api/performance/summary").then(fromWirePerfSummary),
+  monthly: () =>
+    http<WireMonthlyPnl[]>("/api/performance/monthly").then((ws) =>
+      ws.map(fromWireMonthly),
+    ),
   attribution: (dim: AttributionDim) =>
-    http<AttributionRow[]>(`/api/performance/attribution?dim=${dim}`),
+    http<WireAttribution[]>(`/api/performance/attribution?dim=${dim}`).then(
+      (ws) => ws.map(fromWireAttribution),
+    ),
 };
 
 export const strategyApi = {
@@ -182,7 +173,8 @@ export const strategyApi = {
       method: "PATCH",
       body: JSON.stringify({ enabled }),
     }),
-  hardLimits: () => http<HardLimit[]>("/api/config/runtime"),
+  hardLimits: () =>
+    http<WireRiskLimits>("/api/risk/limits").then(fromWireRiskLimits),
   symbolConfigs: () => http<SymbolConfig[]>("/api/admin/symbols"),
 };
 
@@ -215,12 +207,28 @@ export const adminApi = {
     http<{ ok: boolean }>(`/api/admin/users/${id}/approve`, { method: "POST" }),
 };
 
+export interface LoginResult {
+  user: User | null;
+  requires2fa: boolean;
+  twoFaToken: string | null;
+}
+
 export const authApi = {
-  login: (email: string, password: string) =>
+  login: (email: string, password: string): Promise<LoginResult> =>
     http<WireLogin>("/api/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
-    }).then((w) => fromWireUser(w.user)),
+    }).then((w) => ({
+      user: w.user ? fromWireUser(w.user) : null,
+      requires2fa: w.requires_2fa ?? false,
+      twoFaToken: w.two_fa_token ?? null,
+    })),
+  /** 2FA 二段式：login 返回 requires_2fa 后，用动态码 + 票据换正式会话 */
+  twoFaLogin: (code: string, twoFaToken: string): Promise<User> =>
+    http<WireLogin>("/api/auth/2fa/login", {
+      method: "POST",
+      body: JSON.stringify({ code, two_fa_token: twoFaToken }),
+    }).then((w) => fromWireUser(w.user!)),
   me: () => http<WireUser>("/api/auth/me").then(fromWireUser),
   logout: () => http<{ ok: boolean }>("/api/auth/logout", { method: "POST" }),
 };

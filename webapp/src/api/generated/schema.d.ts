@@ -147,6 +147,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/2fa/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Two Fa Setup
+         * @description 生成 TOTP secret + otpauth URI (扫码用); verify 通过前不启用。
+         */
+        post: operations["two_fa_setup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/2fa/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Two Fa Verify
+         * @description 验证一次 TOTP code → 启用 2FA。
+         */
+        post: operations["two_fa_verify"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/2fa/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Two Fa Disable
+         * @description 关闭 2FA (需当前有效 code 防他人关闭)。
+         */
+        post: operations["two_fa_disable"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/2fa/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Two Fa Login
+         * @description 二段式第二段: 2fa 票据 + TOTP code → 正式 token + cookie。
+         */
+        post: operations["two_fa_login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/symbols": {
         parameters: {
             query?: never;
@@ -260,6 +340,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/users/{user_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve User
+         * @description 批准 pending 用户 (handoff 3.7): PENDING → ACTIVE + 审计。
+         */
+        post: operations["approve_user"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/positions": {
         parameters: {
             query?: never;
@@ -297,7 +397,7 @@ export interface paths {
          * Update Position Sltp
          * @description 修改持仓 SL/TP (handoff P2 §3.2): 走守卫规则校验 + 审计。
          *
-         *     权限: 暂 require_admin, P4 RBAC 落地后放宽为 trader+。
+         *     权限 (P4 RBAC): trade.manual_order → owner/admin/trader。
          */
         patch: operations["update_position_sltp"];
         trace?: never;
@@ -550,6 +650,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/account/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Account History
+         * @description 权益曲线序列 (联调缺口#2): 近 N 个快照点, 时间正序。
+         */
+        get: operations["account_history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/config/runtime": {
         parameters: {
             query?: never;
@@ -672,7 +792,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List Orders
+         * @description 订单列表 (联调缺口#3): 近 N 条, 新的在前 (要求登录)。
+         */
+        get: operations["list_orders"];
         put?: never;
         /**
          * Place Order
@@ -697,6 +821,347 @@ export interface paths {
          * @description 风控状态快照: OK|WARN|HALTED + 日亏/仓位占比/regime (要求登录)。
          */
         get: operations["get_risk_state"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/risk/limits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Risk Limits
+         * @description 硬风控阈值只读视图 (联调缺口#7): active RiskProfile + runtime 覆盖生效值。
+         */
+        get: operations["get_risk_limits"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agent/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Agent Chat
+         * @description Pilot AI 对话 — SSE 流式: tool_call → delta → done (要求登录)。
+         */
+        post: operations["agent_chat"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agent/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Agent History
+         * @description 会话历史 (要求登录)。
+         */
+        get: operations["agent_history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agent/actions/{action_id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Agent Action
+         * @description 人工确认 Agent 提议的配置修改 (admin): 白名单复核 + 应用 + 审计。
+         */
+        post: operations["confirm_agent_action"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/exchange": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Exchange Settings
+         * @description 交易所配置 (脱敏)。
+         */
+        get: operations["get_exchange_settings"];
+        /**
+         * Put Exchange Settings
+         * @description 更新交易所配置: Key 加密入库, 返回只含脱敏尾 4 位。
+         */
+        put: operations["put_exchange_settings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/exchange/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Exchange Settings
+         * @description 测试连接 + 权限清单 {read, trade, withdraw}; withdraw=true 返回警告。
+         */
+        post: operations["test_exchange_settings"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/llm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Llm Settings */
+        get: operations["get_llm_settings"];
+        /** Put Llm Settings */
+        put: operations["put_llm_settings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/llm/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Test Llm Settings */
+        post: operations["test_llm_settings"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Notification Settings */
+        get: operations["get_notification_settings"];
+        /** Put Notification Settings */
+        put: operations["put_notification_settings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/lab/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Candidates
+         * @description 候选列表: stage/影子进度/影子 vs 线上对比/promote 门槛状态。
+         */
+        get: operations["list_candidates"];
+        put?: never;
+        /**
+         * Submit Candidate
+         * @description 提交候选 (人工提案) → QUEUED。
+         */
+        post: operations["submit_candidate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/lab/candidates/{candidate_id}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Candidate
+         * @description 开始影子运行: QUEUED → SHADOW。
+         */
+        post: operations["start_candidate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/lab/candidates/{candidate_id}/promote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Promote Candidate
+         * @description 申请灰度/上线 (admin+): SHADOW→CANARY 服务端校验门槛; CANARY→LIVE。
+         */
+        post: operations["promote_candidate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/lab/candidates/{candidate_id}/terminate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Terminate Candidate
+         * @description 终止归档 → RETIRED。
+         */
+        post: operations["terminate_candidate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/lab/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lab History
+         * @description promote/rollback/retire 时间线 (rollback 带触发原因)。
+         */
+        get: operations["lab_history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/performance/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Performance Summary
+         * @description 6 指标 + vs HODL 基准曲线 + 主控台聚合磁贴 (联调缺口#5)。
+         */
+        get: operations["performance_summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/performance/monthly": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Performance Monthly
+         * @description 月度 PnL (零轴柱图数据源)。
+         */
+        get: operations["performance_monthly"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/performance/attribution": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Performance Attribution
+         * @description 归因分解: dim=symbol|strategy|trigger。
+         */
+        get: operations["performance_attribution"];
         put?: never;
         post?: never;
         delete?: never;
@@ -857,6 +1322,51 @@ export interface components {
             /** Message */
             message?: string | null;
         };
+        /** AgentActionConfirmOut */
+        AgentActionConfirmOut: {
+            /** Action Id */
+            action_id: number;
+            /** Status */
+            status: string;
+            /** Key */
+            key: string;
+            /** Value */
+            value?: unknown;
+        };
+        /** AgentChatCreate */
+        AgentChatCreate: {
+            /** Message */
+            message: string;
+        };
+        /** AgentHistoryItemRead */
+        AgentHistoryItemRead: {
+            /** Invocation Id */
+            invocation_id: number;
+            /** Message */
+            message?: string | null;
+            /** Answer */
+            answer?: string | null;
+            /**
+             * Tools
+             * @default []
+             */
+            tools: string[];
+            /** Pending Action Id */
+            pending_action_id?: number | null;
+            /** Occurred At */
+            occurred_at: string;
+        };
+        /** AttributionBucketRead */
+        AttributionBucketRead: {
+            /** Key */
+            key: string;
+            /** Trades */
+            trades: number;
+            /** Net Pnl */
+            net_pnl: number;
+            /** Win Rate */
+            win_rate?: number | null;
+        };
         /**
          * AuthLoginCreate
          * @description POST /api/auth/login 入参.
@@ -869,6 +1379,26 @@ export interface components {
             email: string;
             /** Password */
             password: string;
+        };
+        /** CatchupEventRead */
+        CatchupEventRead: {
+            /** Event Id */
+            event_id: string;
+            /** Event Type */
+            event_type: string;
+            /** Envelope */
+            envelope: {
+                [key: string]: unknown;
+            };
+        };
+        /** CatchupOut */
+        CatchupOut: {
+            /** Events */
+            events: components["schemas"]["CatchupEventRead"][];
+            /** Count */
+            count: number;
+            /** Limit */
+            limit: number;
         };
         /**
          * CloseAllCreate
@@ -1011,8 +1541,18 @@ export interface components {
             timeframe: string;
             /** Action */
             action: string;
+            /** Guard Verdict */
+            guard_verdict?: string | null;
             /** Confidence */
             confidence?: number | null;
+            /** Entry Price */
+            entry_price?: number | null;
+            /** Stop Loss */
+            stop_loss?: number | null;
+            /** Take Profit */
+            take_profit?: number | null;
+            /** Position Size Pct */
+            position_size_pct?: number | null;
             /** Strategy Mode */
             strategy_mode?: string | null;
             /** Reasoning */
@@ -1038,6 +1578,53 @@ export interface components {
             } | null;
             /** Notes */
             notes?: string | null;
+        };
+        /**
+         * EquityPointRead
+         * @description 权益曲线单点 (联调缺口#2)。
+         */
+        EquityPointRead: {
+            /** Ts */
+            ts: string;
+            /** Equity */
+            equity: number;
+        };
+        /** ExchangeSettingsOut */
+        ExchangeSettingsOut: {
+            /**
+             * Network
+             * @enum {string}
+             */
+            network: "testnet" | "mainnet";
+            /** Api Key Masked */
+            api_key_masked?: string | null;
+            /**
+             * Has Secret
+             * @default false
+             */
+            has_secret: boolean;
+        };
+        /** ExchangeSettingsUpdate */
+        ExchangeSettingsUpdate: {
+            /** Network */
+            network?: ("testnet" | "mainnet") | null;
+            /** Api Key */
+            api_key?: string | null;
+            /** Api Secret */
+            api_secret?: string | null;
+        };
+        /** ExchangeTestOut */
+        ExchangeTestOut: {
+            /** Ok */
+            ok: boolean;
+            /** Permissions */
+            permissions?: {
+                [key: string]: unknown;
+            } | null;
+            /** Warning */
+            warning?: string | null;
+            /** Error */
+            error?: string | null;
         };
         /** GuardCheckItem */
         GuardCheckItem: {
@@ -1068,13 +1655,151 @@ export interface components {
             /** Volume */
             volume: number;
         };
-        /** LoginOut */
+        /** LabCandidateCreate */
+        LabCandidateCreate: {
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            /** Params */
+            params?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Shadow Days Target
+             * @default 14
+             */
+            shadow_days_target: number;
+        };
+        /** LabCandidateRead */
+        LabCandidateRead: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            /** Source */
+            source: string;
+            /** Stage */
+            stage: string;
+            /** Params */
+            params: {
+                [key: string]: unknown;
+            };
+            /** Shadow Progress */
+            shadow_progress: number;
+            /** Shadow Days Target */
+            shadow_days_target: number;
+            /** Shadow Started At */
+            shadow_started_at?: string | null;
+            /** Promote Eligible */
+            promote_eligible: boolean;
+            /** Promote Blocked Reason */
+            promote_blocked_reason?: string | null;
+            /** Metrics */
+            metrics: {
+                [key: string]: unknown;
+            };
+            /** Rollback Reason */
+            rollback_reason?: string | null;
+            /** Created At */
+            created_at?: string | null;
+        };
+        /** LabHistoryItemRead */
+        LabHistoryItemRead: {
+            /** Action */
+            action: string;
+            /** Candidate Id */
+            candidate_id?: number | null;
+            /** Candidate Name */
+            candidate_name?: string | null;
+            /** Stage */
+            stage?: string | null;
+            /** Reason */
+            reason?: string | null;
+            /** Operator */
+            operator: string;
+            /** At */
+            at?: string | null;
+        };
+        /** LabTerminateCreate */
+        LabTerminateCreate: {
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+        };
+        /** LlmSettingsOut */
+        LlmSettingsOut: {
+            /** Model */
+            model: string;
+            /** Base Url */
+            base_url?: string | null;
+            /** Api Key Masked */
+            api_key_masked?: string | null;
+            /**
+             * Temperature
+             * @default 0.3
+             */
+            temperature: number;
+            /**
+             * Timeout Seconds
+             * @default 30
+             */
+            timeout_seconds: number;
+            /**
+             * Agent Models
+             * @default {}
+             */
+            agent_models: {
+                [key: string]: string;
+            };
+        };
+        /** LlmSettingsUpdate */
+        LlmSettingsUpdate: {
+            /** Model */
+            model?: string | null;
+            /** Base Url */
+            base_url?: string | null;
+            /** Api Key */
+            api_key?: string | null;
+            /** Temperature */
+            temperature?: number | null;
+            /** Timeout Seconds */
+            timeout_seconds?: number | null;
+            /** Agent Models */
+            agent_models?: {
+                [key: string]: string;
+            } | null;
+        };
+        /** LlmTestOut */
+        LlmTestOut: {
+            /** Ok */
+            ok: boolean;
+            /** Latency Ms */
+            latency_ms?: number | null;
+            /** Error */
+            error?: string | null;
+        };
+        /**
+         * LoginOut
+         * @description 二段式 (handoff 3.7): 启用 2FA 的用户第一段只回 requires_2fa+票据。
+         */
         LoginOut: {
             /** Access Token */
-            access_token: string;
+            access_token?: string | null;
             /** Token Type */
-            token_type: string;
-            user: components["schemas"]["UserRead"];
+            token_type?: string | null;
+            user?: components["schemas"]["UserRead"] | null;
+            /**
+             * Requires 2Fa
+             * @default false
+             */
+            requires_2fa: boolean;
+            /** Two Fa Token */
+            two_fa_token?: string | null;
         };
         /** LogoutOut */
         LogoutOut: {
@@ -1132,6 +1857,69 @@ export interface components {
             /** Regime */
             regime?: string | null;
         };
+        /** MonthlyPnlRead */
+        MonthlyPnlRead: {
+            /** Month */
+            month: string;
+            /** Pnl */
+            pnl: number;
+            /** Trades */
+            trades: number;
+        };
+        /** NotificationSettingsOut */
+        NotificationSettingsOut: {
+            /** Channels */
+            channels: {
+                [key: string]: boolean;
+            };
+            /** Subscriptions */
+            subscriptions: {
+                [key: string]: boolean;
+            };
+        };
+        /** NotificationSettingsUpdate */
+        NotificationSettingsUpdate: {
+            /** Channels */
+            channels?: {
+                [key: string]: boolean;
+            } | null;
+            /** Subscriptions */
+            subscriptions?: {
+                [key: string]: boolean;
+            } | null;
+        };
+        /**
+         * OrderListItemRead
+         * @description 订单簿表行 (联调缺口#3)。
+         */
+        OrderListItemRead: {
+            /** Id */
+            id: number;
+            /** Symbol */
+            symbol: string;
+            /** Side */
+            side: string;
+            /** Order Type */
+            order_type: string;
+            /** Status */
+            status: string;
+            /** Quantity */
+            quantity: number;
+            /** Price */
+            price?: number | null;
+            /** Avg Fill Price */
+            avg_fill_price?: number | null;
+            /** Trace Id */
+            trace_id: string;
+            /** Position Id */
+            position_id?: number | null;
+            /** Ai Decision Id */
+            ai_decision_id?: number | null;
+            /** Submitted At */
+            submitted_at: string;
+            /** Filled At */
+            filled_at?: string | null;
+        };
         /** OrderPlacedOut */
         OrderPlacedOut: {
             /** Order Id */
@@ -1152,6 +1940,43 @@ export interface components {
         PauseCreate: {
             /** Reason */
             reason: string;
+        };
+        /** PerformanceSummaryOut */
+        PerformanceSummaryOut: {
+            /** Range Days */
+            range_days: number;
+            /** Net Return Pct */
+            net_return_pct?: number | null;
+            /** Hodl Return Pct */
+            hodl_return_pct?: number | null;
+            /** Vs Hodl Pct */
+            vs_hodl_pct?: number | null;
+            /** Sharpe */
+            sharpe?: number | null;
+            /** Sortino */
+            sortino?: number | null;
+            /** Max Drawdown Pct */
+            max_drawdown_pct?: number | null;
+            /** Win Rate */
+            win_rate?: number | null;
+            /** Profit Factor */
+            profit_factor?: number | null;
+            /** Trades */
+            trades: number;
+            /** Net Pnl */
+            net_pnl: number;
+            /** Today Trades */
+            today_trades: number;
+            /** Avg Holding Seconds */
+            avg_holding_seconds?: number | null;
+            /** Week Pnl */
+            week_pnl: number;
+            /** Month Pnl */
+            month_pnl: number;
+            /** Curve */
+            curve: {
+                [key: string]: unknown;
+            }[];
         };
         /** PermissionGroupRead */
         PermissionGroupRead: {
@@ -1197,6 +2022,10 @@ export interface components {
             unrealized_pnl_pct: number;
             /** Opened At */
             opened_at: string;
+            /** Strategy Mode */
+            strategy_mode?: string | null;
+            /** Position Pct */
+            position_pct?: number | null;
         };
         /** PrecheckOut */
         PrecheckOut: {
@@ -1242,6 +2071,52 @@ export interface components {
             /** Request Id */
             request_id?: string | null;
         };
+        /** Response[AgentActionConfirmOut] */
+        Response_AgentActionConfirmOut_: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            data?: components["schemas"]["AgentActionConfirmOut"] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
+        /** Response[CatchupOut] */
+        Response_CatchupOut_: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            data?: components["schemas"]["CatchupOut"] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
         /** Response[DecisionDetailOut] */
         Response_DecisionDetailOut_: {
             /**
@@ -1262,6 +2137,121 @@ export interface components {
             /** Detailmessage */
             detailMessage?: string | null;
             data?: components["schemas"]["DecisionDetailOut"] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
+        /** Response[ExchangeSettingsOut] */
+        Response_ExchangeSettingsOut_: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            data?: components["schemas"]["ExchangeSettingsOut"] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
+        /** Response[ExchangeTestOut] */
+        Response_ExchangeTestOut_: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            data?: components["schemas"]["ExchangeTestOut"] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
+        /** Response[LabCandidateRead] */
+        Response_LabCandidateRead_: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            data?: components["schemas"]["LabCandidateRead"] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
+        /** Response[LlmSettingsOut] */
+        Response_LlmSettingsOut_: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            data?: components["schemas"]["LlmSettingsOut"] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
+        /** Response[LlmTestOut] */
+        Response_LlmTestOut_: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            data?: components["schemas"]["LlmTestOut"] | null;
             /** Request Id */
             request_id?: string | null;
         };
@@ -1311,6 +2301,29 @@ export interface components {
             /** Request Id */
             request_id?: string | null;
         };
+        /** Response[NotificationSettingsOut] */
+        Response_NotificationSettingsOut_: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            data?: components["schemas"]["NotificationSettingsOut"] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
         /** Response[OrderPlacedOut] */
         Response_OrderPlacedOut_: {
             /**
@@ -1334,6 +2347,29 @@ export interface components {
             /** Request Id */
             request_id?: string | null;
         };
+        /** Response[PerformanceSummaryOut] */
+        Response_PerformanceSummaryOut_: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            data?: components["schemas"]["PerformanceSummaryOut"] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
         /** Response[PrecheckOut] */
         Response_PrecheckOut_: {
             /**
@@ -1354,6 +2390,29 @@ export interface components {
             /** Detailmessage */
             detailMessage?: string | null;
             data?: components["schemas"]["PrecheckOut"] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
+        /** Response[RiskLimitsOut] */
+        Response_RiskLimitsOut_: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            data?: components["schemas"]["RiskLimitsOut"] | null;
             /** Request Id */
             request_id?: string | null;
         };
@@ -1449,6 +2508,52 @@ export interface components {
             /** Request Id */
             request_id?: string | null;
         };
+        /** Response[TwoFaSetupOut] */
+        Response_TwoFaSetupOut_: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            data?: components["schemas"]["TwoFaSetupOut"] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
+        /** Response[TwoFaStatusOut] */
+        Response_TwoFaStatusOut_: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            data?: components["schemas"]["TwoFaStatusOut"] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
         /** Response[UserRead] */
         Response_UserRead_: {
             /**
@@ -1469,6 +2574,54 @@ export interface components {
             /** Detailmessage */
             detailMessage?: string | null;
             data?: components["schemas"]["UserRead"] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
+        /** Response[list[AgentHistoryItemRead]] */
+        Response_list_AgentHistoryItemRead__: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            /** Data */
+            data?: components["schemas"]["AgentHistoryItemRead"][] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
+        /** Response[list[AttributionBucketRead]] */
+        Response_list_AttributionBucketRead__: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            /** Data */
+            data?: components["schemas"]["AttributionBucketRead"][] | null;
             /** Request Id */
             request_id?: string | null;
         };
@@ -1496,6 +2649,30 @@ export interface components {
             /** Request Id */
             request_id?: string | null;
         };
+        /** Response[list[EquityPointRead]] */
+        Response_list_EquityPointRead__: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            /** Data */
+            data?: components["schemas"]["EquityPointRead"][] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
         /** Response[list[KlineRead]] */
         Response_list_KlineRead__: {
             /**
@@ -1520,6 +2697,54 @@ export interface components {
             /** Request Id */
             request_id?: string | null;
         };
+        /** Response[list[LabCandidateRead]] */
+        Response_list_LabCandidateRead__: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            /** Data */
+            data?: components["schemas"]["LabCandidateRead"][] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
+        /** Response[list[LabHistoryItemRead]] */
+        Response_list_LabHistoryItemRead__: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            /** Data */
+            data?: components["schemas"]["LabHistoryItemRead"][] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
         /** Response[list[MarketSymbolRead]] */
         Response_list_MarketSymbolRead__: {
             /**
@@ -1541,6 +2766,54 @@ export interface components {
             detailMessage?: string | null;
             /** Data */
             data?: components["schemas"]["MarketSymbolRead"][] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
+        /** Response[list[MonthlyPnlRead]] */
+        Response_list_MonthlyPnlRead__: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            /** Data */
+            data?: components["schemas"]["MonthlyPnlRead"][] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
+        /** Response[list[OrderListItemRead]] */
+        Response_list_OrderListItemRead__: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            /** Data */
+            data?: components["schemas"]["OrderListItemRead"][] | null;
             /** Request Id */
             request_id?: string | null;
         };
@@ -1645,6 +2918,26 @@ export interface components {
              * @default ui_resolve_via_risk_events
              */
             reason: string;
+        };
+        /**
+         * RiskLimitsOut
+         * @description 硬风控阈值只读视图 (联调缺口#7); 值为 runtime 覆盖后的生效值。
+         */
+        RiskLimitsOut: {
+            /** Max Position Size Pct */
+            max_position_size_pct: number;
+            /** Max Daily Loss Pct */
+            max_daily_loss_pct: number;
+            /** Max Consecutive Losses */
+            max_consecutive_losses: number;
+            /** Max Single Risk Pct */
+            max_single_risk_pct: number;
+            /** Min Rr Ratio */
+            min_rr_ratio?: number | null;
+            /** Sl Atr Min Mult */
+            sl_atr_min_mult?: number | null;
+            /** Sl Atr Max Mult */
+            sl_atr_max_mult?: number | null;
         };
         /** RiskStateOut */
         RiskStateOut: {
@@ -1843,6 +3136,33 @@ export interface components {
          * @enum {string}
          */
         TradingMode: "testnet" | "mainnet";
+        /** TwoFaCodeCreate */
+        TwoFaCodeCreate: {
+            /** Code */
+            code: string;
+        };
+        /** TwoFaLoginCreate */
+        TwoFaLoginCreate: {
+            /** Code */
+            code: string;
+            /** Two Fa Token */
+            two_fa_token: string;
+        };
+        /**
+         * TwoFaSetupOut
+         * @description secret 仅在 setup 响应出现一次 (扫码需要); verify 后不再可取。
+         */
+        TwoFaSetupOut: {
+            /** Secret */
+            secret: string;
+            /** Otpauth Uri */
+            otpauth_uri: string;
+        };
+        /** TwoFaStatusOut */
+        TwoFaStatusOut: {
+            /** Two Fa Enabled */
+            two_fa_enabled: boolean;
+        };
         /**
          * UserCreate
          * @description POST /api/admin/users 入参 (admin 创建账号; 公开注册按安全审计 C5 禁用).
@@ -1874,6 +3194,11 @@ export interface components {
             role: string;
             /** Status */
             status: string;
+            /**
+             * Two Fa Enabled
+             * @default false
+             */
+            two_fa_enabled: boolean;
         };
         /**
          * UserRegisterCreate
@@ -1894,12 +3219,12 @@ export interface components {
          * UserRole
          * @enum {string}
          */
-        UserRole: "user" | "admin";
+        UserRole: "user" | "admin" | "owner" | "trader" | "viewer";
         /**
          * UserStatus
          * @enum {string}
          */
-        UserStatus: "active" | "disabled";
+        UserStatus: "active" | "disabled" | "pending";
         /**
          * UserUpdate
          * @description PATCH /api/admin/users/{id} 入参 (admin 改 role/status).
@@ -2096,6 +3421,146 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Response_UserRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    two_fa_setup: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_TwoFaSetupOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    two_fa_verify: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TwoFaCodeCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_TwoFaStatusOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    two_fa_disable: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TwoFaCodeCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_TwoFaStatusOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    two_fa_login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TwoFaLoginCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_LoginOut_"];
                 };
             };
             /** @description Validation Error */
@@ -2382,6 +3847,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Response_RolesOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_user: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                user_id: number;
+            };
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -2923,6 +4423,41 @@ export interface operations {
             };
         };
     };
+    account_history: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_list_EquityPointRead__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_runtime_config: {
         parameters: {
             query?: never;
@@ -3170,6 +4705,41 @@ export interface operations {
             };
         };
     };
+    list_orders: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_list_OrderListItemRead__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     place_order: {
         parameters: {
             query?: never;
@@ -3227,6 +4797,750 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Response_RiskStateOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_risk_limits: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_RiskLimitsOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    agent_chat: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentChatCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    agent_history: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_list_AgentHistoryItemRead__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_agent_action: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                action_id: number;
+            };
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_AgentActionConfirmOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_exchange_settings: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_ExchangeSettingsOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_exchange_settings: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExchangeSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_ExchangeSettingsOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_exchange_settings: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExchangeSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_ExchangeTestOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_llm_settings: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_LlmSettingsOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_llm_settings: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LlmSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_LlmSettingsOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_llm_settings: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LlmSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_LlmTestOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_notification_settings: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_NotificationSettingsOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_notification_settings: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_NotificationSettingsOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_candidates: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_list_LabCandidateRead__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_candidate: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LabCandidateCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_LabCandidateRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_candidate: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                candidate_id: number;
+            };
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_LabCandidateRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    promote_candidate: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                candidate_id: number;
+            };
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_LabCandidateRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    terminate_candidate: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                candidate_id: number;
+            };
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LabTerminateCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_LabCandidateRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    lab_history: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_list_LabHistoryItemRead__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    performance_summary: {
+        parameters: {
+            query?: {
+                range?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_PerformanceSummaryOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    performance_monthly: {
+        parameters: {
+            query?: {
+                months?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_list_MonthlyPnlRead__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    performance_attribution: {
+        parameters: {
+            query?: {
+                dim?: string;
+                range?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_list_AttributionBucketRead__"];
                 };
             };
             /** @description Validation Error */
@@ -3485,7 +5799,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Response_CatchupOut_"];
                 };
             };
             /** @description Validation Error */

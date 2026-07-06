@@ -4,8 +4,11 @@
  */
 import type {
   Decision,
+  EventItem,
   Kline,
   MarketSymbol,
+  MonthlyPnl,
+  Order,
   PermissionRow,
   Position,
   RiskState,
@@ -14,18 +17,24 @@ import type {
   User,
 } from "../types";
 import type {
+  WireAttribution,
+  WireCatchup,
   WireDecision,
   WireDecisionDetail,
   WireKline,
   WireMarketSymbol,
+  WireMonthlyPnl,
+  WireOrder,
+  WirePerfSummary,
   WirePosition,
+  WireRiskLimits,
   WireRiskState,
   WireRoles,
   WireTicker,
   WireTrade,
   WireUser,
 } from "../wire";
-import { mockAccount } from "../mock/data";
+import { mockAccount, mockAttribution, mockPerformance } from "../mock/data";
 
 function isoToday(hms: string): string {
   const d = new Date();
@@ -67,7 +76,9 @@ export function toWirePosition(p: Position): WirePosition {
     unrealized_pnl: p.pnl,
     unrealized_pnl_pct: p.pnlPct,
     opened_at: new Date(Date.now() - 2 * 3_600_000).toISOString(),
-  };
+    strategy_mode: p.strategy,
+    position_pct: p.marginPct,
+  } as WirePosition;
 }
 
 export function toWireTrade(t: Trade): WireTrade {
@@ -93,7 +104,12 @@ export function toWireDecision(d: Decision): WireDecision {
     symbol: d.symbol,
     timeframe: d.timeframe,
     action: d.action,
+    guard_verdict: d.guard,
     confidence: d.confidence,
+    entry_price: d.entry ?? null,
+    stop_loss: d.sl ?? null,
+    take_profit: d.tp ?? null,
+    position_size_pct: d.sizePct ? parseFloat(d.sizePct) : null,
     strategy_mode: d.strategy,
     reasoning: [d.reason],
     risk_note: null,
@@ -171,6 +187,92 @@ export function toWireTicker(t: Ticker): WireTicker {
   };
 }
 
+export function toWireOrder(o: Order): WireOrder {
+  return {
+    id: Number(o.id.replace(/\D/g, "")) || 1,
+    symbol: o.symbol,
+    side: o.side,
+    order_type: o.type,
+    status: o.status,
+    quantity: o.qty,
+    price: o.price,
+    avg_fill_price: o.status === "FILLED" ? o.price : null,
+    trace_id: `manual:mock:${o.id}`,
+    position_id: null,
+    ai_decision_id: null,
+    submitted_at: isoToday(o.ts.includes(":") ? o.ts : "14:23:09"),
+    filled_at: o.status === "FILLED" ? isoToday("14:23:09") : null,
+  } as WireOrder;
+}
+
+export function toWireCatchup(events: EventItem[]): WireCatchup {
+  return {
+    events: events.map((e) => ({
+      event_id: e.id,
+      event_type: `mock.${e.kind}`,
+      envelope: {
+        event_id: e.id,
+        event_type: `mock.${e.kind}`,
+        occurred_at: isoToday(e.ts),
+        payload: { message: e.msg },
+      },
+    })),
+    count: events.length,
+    limit: 200,
+  } as unknown as WireCatchup;
+}
+
+export const wireRiskLimits: WireRiskLimits = {
+  max_position_size_pct: 20,
+  max_daily_loss_pct: 3,
+  max_consecutive_losses: 3,
+  max_single_risk_pct: 1,
+  min_rr_ratio: 1.5,
+  sl_atr_min_mult: 1.0,
+  sl_atr_max_mult: 3.0,
+};
+
+export function toWirePerfSummary(): WirePerfSummary {
+  const p = mockPerformance;
+  const base = 110000;
+  return {
+    range_days: 90,
+    net_return_pct: p.netReturnPct,
+    hodl_return_pct: p.hodlBtcReturnPct,
+    vs_hodl_pct: p.netReturnPct - p.hodlBtcReturnPct,
+    sharpe: p.sharpe,
+    sortino: p.sortino,
+    max_drawdown_pct: p.maxDD,
+    win_rate: p.winRate,
+    profit_factor: p.profitFactor,
+    trades: 85,
+    net_pnl: 8934.5,
+    today_trades: 7,
+    avg_holding_seconds: 8040,
+    week_pnl: 5420.11,
+    month_pnl: 8934.5,
+    // 后端 curve 为绝对权益 + 归一 HODL；由 mock 百分比曲线反推
+    curve: p.curve.map((c) => ({
+      ts: c.ts,
+      equity: base * (1 + c.strategy / 100),
+      hodl: base * (1 + c.hodl / 100),
+    })),
+  };
+}
+
+export function toWireMonthly(m: MonthlyPnl): WireMonthlyPnl {
+  return { month: m.month, pnl: m.pnl, trades: m.trades ?? 12 };
+}
+
+export function wireAttribution(dim: string): WireAttribution[] {
+  return (mockAttribution[dim] ?? []).map((r) => ({
+    key: r.key,
+    trades: r.trades,
+    net_pnl: r.pnl,
+    win_rate: r.winRate,
+  }));
+}
+
 export function toWireUser(u: User): WireUser {
   return {
     id: Number(u.id.replace(/\D/g, "")) || 1,
@@ -178,6 +280,7 @@ export function toWireUser(u: User): WireUser {
     email: u.email,
     role: u.role,
     status: u.status,
+    two_fa_enabled: u.twoFa,
   } as WireUser;
 }
 

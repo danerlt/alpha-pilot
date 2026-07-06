@@ -208,8 +208,8 @@ class MockStream implements Stream {
 // （src/services/events/contracts.py：event_id/event_type/occurred_at/payload）
 // ============================================================
 
-/** 后端事件类型 → 事件流 UI 的 kind/tone 映射 */
-function envelopeToEventItem(env: BackendEnvelope): EventItem {
+/** 后端事件类型 → 事件流 UI 的 kind/tone 映射（catchup 适配复用，故导出） */
+export function envelopeToEventItem(env: BackendEnvelope): EventItem {
   const t = env.event_type;
   const kind: EventItem["kind"] = t.startsWith("decision.")
     ? "ai"
@@ -230,20 +230,23 @@ function envelopeToEventItem(env: BackendEnvelope): EventItem {
           : "fg";
   const symbol =
     typeof env.payload?.symbol === "string" ? ` · ${env.payload.symbol}` : "";
+  // payload.message 存在时优先作为人类可读文案（mock 与后端可选提供）
+  const message =
+    typeof env.payload?.message === "string" ? env.payload.message : null;
   return {
     id: env.event_id,
     ts: env.occurred_at?.slice(11, 19) ?? "",
     kind,
-    msg: `${t}${symbol}`,
+    msg: message ?? `${t}${symbol}`,
     tone,
   };
 }
 
-interface BackendEnvelope {
+export interface BackendEnvelope {
   event_id: string;
   event_type: string;
   occurred_at?: string;
-  payload: Record<string, unknown> & { symbol?: unknown };
+  payload: Record<string, unknown> & { symbol?: unknown; message?: unknown };
 }
 
 class WsStream implements Stream {

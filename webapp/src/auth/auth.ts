@@ -22,6 +22,18 @@ export function useLogin() {
   return useMutation({
     mutationFn: ({ email, password }: { email: string; password: string }) =>
       authApi.login(email, password),
+    onSuccess: (res) => {
+      // requires_2fa 时 user 为 null，正式会话待 2FA 换取
+      if (res.user) queryClient.setQueryData(AUTH_ME_KEY, res.user);
+    },
+  });
+}
+
+export function useTwoFaLogin() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ code, token }: { code: string; token: string }) =>
+      authApi.twoFaLogin(code, token),
     onSuccess: (user) => {
       queryClient.setQueryData(AUTH_ME_KEY, user);
     },

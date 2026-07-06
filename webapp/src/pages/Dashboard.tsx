@@ -20,6 +20,7 @@ import {
   useDecisions,
   useEquityHistory,
   useEvents,
+  usePerformanceSummary,
   usePositions,
 } from "@/api/queries";
 import type { Decision } from "@/api/types";
@@ -34,6 +35,7 @@ export default function Dashboard() {
   const { data: positions = [] } = usePositions();
   const { data: events = [] } = useEvents();
   const { data: equitySeries = [] } = useEquityHistory();
+  const { data: perf } = usePerformanceSummary();
   const [range, setRange] = useState<(typeof RANGES)[number]>("1M");
   const [ackHalt, setAckHalt] = useState(false);
   const variant = getVariant();
@@ -115,24 +117,26 @@ export default function Dashboard() {
                 )}
               </div>
               {account && (
+                <Stat
+                  label="今日"
+                  value={fmtPct(account.todayPnlPct)}
+                  sub={fmtSigned(account.todayPnl)}
+                  tone={account.todayPnl >= 0 ? "pos" : "neg"}
+                />
+              )}
+              {perf && (
                 <>
                   <Stat
-                    label="今日"
-                    value={fmtPct(account.todayPnlPct)}
-                    sub={fmtSigned(account.todayPnl)}
-                    tone={account.todayPnl >= 0 ? "pos" : "neg"}
+                    label="近 7 日"
+                    value={fmtSigned(perf.weekPnl)}
+                    sub="已平仓口径"
+                    tone={perf.weekPnl >= 0 ? "pos" : "neg"}
                   />
                   <Stat
-                    label="本周"
-                    value={fmtPct(account.weekPnlPct)}
-                    sub={fmtSigned(account.weekPnl)}
-                    tone={account.weekPnl >= 0 ? "pos" : "neg"}
-                  />
-                  <Stat
-                    label="本月"
-                    value={fmtPct(account.mtdPnlPct)}
-                    sub={fmtSigned(account.mtdPnl)}
-                    tone={account.mtdPnl >= 0 ? "pos" : "neg"}
+                    label="近 30 日"
+                    value={fmtSigned(perf.monthPnl)}
+                    sub="已平仓口径"
+                    tone={perf.monthPnl >= 0 ? "pos" : "neg"}
                   />
                 </>
               )}
@@ -146,20 +150,20 @@ export default function Dashboard() {
             </div>
           </Card>
 
-          {/* 指标磁贴 ×4 */}
-          {account && (
+          {/* 指标磁贴 ×4（绩效接口，缺口#5 已收口） */}
+          {perf && (
             <div className="grid grid-cols-2 gap-3 min-[900px]:grid-cols-4">
               <Card dense>
-                <Stat label="今日交易" value={account.tradesToday} sub={`胜率 ${account.winRate}%`} />
+                <Stat label="今日交易" value={perf.todayTrades} sub={`胜率 ${perf.winRate.toFixed(0)}%`} />
               </Card>
               <Card dense>
-                <Stat label="Sharpe 30d" value={account.sharpe.toFixed(2)} sub="risk-adjusted" />
+                <Stat label="Sharpe" value={perf.sharpe.toFixed(2)} sub="risk-adjusted" />
               </Card>
               <Card dense>
-                <Stat label="最大回撤" value={fmtPct(account.maxDD)} sub="阈值 −8%" tone="neg" />
+                <Stat label="最大回撤" value={fmtPct(perf.maxDD)} sub="阈值 −8%" tone="neg" />
               </Card>
               <Card dense>
-                <Stat label="平均持仓时长" value={account.avgHold} sub="中短线" />
+                <Stat label="平均持仓时长" value={perf.avgHold} sub="已平仓口径" />
               </Card>
             </div>
           )}
