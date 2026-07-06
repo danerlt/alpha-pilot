@@ -46,8 +46,15 @@
 
 **handoff 路线图 P1-P6 后端部分全部完成。基线 688 passed + 2 skipped，openapi 66 paths。**
 
-## 待做（收尾项，非阻塞）
+## 收尾完成（2026-07-06 下午）
 
-1. 影子执行 V2（真·独立 LLM 决策链）；agent chat 真流式
-2. 通知渠道 token settings 化 + notifier 接线；owner bootstrap 授予
-3. testnet 实盘验收（决策链逐段点亮/手动单全链路/影子 24h）需前后端联调 + 老板亲验
+- dev 库迁移补齐（顺带修复 alembic env.py 裸 DATABASE_URL 必炸 bug）
+- agent chat 真流式（complete_stream + 首字符嗅探；协议 final 改纯文本，旧 JSON 兼容）
+- 影子执行 V2（mode=llm 独立决策链，source=shadow 不进决策流不下单；mirror 并存）
+- 通知渠道配置化（前一批次）
+- 基线 **697 passed + 2 skipped**
+
+## 待做
+
+仅 **testnet 实盘验收**：`docs/testnet验收手册.md` 已备好逐项清单，需老板亲验 + 24h 观察。
+owner bootstrap 授予未做（当前 DEFAULT_ADMIN 是 admin，如需 owner 角色找老板拍板方式）。
