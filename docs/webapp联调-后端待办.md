@@ -1,11 +1,15 @@
 # webapp ⇄ 后端真联调 · 后端待办清单
 
-> **状态更新（2026-07-05 后端会话）**：#1-4、#6、#7 已全部收口（commit 见 git log
-> `feat(api): webapp 联调缺口收口`），openapi.json 已重导（48 paths），前端可
-> `npm run gen:api` 后删对应兼容代码。#5（周/月 PnL/Sharpe 等聚合指标）按清单建议留 P6 绩效期。
-> 新增端点：`GET /api/account/history`、`GET /api/orders`、`GET /api/risk/limits`；
-> 补字段：DecisionRead.guard_verdict、PositionRead.strategy_mode/position_pct；
-> catchup 已挂 CatchupOut response_model（可删形状嗅探）。
+> **状态更新（2026-07-06 后端会话）**：**清单 #1-7 全部收口** ✅，openapi.json 已重导（66 paths），
+> 前端 `npm run gen:api` 后可删全部兼容代码。
+> - #1-4/6/7 见 2026-07-05 批次（`GET /api/account/history` / `GET /api/orders` /
+>   `GET /api/risk/limits`；DecisionRead.guard_verdict、PositionRead.strategy_mode/position_pct、
+>   CatchupOut）
+> - **#1 顺带**：决策列表读已直出 `entry_price/stop_loss/take_profit/position_size_pct`（决策卡五格）
+> - **#5**：`GET /api/performance/summary` 已含 sharpe/sortino/win_rate/today_trades/
+>   avg_holding_seconds/week_pnl/month_pnl + vs HODL 曲线（P6 落地）
+> - 「已在后端计划内」三项也已全部落地：P2b `/ws/market` 代理、P4 RBAC+2FA、
+>   P6 performance 三接口（`/api/performance/{summary,monthly,attribution}`）。绩效页可全量接真。
 
 > 2026-07-05 前端会话完成 wire 适配层后，对**真实后端**（隔离库 `alphapilot_webapp_it`）
 > 跑通浏览器级联调：登录（ap_token cookie）→ 2FA → 主控台/行情/决策流/持仓 全部正常、

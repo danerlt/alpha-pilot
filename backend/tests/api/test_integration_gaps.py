@@ -166,3 +166,22 @@ def test_gap5_performance_summary_endpoint(authed):
     data = body["data"]
     for key in ("sharpe", "win_rate", "today_trades", "week_pnl", "month_pnl", "curve"):
         assert key in data
+
+
+def test_gap1b_decision_list_carries_price_fields(authed):
+    """缺口#1 顺带: 列表读直出 entry/sl/tp/size (决策卡头部五格)。"""
+    cli, eng = authed
+    now = datetime.now(tz=timezone.utc)
+    with Session(eng) as s:
+        s.add(AIDecision(
+            account_id=1, trading_mode="testnet", symbol="BTCUSDT", timeframe="1h",
+            decided_at=now, action="OPEN_LONG", confidence=0.7,
+            entry_price=50_000, stop_loss=49_000, take_profit=52_000,
+            position_size_pct=0.1, is_fallback=False,
+        ))
+        s.commit()
+    row = cli.get("/api/decisions").json()["data"][0]
+    assert row["entry_price"] == 50_000.0
+    assert row["stop_loss"] == 49_000.0
+    assert row["take_profit"] == 52_000.0
+    assert row["position_size_pct"] == 0.1

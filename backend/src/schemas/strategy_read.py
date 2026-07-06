@@ -13,6 +13,10 @@ class DecisionRead(BaseModel):
     action: str
     guard_verdict: str | None = None  # PASS/REJECT/DEGRADE (联调缺口#1)
     confidence: float | None = None
+    entry_price: float | None = None  # 联调缺口#1 顺带: 决策卡头部五格
+    stop_loss: float | None = None
+    take_profit: float | None = None
+    position_size_pct: float | None = None
     strategy_mode: str | None = None
     reasoning: list[Any] | None = None
     risk_note: str | None = None

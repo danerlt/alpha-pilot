@@ -29,8 +29,18 @@
   （require_permission 端点守卫、trader 可下单 viewer 403、owner 保护、pending 批准）/
   2FA TOTP 二段式（pyotp，secret Fernet 加密，scope=2fa 票据）。基线 **668 passed + 2 skipped**，openapi 58 paths。
 
-## 待做（按序）
+## 已完成（2026-07-06，路线图收官）
 
-1. **P5** lab（候选/影子执行调度/灰度自动回滚，handoff 3.5）
-2. **P6** performance（summary/monthly/attribution 三接口 + 联调缺口#5 聚合指标，handoff 3.8）
-3. 通知渠道 token settings 化 + notifier 接线；owner bootstrap 授予；agent 真流式
+- **P5** lab：lab_candidates 表 + 6 端点 + promote 门槛服务端校验 + 影子 mirror 执行
+  （lab_scanner job，不下单）+ 灰度回撤 80% 自动回滚 + lab.update 事件
+- **P6** performance：summary（vs HODL/Sharpe/Sortino/回撤/胜率/盈亏比 + 缺口#5 磁贴）/
+  monthly / attribution(dim=symbol|strategy|trigger)，对账测试
+- **联调清单 #1-7 全收口**（含 #1 顺带的决策列表四价格字段）
+
+**handoff 路线图 P1-P6 后端部分全部完成。基线 688 passed + 2 skipped，openapi 66 paths。**
+
+## 待做（收尾项，非阻塞）
+
+1. 影子执行 V2（真·独立 LLM 决策链）；agent chat 真流式
+2. 通知渠道 token settings 化 + notifier 接线；owner bootstrap 授予
+3. testnet 实盘验收（决策链逐段点亮/手动单全链路/影子 24h）需前后端联调 + 老板亲验
