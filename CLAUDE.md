@@ -209,15 +209,15 @@ alpha-pilot/
 
 ## 环境变量配置
 
+**配置分层原则（2026-07-06 起）**：env 只放**基础设施**（PG/Redis/安全主密钥/调度参数）。
+交易所 API Key 与 LLM 配置在**前端设置页**配置（`PUT /api/settings/{exchange,llm}`），
+Fernet 加密存 system_settings 表；api/scheduler 启动时 + 每个策略周期自动从 DB 加载，
+**DB 值优先于 env**（env 字段仅 fallback；LLM 缺 Key 自动回退 Mock 恒 HOLD 不误下单）。
+
 从 `example.env` 拷贝到 `envs/<env>.env` 填写后，再 `cp envs/<env>.env .env`：
 
 ```env
 TRADING_MODE=testnet
-BINANCE_API_KEY=<testnet key>
-BINANCE_API_SECRET=<testnet secret>
-LLM_BASE_URL=https://api.deepseek.com/v1
-LLM_API_KEY=<your llm api key>
-LLM_MODEL=deepseek-v4-pro
 DATABASE_URL=postgresql://alphapilot:alphapilot@localhost:5442/alphapilot
 REDIS_URL=redis://localhost:6389/0
 MAX_POSITION_SIZE_PCT=0.20
@@ -225,12 +225,14 @@ MAX_DAILY_LOSS_PCT=0.03
 MAX_CONSECUTIVE_LOSSES=3
 MAX_SINGLE_RISK_PCT=0.01
 # 安全密钥（非测试环境启动必填，否则 _validate_secrets 抛 InsecureSecretError）
+# APP_CONFIG_MASTER_KEY 是解密 DB 内业务密钥的根，必须且只能放 env
 # 测试可设 ALPHAPILOT_SKIP_SECRET_VALIDATION=1 跳过；生产用 `python -c "import secrets;print(secrets.token_urlsafe(48))"` 生成
 APP_AUTH_SECRET_KEY=<JWT 签名密钥，随机长串>
-APP_CONFIG_MASTER_KEY=<Fernet 主密钥，runtime config 加密用>
+APP_CONFIG_MASTER_KEY=<Fernet 主密钥，加密 DB 内 BINANCE/LLM Key>
 # 开发/测试可选：自动引导默认管理员（生产勿用固定密码）
 DEFAULT_ADMIN_EMAIL=admin@example.com
 DEFAULT_ADMIN_PASSWORD=<强密码>
+# BINANCE_API_KEY / LLM_API_KEY 等业务密钥：留空，走前端设置页
 ```
 
 ---

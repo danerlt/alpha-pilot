@@ -81,6 +81,10 @@ def new_strategy_pipeline_job() -> None:
         if KillSwitchService(db).is_paused():
             logger.info("kill_switch=paused; new strategy pipeline skipped")
             return
+        # 每轮先拉 DB runtime 配置 (前端改的 Key/风控参数最迟一个周期内生效)
+        from src.services.system.runtime_config import refresh_runtime_settings_safe
+
+        refresh_runtime_settings_safe(source="pipeline_cycle")
         settings = get_settings()
         profile = _load_active_risk_profile(db, account_id=1)
         if profile is None:

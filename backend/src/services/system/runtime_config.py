@@ -153,9 +153,49 @@ def upsert_system_setting(
 
 
 def apply_runtime_settings_refresh(db: Session, *, master_key: str, default_trading_mode: TradingMode) -> dict[str, Any]:
+    """DB system_settings → 进程内 settings 单例 (env 只做 fallback 的关键一环)。
+
+    修复: 旧实现只把 overrides 存进 manager, 没有写回 get_app_config() 单例,
+    DB 配置实际从未生效。现在 setattr 回单例, 所有读 get_settings() 的装配点
+    (adapter/LLM/风控参数/凭证诊断) 立即拿到 DB 值。
+    """
+    from src.configs.app_configs import get_app_config
     from src.core.exchange.binance_client import get_binance_client
 
     manager = get_runtime_config_manager()
     overrides = manager.refresh_from_db(db, build_fernet(master_key), default_trading_mode)
+    settings = get_app_config()
+    for field, value in overrides.items():
+        if field == "TRADING_MODE" and not isinstance(value, TradingMode):
+            value = TradingMode(value)
+        setattr(settings, field, value)
     get_binance_client.cache_clear()
     return overrides
+
+
+def refresh_runtime_settings_safe(*, source: str) -> dict[str, Any] | None:
+    """容错版刷新 (启动/周期用): 自建 session; DB 不可用或主密钥异常只 warning。
+
+    api lifespan 与 scheduler 启动各调一次; strategy_pipeline_job 每轮开头再调,
+    让前端设置页改的配置最迟一个策略周期内在 scheduler 进程生效, 无需重启。
+    """
+    import logging
+
+    from src.configs.app_configs import get_settings
+    from src.db.session import get_db_session
+
+    logger = logging.getLogger(__name__)
+    try:
+        settings = get_settings()
+        with get_db_session() as db:
+            overrides = apply_runtime_settings_refresh(
+                db,
+                master_key=settings.APP_CONFIG_MASTER_KEY,
+                default_trading_mode=settings.TRADING_MODE,
+            )
+        if overrides:
+            logger.info("runtime settings loaded from DB (%s): %s", source, sorted(overrides))
+        return overrides
+    except Exception:  # noqa: BLE001
+        logger.warning("runtime settings refresh skipped (%s, non-fatal)", source, exc_info=True)
+        return None

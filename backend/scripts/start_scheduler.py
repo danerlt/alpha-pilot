@@ -42,6 +42,10 @@ def _setup_scheduler() -> BackgroundScheduler:
         },
     )
 
+    from src.services.system.runtime_config import refresh_runtime_settings_safe
+
+    refresh_runtime_settings_safe(source="scheduler_startup")
+
     from src.schedulers.attribution_scanner import attribution_job
     from src.schedulers.lab_scanner import lab_job
     from src.schedulers.position_monitor_scanner import position_monitor_job

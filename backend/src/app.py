@@ -61,6 +61,11 @@ async def lifespan(app: FastAPI):
     with get_db_session() as db:
         ensure_default_admin(db, settings)
 
+    # DB runtime 配置加载 (前端设置页写入的交易所/LLM/风控配置; env 只做 fallback)
+    from src.services.system.runtime_config import refresh_runtime_settings_safe
+
+    refresh_runtime_settings_safe(source="api_startup")
+
     embed_scheduler = os.getenv("ALPHAPILOT_API_EMBED_SCHEDULER", "0") == "1"
     if embed_scheduler:
         _scheduler = BackgroundScheduler()
