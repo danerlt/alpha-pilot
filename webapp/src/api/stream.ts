@@ -5,6 +5,7 @@
  * 消息格式 {type, payload}，断线指数退避重连，补偿走 /api/events/catchup（页面侧已接）。
  */
 import { USE_MOCK } from "./client";
+import { getWsToken } from "./tokenStore";
 import { resolveWsUrl } from "@/config";
 import type {
   AccountSnapshot,
@@ -259,8 +260,14 @@ class WsStream implements Stream {
 
   private url(): string {
     const base = resolveWsUrl();
+    const params = new URLSearchParams();
+    // 后端 WS 握手只认 ?token=（cookie 不透传，缺口已写档）；token 内存持有
+    const token = getWsToken();
+    if (token) params.set("token", token);
     // 断线重连带 since，后端 _replay_since 回放缺口事件
-    return this.lastEventId ? `${base}?since=${this.lastEventId}` : base;
+    if (this.lastEventId) params.set("since", this.lastEventId);
+    const qs = params.toString();
+    return qs ? `${base}?${qs}` : base;
   }
 
   subscribe<T extends StreamTopic>(

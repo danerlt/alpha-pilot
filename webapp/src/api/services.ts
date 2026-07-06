@@ -5,6 +5,7 @@
  */
 import { http } from "./client";
 import { envelopeToEventItem, type BackendEnvelope } from "./stream";
+import { setWsToken } from "./tokenStore";
 import {
   fromWireAccount,
   fromWireAttribution,
@@ -15,6 +16,8 @@ import {
   fromWireDecision,
   fromWireDecisionDetail,
   fromWireKline,
+  fromWireLabCandidate,
+  fromWireLabHistory,
   fromWireMarketSymbol,
   fromWirePosition,
   fromWirePrecheck,
@@ -29,6 +32,8 @@ import {
   type WireDecision,
   type WireDecisionDetail,
   type WireKline,
+  type WireLabCandidate,
+  type WireLabHistory,
   type WireLogin,
   type WireMarketSymbol,
   type WireMonthlyPnl,
@@ -48,11 +53,7 @@ import type {
   AttributionDim,
   AuditLog,
   DailyReport,
-  LabCandidate,
-  LabHistoryItem,
-  OrderBook,
   OrderTicketPayload,
-  RecentTrade,
   StrategyCard,
   SymbolConfig,
   User,
@@ -146,11 +147,7 @@ export const marketApi = {
     ).then((ws) => ws.map(fromWireKline)),
   ticker: (symbol: string) =>
     http<WireTicker>(`/api/market/ticker?symbol=${symbol}`).then(fromWireTicker),
-  // 盘口/逐笔为 P2b WS 代理范围（后端进行中），暂 mock-only
-  orderBook: (symbol: string) =>
-    http<OrderBook>(`/api/market/depth?symbol=${symbol}`),
-  recentTrades: (symbol: string) =>
-    http<RecentTrade[]>(`/api/market/trades?symbol=${symbol}`),
+  // 盘口/逐笔走 /ws/market 行情流，见 marketStream.ts
 };
 
 export const performanceApi = {
@@ -179,8 +176,14 @@ export const strategyApi = {
 };
 
 export const labApi = {
-  candidates: () => http<LabCandidate[]>("/api/lab/candidates"),
-  history: () => http<LabHistoryItem[]>("/api/lab/history"),
+  candidates: () =>
+    http<WireLabCandidate[]>("/api/lab/candidates").then((ws) =>
+      ws.map(fromWireLabCandidate),
+    ),
+  history: () =>
+    http<WireLabHistory[]>("/api/lab/history").then((ws) =>
+      ws.map(fromWireLabHistory),
+    ),
   start: (id: string) =>
     http<{ ok: boolean }>(`/api/lab/candidates/${id}/start`, { method: "POST" }),
   promote: (id: string) =>
@@ -218,19 +221,28 @@ export const authApi = {
     http<WireLogin>("/api/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
-    }).then((w) => ({
-      user: w.user ? fromWireUser(w.user) : null,
-      requires2fa: w.requires_2fa ?? false,
-      twoFaToken: w.two_fa_token ?? null,
-    })),
+    }).then((w) => {
+      if (w.user) setWsToken(w.access_token ?? null);
+      return {
+        user: w.user ? fromWireUser(w.user) : null,
+        requires2fa: w.requires_2fa ?? false,
+        twoFaToken: w.two_fa_token ?? null,
+      };
+    }),
   /** 2FA 二段式：login 返回 requires_2fa 后，用动态码 + 票据换正式会话 */
   twoFaLogin: (code: string, twoFaToken: string): Promise<User> =>
     http<WireLogin>("/api/auth/2fa/login", {
       method: "POST",
       body: JSON.stringify({ code, two_fa_token: twoFaToken }),
-    }).then((w) => fromWireUser(w.user!)),
+    }).then((w) => {
+      setWsToken(w.access_token ?? null);
+      return fromWireUser(w.user!);
+    }),
   me: () => http<WireUser>("/api/auth/me").then(fromWireUser),
-  logout: () => http<{ ok: boolean }>("/api/auth/logout", { method: "POST" }),
+  logout: () =>
+    http<{ ok: boolean }>("/api/auth/logout", { method: "POST" }).finally(
+      () => setWsToken(null),
+    ),
 };
 
 export const commandsApi = {

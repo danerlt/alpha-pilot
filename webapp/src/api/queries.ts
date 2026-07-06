@@ -57,18 +57,6 @@ export const useTicker = (symbol: string) =>
     queryFn: () => marketApi.ticker(symbol),
   });
 
-export const useOrderBook = (symbol: string) =>
-  useQuery({
-    queryKey: qk.orderBook(symbol),
-    queryFn: () => marketApi.orderBook(symbol),
-  });
-
-export const useRecentTrades = (symbol: string) =>
-  useQuery({
-    queryKey: qk.recentTrades(symbol),
-    queryFn: () => marketApi.recentTrades(symbol),
-  });
-
 export const usePerformanceSummary = () =>
   useQuery({ queryKey: qk.perfSummary, queryFn: performanceApi.summary });
 

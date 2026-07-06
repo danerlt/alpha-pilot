@@ -157,16 +157,7 @@ export const handlers = [
     const symbol = new URL(request.url).searchParams.get("symbol") ?? "BTCUSDT";
     return ok(wire.toWireTicker(mock.genTicker(symbol)));
   }),
-  http.get("/api/market/depth", async ({ request }) => {
-    await delay(120);
-    const symbol = new URL(request.url).searchParams.get("symbol") ?? "BTCUSDT";
-    return ok(mock.genOrderBook(symbol));
-  }),
-  http.get("/api/market/trades", async ({ request }) => {
-    await delay(120);
-    const symbol = new URL(request.url).searchParams.get("symbol") ?? "BTCUSDT";
-    return ok(mock.genRecentTrades(symbol));
-  }),
+  // 盘口/逐笔走 /ws/market（marketStream.ts 的 mock 分支），无 REST 端点
 
   // ---------- 绩效 ----------
   http.get("/api/performance/summary", async () => {
@@ -207,11 +198,11 @@ export const handlers = [
   // ---------- 策略实验室 ----------
   http.get("/api/lab/candidates", async () => {
     await delay(LATENCY);
-    return ok(mock.mockLabCandidates.map((c) => ({ ...c })));
+    return ok(mock.mockLabCandidates.map(wire.toWireLabCandidate));
   }),
   http.get("/api/lab/history", async () => {
     await delay(LATENCY);
-    return ok([...mock.mockLabHistory]);
+    return ok(mock.mockLabHistory.map(wire.toWireLabHistory));
   }),
   http.post("/api/lab/candidates/:id/start", async ({ params }) => {
     await delay(350);

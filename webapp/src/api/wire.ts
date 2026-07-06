@@ -13,6 +13,9 @@ import type {
   GuardVerdict,
   HardLimit,
   Kline,
+  LabCandidate,
+  LabHistoryItem,
+  LabStage,
   MarketSymbol,
   MonthlyPnl,
   Order,
@@ -42,6 +45,8 @@ export type WireLogin = S["LoginOut"];
 export type WireRoles = S["RolesOut"];
 export type WireTrade = S["TradeRead"];
 export type WireOrder = S["OrderListItemRead"];
+export type WireLabCandidate = S["LabCandidateRead"];
+export type WireLabHistory = S["LabHistoryItemRead"];
 export type WireCatchup = S["CatchupOut"];
 export type WireRiskLimits = S["RiskLimitsOut"];
 export type WirePerfSummary = S["PerformanceSummaryOut"];
@@ -360,6 +365,62 @@ export function fromWireAttribution(w: WireAttribution): AttributionRow {
     trades: w.trades,
     pnl: w.net_pnl,
     winRate: w.win_rate ?? 0,
+  };
+}
+
+// ---------- 策略实验室 ----------
+interface LabSideMetrics {
+  decisions?: number;
+  trades?: number;
+  simulated_pnl_pct?: number | null;
+  net_pnl_pct?: number | null;
+  win_rate?: number | null;
+}
+
+const LAB_STAGES: LabStage[] = ["queued", "shadow", "canary", "live", "retired"];
+
+export function fromWireLabCandidate(w: WireLabCandidate): LabCandidate {
+  const m = (w.metrics ?? {}) as { shadow?: LabSideMetrics; live?: LabSideMetrics };
+  const s = m.shadow ?? {};
+  const l = m.live ?? {};
+  const pct = (v: number | null | undefined) =>
+    v == null ? "—" : `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`;
+  const wr = (v: number | null | undefined) =>
+    v == null ? "—" : `${(v * 100).toFixed(0)}%`;
+  const better = (
+    a: number | null | undefined,
+    b: number | null | undefined,
+  ): "shadow" | "live" | "tie" =>
+    a == null || b == null ? "tie" : a > b ? "shadow" : a < b ? "live" : "tie";
+  const progress = w.shadow_progress ?? 0;
+  const target = w.shadow_days_target ?? 14;
+  return {
+    id: String(w.id),
+    title: w.name,
+    source: w.source === "manual" ? "manual" : "ai",
+    stage: LAB_STAGES.includes(w.stage as LabStage)
+      ? (w.stage as LabStage)
+      : "queued",
+    shadowProgressPct: Math.round(progress * 100),
+    shadowDays: Math.round(progress * target),
+    metrics: [
+      { k: "决策数(影)/交易数(线)", shadow: s.decisions ?? 0, live: l.trades ?? 0, better: "tie" },
+      { k: "净收益", shadow: pct(s.simulated_pnl_pct), live: pct(l.net_pnl_pct), better: better(s.simulated_pnl_pct, l.net_pnl_pct) },
+      { k: "胜率", shadow: wr(s.win_rate), live: wr(l.win_rate), better: better(s.win_rate, l.win_rate) },
+    ],
+    createdAt: (w.created_at ?? "").slice(0, 10),
+    promotable: w.promote_eligible,
+    blockReason: w.promote_blocked_reason ?? undefined,
+  };
+}
+
+export function fromWireLabHistory(w: WireLabHistory): LabHistoryItem {
+  const a = (w.action ?? "").toLowerCase();
+  return {
+    ts: (w.at ?? "").slice(0, 10),
+    kind: a.includes("promote") ? "promote" : a.includes("rollback") ? "rollback" : "retire",
+    title: w.candidate_name ?? `候选 #${w.candidate_id}`,
+    note: [w.reason, w.operator].filter(Boolean).join(" · ") || undefined,
   };
 }
 

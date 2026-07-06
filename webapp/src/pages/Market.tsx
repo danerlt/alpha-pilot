@@ -2,7 +2,7 @@
  * 行情页（handoff/02 P3）—— 自选 220px | K线主区 | 右栏 260px（下单+盘口+合约信息）。
  * 数据来自 Query 缓存；实时价格由 streamBridge 写入 marketSymbols 缓存。
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { BrainCircuit, Search } from "lucide-react";
 import { PageShell } from "@/components/shell/PageShell";
@@ -15,12 +15,11 @@ import { CoinAvatar } from "@/components/positions/PositionsTable";
 import {
   useKlines,
   useMarketSymbols,
-  useOrderBook,
   usePositions,
-  useRecentTrades,
   useTicker,
 } from "@/api/queries";
-import type { Regime } from "@/api/types";
+import { subscribeMarketStream } from "@/api/marketStream";
+import type { OrderBook, RecentTrade, Regime } from "@/api/types";
 import { fmt } from "@/lib/format";
 
 const TIMEFRAMES = ["1m", "5m", "15m", "1h", "4h", "1d"];
@@ -47,9 +46,19 @@ export default function Market() {
   const { data: symbols = [] } = useMarketSymbols();
   const { data: klines = [] } = useKlines(symbol, tf);
   const { data: ticker } = useTicker(symbol);
-  const { data: book } = useOrderBook(symbol);
-  const { data: recent = [] } = useRecentTrades(symbol);
   const { data: positions = [] } = usePositions();
+
+  // 盘口/逐笔走 /ws/market 行情流（handoff P2b），一连接一 symbol
+  const [book, setBook] = useState<OrderBook | null>(null);
+  const [recent, setRecent] = useState<RecentTrade[]>([]);
+  useEffect(() => {
+    setBook(null);
+    setRecent([]);
+    return subscribeMarketStream(symbol, {
+      onDepth: setBook,
+      onTrade: (t) => setRecent((prev) => [t, ...prev].slice(0, 20)),
+    });
+  }, [symbol]);
 
   const cur = symbols.find((s) => s.symbol === symbol);
   const price = cur?.price ?? 0;

@@ -6,6 +6,8 @@ import type {
   Decision,
   EventItem,
   Kline,
+  LabCandidate,
+  LabHistoryItem,
   MarketSymbol,
   MonthlyPnl,
   Order,
@@ -271,6 +273,62 @@ export function wireAttribution(dim: string): WireAttribution[] {
     net_pnl: r.pnl,
     win_rate: r.winRate,
   }));
+}
+
+function parsePct(v: string | number): number | null {
+  if (typeof v === "number") return v;
+  const n = parseFloat(v.replace("%", ""));
+  return Number.isNaN(n) ? null : n;
+}
+
+export function toWireLabCandidate(c: LabCandidate) {
+  const get = (k: string) => c.metrics.find((m) => m.k.includes(k));
+  const trades = get("交易数");
+  const pnl = get("净收益");
+  const wr = get("胜率");
+  const wrNum = (v: string | number | undefined) => {
+    const n = v == null ? null : parsePct(v);
+    return n == null ? null : n / 100;
+  };
+  return {
+    id: Number(c.id.replace(/\D/g, "")) || 1,
+    name: c.title,
+    description: null,
+    source: c.source,
+    stage: c.stage,
+    params: {},
+    shadow_progress: c.shadowProgressPct / 100,
+    shadow_days_target: 14,
+    shadow_started_at: c.stage === "queued" ? null : isoToday("09:00:00"),
+    promote_eligible: c.promotable,
+    promote_blocked_reason: c.blockReason ?? null,
+    metrics: {
+      shadow: {
+        decisions: typeof trades?.shadow === "number" ? trades.shadow : 0,
+        simulated_pnl_pct: pnl ? parsePct(pnl.shadow) : null,
+        win_rate: wrNum(wr?.shadow),
+      },
+      live: {
+        trades: typeof trades?.live === "number" ? trades.live : 0,
+        net_pnl_pct: pnl ? parsePct(pnl.live) : null,
+        win_rate: wrNum(wr?.live),
+      },
+    },
+    rollback_reason: null,
+    created_at: `${c.createdAt}T09:00:00Z`,
+  };
+}
+
+export function toWireLabHistory(h: LabHistoryItem) {
+  return {
+    action: h.kind,
+    candidate_id: 1,
+    candidate_name: h.title,
+    stage: h.kind === "promote" ? "live" : "retired",
+    reason: h.note ?? null,
+    operator: "admin",
+    at: `${h.ts}T09:00:00Z`,
+  };
 }
 
 export function toWireUser(u: User): WireUser {
