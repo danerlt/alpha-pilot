@@ -71,3 +71,12 @@ $env:DEFAULT_ADMIN_EMAIL='admin@example.com'; $env:DEFAULT_ADMIN_PASSWORD='<自�
 - 适配层：`webapp/src/api/wire.ts`（fromWire*）/ `webapp/src/api/mocks/wireMocks.ts`（mock 同构）
 - 占位路径与嗅探：`webapp/src/api/services.ts`（`/api/orders/list`、`toEventItem`、history 注释）
 - 契约再生成：`cd webapp && npm run gen:api`
+
+
+## 浏览器级验收发现（2026-07-06 后端会话，转前端处理）
+
+> 截图实录见 `docs/verification/本地浏览器验收_20260706.md`。后端无新增缺陷，以下 3 项为前端侧：
+
+1. **行情 WS 未带 token**：`/ws/market` 连接需追加 `?token=<jwt>`（与 `/ws` 一致），当前 403 → 盘口/逐笔不渲染
+2. 行情页下单按钮文案「无手动下单权限」：admin 登录态下出现，疑似 usePermission 判断或与预检 REJECT 状态的文案混用
+3. 登录页 ×1 / 风控页 ×2 的 404 资源（favicon 类 + mock-only 旧路径）清理
