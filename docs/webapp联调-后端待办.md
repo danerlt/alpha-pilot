@@ -75,7 +75,10 @@ $env:DEFAULT_ADMIN_EMAIL='admin@example.com'; $env:DEFAULT_ADMIN_PASSWORD='<自�
 
 ## 浏览器级验收发现（2026-07-06 后端会话，转前端处理）
 
-> 截图实录见 `docs/verification/本地浏览器验收_20260706.md`。后端无新增缺陷，以下 3 项为前端侧：
+> **已全部修复并复验（2026-07-06 后端会话代修）**：① 后端 WS 支持 ap_token cookie 回退（前端
+> 内存 token 可整体移除，见 marketStream/stream 的 token 注释）；② 权限键统一 `trade.manual_order`；
+> ③ favicon.svg + `GET/PATCH /api/strategies` 真端点（守卫 strategy_enabled 真实生效）。
+> openapi 已重导（68 paths），`npm run gen:api` 可更新类型。原始记录：
 
 1. **行情 WS 未带 token**：`/ws/market` 连接需追加 `?token=<jwt>`（与 `/ws` 一致），当前 403 → 盘口/逐笔不渲染
 2. 行情页下单按钮文案「无手动下单权限」：admin 登录态下出现，疑似 usePermission 判断或与预检 REJECT 状态的文案混用
