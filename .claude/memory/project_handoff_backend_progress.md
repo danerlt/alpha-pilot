@@ -13,6 +13,13 @@
 
 ## 关键口径决策
 
+- **配置分层（2026-07-06 老板指令）**：env 只放基础设施（PG/Redis/APP_*密钥/调度参数）；
+  交易所 Key/LLM/Telegram token 走前端设置页 → Fernet 加密入库，**DB 值优先于 env**。
+  加载链路：api lifespan + scheduler 启动 + 每个策略周期 `refresh_runtime_settings_safe()`；
+  notifier 每条告警热重建 channel。**曾修复关键断链**：refresh_from_db 原先不写回
+  settings 单例，DB 配置从未生效——现 apply 会 setattr 回 get_app_config() 单例。
+  已知限制：api 多 worker 下非当前 worker 要等重启（本地单 worker 无感）。
+
 - **现货 vs 合约**：交易链路维持 Spot 不动；行情页 mark price/funding/OI 借 USDT-M **公共**端点
   （`adapter.get_futures_metrics`，不可用返 null）。被适配层隔离、可逆；整体迁合约需老板拍板。
 - 手动下单/改 SLTP 权限暂 `require_admin`（P4 RBAC 后放宽 trader+）；LIMIT 手动单返回"暂不支持"。
