@@ -9,6 +9,11 @@ import { setWsToken } from "./tokenStore";
 import {
   fromWireAccount,
   fromWireAttribution,
+  fromWireAuditLog,
+  fromWireReport,
+  type WireAgentHistoryItem,
+  type WireAuditLog,
+  type WireReport,
   fromWireMonthly,
   fromWireOrder,
   fromWirePerfSummary,
@@ -61,8 +66,6 @@ import {
 import type {
   AccountSnapshot,
   AttributionDim,
-  AuditLog,
-  DailyReport,
   OrderTicketPayload,
   StrategyCard,
   SymbolConfig,
@@ -174,6 +177,7 @@ export const performanceApi = {
 };
 
 export const strategyApi = {
+  // 策略受限集启停端点后端暂缺（联调待办#9），mock-only
   list: () => http<StrategyCard[]>("/api/strategies"),
   toggle: (id: string, enabled: boolean) =>
     http<{ ok: boolean }>(`/api/strategies/${id}`, {
@@ -207,8 +211,22 @@ export const labApi = {
 };
 
 export const auditApi = {
-  logs: () => http<AuditLog[]>("/api/admin/audit-logs"),
-  reports: () => http<DailyReport[]>("/api/reports"),
+  logs: () =>
+    http<WireAuditLog[]>("/api/admin/audit-logs").then((ws) =>
+      ws.map(fromWireAuditLog),
+    ),
+  reports: () =>
+    http<WireReport[]>("/api/reports").then((ws) => ws.map(fromWireReport)),
+};
+
+export const agentApi = {
+  history: (limit = 20) =>
+    http<WireAgentHistoryItem[]>(`/api/agent/history?limit=${limit}`),
+  confirmAction: (actionId: string) =>
+    http<{ action_id: number; status: string; key?: string; value?: string }>(
+      `/api/agent/actions/${actionId}/confirm`,
+      { method: "POST" },
+    ),
 };
 
 export const adminApi = {
@@ -322,7 +340,9 @@ export const settingsApi = {
 
 export const commandsApi = {
   closeAll: () =>
-    http<{ taskId: string }>("/api/commands/close-all", { method: "POST" }),
+    http<{ task_id?: string; taskId?: string }>("/api/commands/close-all", {
+      method: "POST",
+    }).then((r) => ({ taskId: r.task_id ?? r.taskId ?? "" })),
   pause: () => http<{ ok: boolean }>("/api/commands/pause", { method: "POST" }),
   resume: () =>
     http<{ ok: boolean }>("/api/commands/resume", { method: "POST" }),

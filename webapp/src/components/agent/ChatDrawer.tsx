@@ -1,13 +1,15 @@
 /**
- * Pilot AI 对话抽屉（handoff/02 P10）—— Ctrl/⌘+J 或顶栏按钮唤起。
- * mock 模式：本地脚本化流式回复 + 工具调用轨迹；真后端为 SSE /api/agent/chat。
+ * Pilot AI 对话抽屉（handoff/02 P10，后端 P3 接真）—— Ctrl/⌘+J 或顶栏按钮唤起。
+ * SSE 流式（tool_call→delta→done）+ 会话历史 + pending action 人工确认（admin）。
  */
 import { useEffect, useRef, useState } from "react";
 import { BrainCircuit, Check, Loader2, Send, X } from "lucide-react";
 import type { ChatMessage } from "@/api/types";
+import { agentApi } from "@/api/services";
+import { streamAgentChat } from "@/api/agentStream";
+import { stream } from "@/api/stream";
 import { Pill } from "@/components/ui/atoms";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { stream } from "@/api/stream";
 
 const QUICK = [
   "当前持仓风险敞口多大？",
@@ -15,20 +17,6 @@ const QUICK = [
   "今天为什么没有开仓？",
   "帮我收紧日亏损阈值",
 ];
-
-const SCRIPTED: Record<string, { tools: string[]; answer: string; pending?: string }> = {
-  默认: {
-    tools: ["查询持仓", "查询风控状态"],
-    answer:
-      "当前持有 BTCUSDT、ETHUSDT 两个多头仓位，合计占权益 12%。日内亏损 -0.48%，距 -3% 熔断线空间充足，风险敞口处于低位。",
-  },
-  收紧: {
-    tools: ["读取当前风控配置"],
-    answer:
-      "建议将 MAX_DAILY_LOSS_PCT 由 3% 收紧至 2%。该修改属于硬风控变更，需要你人工确认后才会生效。",
-    pending: "MAX_DAILY_LOSS_PCT: 3% → 2%",
-  },
-};
 
 export function ChatDrawer({
   open,
@@ -40,104 +28,132 @@ export function ChatDrawer({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
-  const [confirming, setConfirming] = useState<{ msgId: string; label: string } | null>(null);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [confirming, setConfirming] = useState<{ msgId: string; actionId: string } | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<(() => void) | null>(null);
+  const seqRef = useRef(0);
 
-  // 应用修改：AI 无权直改配置，人工确认后才生效（handoff/02 P10）
-  const applyPending = () => {
-    if (!confirming) return;
-    setMessages((m) =>
-      m.map((msg) =>
-        msg.id === confirming.msgId && msg.pendingAction
-          ? { ...msg, pendingAction: { ...msg.pendingAction, applied: true } }
-          : msg,
-      ),
-    );
-    stream.emitEvent({
-      kind: "system",
-      msg: `配置修改已人工确认 · ${confirming.label} · 已落审计日志`,
-      tone: "amber",
-    });
-    setConfirming(null);
-  };
+  // 首次打开加载会话历史
+  useEffect(() => {
+    if (!open || historyLoaded) return;
+    setHistoryLoaded(true);
+    agentApi
+      .history()
+      .then((items) => {
+        const restored: ChatMessage[] = [];
+        // 后端按时间倒序，恢复为正序对话
+        [...items].reverse().forEach((it) => {
+          restored.push({ id: `h_${it.invocation_id}_u`, role: "user", text: it.message });
+          restored.push({
+            id: `h_${it.invocation_id}_a`,
+            role: "assistant",
+            text: it.answer,
+            tools: (it.tools ?? []).map((name) => ({ name, status: "done" as const })),
+            pendingAction:
+              it.pending_action_id != null
+                ? { id: String(it.pending_action_id), label: "待确认的配置修改" }
+                : undefined,
+          });
+        });
+        // 历史异步回填不得覆盖已在进行的对话
+        setMessages((m) => (m.length > 0 ? m : restored));
+      })
+      .catch(() => {});
+  }, [open, historyLoaded]);
 
   useEffect(() => {
     bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight });
   }, [messages]);
 
+  useEffect(() => () => abortRef.current?.(), []);
+
   const send = (text: string) => {
     if (!text.trim() || busy) return;
-    const userMsg: ChatMessage = {
-      id: `m_${messages.length}_u`,
-      role: "user",
-      text,
-    };
-    setMessages((m) => [...m, userMsg]);
+    const n = ++seqRef.current;
+    const aiId = `m_${n}_a`;
+    setMessages((m) => [
+      ...m,
+      { id: `m_${n}_u`, role: "user", text },
+      { id: aiId, role: "assistant", text: "", tools: [] },
+    ]);
     setInput("");
     setBusy(true);
 
-    const script = text.includes("收紧") ? SCRIPTED.收紧 : SCRIPTED.默认;
-    const aiId = `m_${messages.length}_a`;
+    const patch = (fn: (msg: ChatMessage) => ChatMessage) =>
+      setMessages((m) => m.map((msg) => (msg.id === aiId ? fn(msg) : msg)));
 
-    // 工具轨迹逐条出现 → 正文逐字流式
-    setMessages((m) => [
-      ...m,
-      { id: aiId, role: "assistant", text: "", tools: [] },
-    ]);
-    script.tools.forEach((t, i) => {
-      setTimeout(() => {
-        setMessages((m) =>
-          m.map((msg) =>
-            msg.id === aiId
-              ? {
-                  ...msg,
-                  tools: [
-                    ...script.tools.slice(0, i).map((n) => ({ name: n, status: "done" as const })),
-                    { name: t, status: "running" as const },
-                  ],
-                }
-              : msg,
-          ),
-        );
-      }, 350 * (i + 1));
-    });
-    const startText = 350 * (script.tools.length + 1);
-    const chars = [...script.answer];
-    chars.forEach((_, i) => {
-      setTimeout(() => {
-        setMessages((m) =>
-          m.map((msg) =>
-            msg.id === aiId
-              ? {
-                  ...msg,
-                  tools: script.tools.map((n) => ({ name: n, status: "done" as const })),
-                  text: script.answer.slice(0, i + 1),
-                }
-              : msg,
-          ),
-        );
-        if (i === chars.length - 1) {
-          setBusy(false);
-          if (script.pending) {
-            setMessages((m) =>
-              m.map((msg) =>
-                msg.id === aiId
-                  ? {
-                      ...msg,
-                      pendingAction: { id: "pa_1", label: script.pending! },
-                    }
-                  : msg,
-              ),
-            );
-          }
+    abortRef.current = streamAgentChat(text, {
+      onToolCall: (name, status) =>
+        patch((msg) => {
+          const st = status === "done" ? ("done" as const) : ("running" as const);
+          const tools = [...(msg.tools ?? [])];
+          const i = tools.findIndex((t) => t.name === name);
+          if (i >= 0) tools[i] = { name, status: st };
+          else tools.push({ name, status: st });
+          return { ...msg, tools };
+        }),
+      onDelta: (text_) => patch((msg) => ({ ...msg, text: msg.text + text_ })),
+      onDone: (_invocationId, pendingActionId) => {
+        setBusy(false);
+        if (pendingActionId) {
+          patch((msg) => ({
+            ...msg,
+            pendingAction: { id: pendingActionId, label: "待确认的配置修改" },
+          }));
         }
-      }, startText + i * 14);
+      },
+      onError: (err) => {
+        setBusy(false);
+        patch((msg) => ({
+          ...msg,
+          text: msg.text || `⚠ ${err}`,
+        }));
+      },
     });
+  };
+
+  // 人工确认：admin 白名单复核 + 应用 + 审计（Agent 无权直改硬风控）
+  const applyPending = async () => {
+    if (!confirming) return;
+    try {
+      const r = await agentApi.confirmAction(confirming.actionId);
+      setMessages((m) =>
+        m.map((msg) =>
+          msg.id === confirming.msgId && msg.pendingAction
+            ? {
+                ...msg,
+                pendingAction: {
+                  ...msg.pendingAction,
+                  label: r.key ? `${r.key} → ${r.value}` : msg.pendingAction.label,
+                  applied: true,
+                },
+              }
+            : msg,
+        ),
+      );
+      stream.emitEvent({
+        kind: "system",
+        msg: `Agent 配置修改已人工确认 · ${r.key ?? confirming.actionId} · 已落审计`,
+        tone: "amber",
+      });
+    } catch (e) {
+      stream.emitEvent({
+        kind: "system",
+        msg: `Agent 配置确认失败 · ${e instanceof Error ? e.message : "未知错误"}`,
+        tone: "rose",
+      });
+    } finally {
+      setConfirming(null);
+    }
   };
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-40 flex justify-end bg-bg-0/40" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div
+      className="fixed inset-0 z-40 flex justify-end bg-bg-0/40"
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+    >
       <div className="flex h-full w-[400px] flex-col border-l border-line bg-bg-1 shadow-3">
         {/* header */}
         <div className="flex items-center gap-2.5 border-b border-line-soft px-4 py-3.5">
@@ -168,7 +184,10 @@ export function ChatDrawer({
           )}
           {messages.map((m) =>
             m.role === "user" ? (
-              <div key={m.id} className="ml-10 self-end rounded-md rounded-br-xs bg-bg-3 px-3 py-2 text-sm text-fg-1">
+              <div
+                key={m.id}
+                className="ml-10 self-end rounded-md rounded-br-xs bg-bg-3 px-3 py-2 text-sm text-fg-1"
+              >
                 {m.text}
               </div>
             ) : (
@@ -176,7 +195,10 @@ export function ChatDrawer({
                 {m.tools && m.tools.length > 0 && (
                   <div className="flex flex-col gap-1">
                     {m.tools.map((t) => (
-                      <div key={t.name} className="flex items-center gap-1.5 font-mono text-micro text-fg-3">
+                      <div
+                        key={t.name}
+                        className="flex items-center gap-1.5 font-mono text-micro text-fg-3"
+                      >
                         {t.status === "done" ? (
                           <Check size={10} className="text-mint" />
                         ) : (
@@ -215,7 +237,7 @@ export function ChatDrawer({
                     ) : (
                       <button
                         onClick={() =>
-                          setConfirming({ msgId: m.id, label: m.pendingAction!.label })
+                          setConfirming({ msgId: m.id, actionId: m.pendingAction!.id })
                         }
                         className="cursor-pointer rounded-xs bg-amber px-2 py-1 text-micro font-semibold text-bg-0 hover:brightness-110"
                       >
@@ -248,13 +270,10 @@ export function ChatDrawer({
           title="确认应用 AI 建议的配置修改"
           confirmLabel="确认应用"
           body={
-            confirming && (
-              <>
-                将执行配置变更：
-                <b className="font-mono text-amber"> {confirming.label}</b>
-                。硬风控修改需人工确认后才生效，操作将记录审计日志。
-              </>
-            )
+            <>
+              将执行 Agent 提议的配置变更（服务端白名单复核）。硬风控修改需人工确认后才生效，
+              操作将记录审计日志。
+            </>
           }
         />
 

@@ -273,11 +273,26 @@ export const handlers = [
   // ---------- 审计 / 报告 ----------
   http.get("/api/admin/audit-logs", async () => {
     await delay(LATENCY);
-    return ok(mock.mockAuditLogs.map((a) => ({ ...a })));
+    return ok(mock.mockAuditLogs.map(wire.toWireAuditLog));
   }),
   http.get("/api/reports", async () => {
     await delay(LATENCY);
-    return ok(mock.mockReports.map((r) => ({ ...r })));
+    return ok(mock.mockReports.map(wire.toWireReport));
+  }),
+
+  // ---------- Agent（chat 流在 agentStream.ts mock 分支，不走 MSW） ----------
+  http.get("/api/agent/history", async () => {
+    await delay(LATENCY);
+    return ok([]);
+  }),
+  http.post("/api/agent/actions/:id/confirm", async ({ params }) => {
+    await delay(400);
+    return ok({
+      action_id: Number(params.id),
+      status: "applied",
+      key: "MAX_DAILY_LOSS_PCT",
+      value: "2",
+    });
   }),
 
   // ---------- 用户 / RBAC ----------

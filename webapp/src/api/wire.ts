@@ -8,6 +8,8 @@ import type { components } from "./generated/schema";
 import type {
   AccountOverview,
   AttributionRow,
+  AuditLog,
+  DailyReport,
   Decision,
   ExchangeSettings,
   ExchangeTestResult,
@@ -427,6 +429,67 @@ export function fromWireLabHistory(w: WireLabHistory): LabHistoryItem {
     title: w.candidate_name ?? `候选 #${w.candidate_id}`,
     note: [w.reason, w.operator].filter(Boolean).join(" · ") || undefined,
   };
+}
+
+// ---------- 审计 / 日报（无 response_model 的端点，手写 wire 接口） ----------
+export interface WireAuditLog {
+  id: number;
+  actor: string | null;
+  action: string;
+  resource_type?: string | null;
+  resource_id?: string | number | null;
+  created_at?: string | null;
+}
+
+export function fromWireAuditLog(w: WireAuditLog): AuditLog {
+  const res = [w.resource_type, w.resource_id].filter(Boolean).join(" #");
+  return {
+    id: String(w.id),
+    ts: timePart(w.created_at),
+    actor: w.actor ?? "system",
+    action: w.action,
+    detail: res ? `${w.action} · ${res}` : w.action,
+    system: w.actor == null,
+  };
+}
+
+export interface WireReport {
+  id: number;
+  report_date: string;
+  total_trades: number;
+  winning_trades: number;
+  losing_trades: number;
+  win_rate?: number | null;
+  total_pnl: number;
+  total_pnl_pct: number;
+  max_drawdown?: number | null;
+  risk_events_count?: number | null;
+}
+
+export function fromWireReport(w: WireReport): DailyReport {
+  const wr = w.win_rate != null ? `${(w.win_rate * 100).toFixed(0)}%` : "—";
+  return {
+    id: String(w.id),
+    date: w.report_date,
+    // 后端日报暂无 LLM 叙述字段，由统计合成（待 AI 日报叙述落地后替换）
+    narrative:
+      `本日执行 ${w.total_trades} 笔交易（盈 ${w.winning_trades} / 亏 ${w.losing_trades}，胜率 ${wr}），` +
+      `净盈亏 ${w.total_pnl >= 0 ? "+" : ""}${w.total_pnl.toFixed(2)} USDT（${w.total_pnl_pct >= 0 ? "+" : ""}${w.total_pnl_pct.toFixed(2)}%）。` +
+      (w.max_drawdown != null ? `当日最大回撤 ${w.max_drawdown.toFixed(2)}%。` : "") +
+      (w.risk_events_count ? `风控事件 ${w.risk_events_count} 次。` : "风控无异常。"),
+    pnl: w.total_pnl,
+    trades: w.total_trades,
+  };
+}
+
+// ---------- Agent（handoff 3.4） ----------
+export interface WireAgentHistoryItem {
+  invocation_id: number;
+  message: string;
+  answer: string;
+  tools?: string[] | null;
+  pending_action_id?: number | null;
+  occurred_at?: string | null;
 }
 
 // ---------- 设置 ----------

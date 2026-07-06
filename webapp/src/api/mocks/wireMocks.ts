@@ -3,6 +3,8 @@
  * 保证 mock 响应与真实后端字节级同构（adapter 全链路被 mock 覆盖）。
  */
 import type {
+  AuditLog,
+  DailyReport,
   Decision,
   EventItem,
   Kline,
@@ -328,6 +330,32 @@ export function toWireLabHistory(h: LabHistoryItem) {
     reason: h.note ?? null,
     operator: "admin",
     at: `${h.ts}T09:00:00Z`,
+  };
+}
+
+export function toWireAuditLog(a: AuditLog) {
+  return {
+    id: Number(a.id.replace(/\D/g, "")) || 1,
+    actor: a.system ? null : a.actor,
+    action: a.action,
+    resource_type: a.detail.includes("决策") ? "decision" : null,
+    resource_id: null,
+    created_at: isoToday(a.ts),
+  };
+}
+
+export function toWireReport(r: DailyReport) {
+  return {
+    id: Number(r.id.replace(/\D/g, "")) || 1,
+    report_date: r.date,
+    total_trades: r.trades,
+    winning_trades: Math.round(r.trades * 0.57),
+    losing_trades: r.trades - Math.round(r.trades * 0.57),
+    win_rate: 0.57,
+    total_pnl: r.pnl,
+    total_pnl_pct: 0.98,
+    max_drawdown: -1.2,
+    risk_events_count: 1,
   };
 }
 
