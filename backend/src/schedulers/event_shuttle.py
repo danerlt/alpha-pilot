@@ -20,15 +20,22 @@ def event_shuttle_loop(stop_flag: threading.Event) -> None:
 
     出错时短退避不退出，进程退出时由 daemon=True 自动结束。
     """
+    import redis as redis_lib
+
     from src.services.event_bus import RedisStreamsBus
     from src.workers.event_shuttle import EventShuttle
 
     cfg = get_app_config()
     engine = get_engine()
-    bus = RedisStreamsBus(redis_url=cfg.REDIS_URL)
+    bus = RedisStreamsBus(url=cfg.REDIS_URL)
+    # pubsub 必须传: WS 实时层靠 shuttle 把事件发到 events:<type>/trading_events
+    # 频道, api 进程 redis_subscriber 订阅后广播 —— 漏传则实时推送整条链路断
+    # (e2e 验收发现: 事件只进 Streams, /ws 永远收不到)。
+    pubsub_client = redis_lib.from_url(cfg.REDIS_URL, decode_responses=True)
     shuttle = EventShuttle(
         engine=engine,
         bus=bus,
+        pubsub=pubsub_client,
         max_failed_attempts=cfg.EVENT_SHUTTLE_MAX_FAILED_ATTEMPTS,
     )
 

@@ -64,8 +64,10 @@ async def _binance_upstream(symbol: str, *, testnet: bool) -> AsyncIterator[dict
     """真实上游: 连 Binance combined stream, 断线指数退避重连。"""
     import websockets
 
+    # 注意 spot testnet 的行情 WS 在独立域名 stream.testnet.binance.vision
+    # (testnet.binance.vision 只有 REST, WS 握手 404 — e2e 验收抓到的坑)
     base = (
-        "wss://testnet.binance.vision/stream"
+        "wss://stream.testnet.binance.vision/stream"
         if testnet else "wss://stream.binance.com:9443/stream"
     )
     s = symbol.lower()
