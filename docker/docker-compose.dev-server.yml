@@ -52,7 +52,8 @@ services:
 
   # webapp（Vite 新前端，docs/webapp前端架构.md S4）——
   # 镜像跨环境同一 tag（真 build-once），环境差异由环境变量在启动时渲染 config.js 注入。
-  # 外层 nginx 挂载（带斜杠剥前缀）：location /ap-dev-next/ { proxy_pass http://127.0.0.1:3002/; }
+  # 外层 nginx 挂载（带斜杠剥前缀）：location /ap-dev-next/ { proxy_pass http://127.0.0.1:3004/; }
+  # 端口 3004：3002/3003 已被 test/prod 的 frontend 占用（同机三环境共存不撞车）
   webapp:
     image: alphapilot-webapp:${WEBAPP_TAG:?WEBAPP_TAG required}
     environment:
@@ -60,7 +61,7 @@ services:
       AP_API_BASE_URL: /ap-dev   # 复用现有 /ap-dev/api 反代路由到 backend
       AP_WS_URL: ""              # 空 → 由 apiBaseUrl 推导 wss://host/ap-dev/ws
     ports:
-      - "127.0.0.1:3002:80"
+      - "127.0.0.1:3004:80"
     depends_on:
       - backend
     restart: unless-stopped

@@ -1,16 +1,45 @@
 # 服务器部署引导 Runbook（给服务器上的 Claude Code 执行）
 
 > 本文件是一份**可执行 SOP**：服务器上的 Claude Code 照此把 AlphaPilot 的 dev/test/prod 部署打通。
-> 架构见 [部署 spec](superpowers/specs/2026-06-27-server-deployment-completion-design.md) 与 [deploy-ci.md](deploy-ci.md)。
+> 架构见 [deploy-ci.md](deploy-ci.md)（分支模型/GitHub 配置）与
+> [build-once spec](superpowers/specs/2026-06-28-build-once-deploy-many-design.md)。
+> 最后更新：2026-07-06（配置分层 + webapp 服务 + 目录模型对齐 deploy_common.sh）。
 
 ## 给执行者（服务器 Claude Code）的总原则
 
 1. **先做 dev，验证通过再碰 test，最后才 prod**。prod 接 Binance mainnet，**必须老板手动确认**才执行。
-2. **绝不编造或读取真实密钥**。需要真实值的地方（Binance/LLM key、SSH、域名）一律**停下来让老板填**。
-   - 例外：`APP_AUTH_SECRET_KEY` / `APP_CONFIG_MASTER_KEY` 这两个是随机密钥，**可以用命令现场生成并写入**（见 §3）。
-3. **不把任何 env 文件内容打印到对话或日志**（envs/ 在本仓库 CLAUDE.md 黑名单内；只创建/写入，不回显）。
+2. **绝不编造或读取真实密钥**。需要真实值的地方（域名、SSH、管理员密码）一律**停下来让老板填**。
+   - 例外：`APP_AUTH_SECRET_KEY` / `APP_CONFIG_MASTER_KEY` 是随机密钥，**可以现场生成并写入**（见阶段 2）。
+   - **Binance / LLM Key 不进 env**（配置分层，2026-07-06 起）：部署完成后由老板在**前端设置页**配置，
+     Fernet 加密存 DB；env 里对应字段留空即可（缺 LLM Key 时自动回退 Mock 恒 HOLD，不误下单）。
+3. **不把任何 env 文件内容打印到对话或日志**（只创建/写入，不回显；生成的随机密钥也不打印）。
 4. 每个阶段执行完**做验证检查**，失败就停下报告，不要硬继续。
-5. 路径有疑问就问老板，不要假设（如 clone 目录、域名）。
+5. 路径/域名有疑问就问老板，不要假设。
+
+## 目录模型（build-once / deploy-many，三类目录分离）
+
+| 目录 | 路径（默认约定） | 内容 | 谁写 |
+|------|----------------|------|------|
+| 构建目录（唯一） | `/workspace/alpha-pilot-build` | 完整 git clone；CI/手动部署在此 fetch + docker build | deploy 脚本 |
+| 部署目录 | `/workspace/alpha-pilot-deploy/{dev,test,prod}` | 仅 `docker/<compose>.yml`（脚本自动同步）+ `envs/<env>.env` | deploy 脚本 + 老板(env) |
+| 中间件目录 | `/workspace/alpha-pilot-deploy/middleware` | `docker-compose.middleware.yml` 一份 | 一次性 |
+
+部署脚本 `scripts/deploy-<env>.sh`（内部 `scripts/lib/deploy_common.sh::run_deploy`）在**构建目录里执行**，
+默认 `DEPLOY_DIR=/workspace/alpha-pilot-deploy/<env>`（可用环境变量覆盖）。它自动完成 7 步：
+①确保中间件健康+幂等建库 → ②`git fetch` + checkout 目标 commit → ③按 SHA inspect-or-build 三镜像
+（`alphapilot-backend:<sha>` 跨环境复用 / `alphapilot-frontend:<sha>-<env>` basePath 烘焙 / `alphapilot-webapp:<sha>` 零烘焙）→
+④同步 compose 到部署目录 → ⑤记录回滚点+起栈 → ⑥容器内 `python scripts/upgrade_db.py` 迁移 →
+⑦健康三检（API `/health` + scheduler running 非 crash-loop + 启动标记），**任一步失败自动回滚到 `last-good.tag`**。
+
+## 环境速查
+
+| 环境 | 分支 | nginx 路径 | api / frontend / webapp（127.0.0.1） | compose | database | Redis db |
+|------|------|-----------|-------------------------------------|---------|----------|----------|
+| dev  | dev  | `/ap-dev`（webapp: `/ap-dev-next`） | 8001 / 3001 / **3004** | docker-compose.dev-server.yml | alphapilot_dev | 0 |
+| test | test | `/ap-test` | 8002 / 3002 / — | docker-compose.test.yml | alphapilot_test | 1 |
+| prod | main | `/ap` | 8003 / 3003 / — | docker-compose.prod.yml | alphapilot_prod | 2 |
+
+> webapp（Vite 新前端）当前只挂 dev；验收通过后再复制 service 块到 test/prod（届时另分配端口）。
 
 ---
 
@@ -19,93 +48,92 @@
 ```bash
 docker --version && docker compose version      # 确认 Docker + compose 已装
 git --version
-# 确认当前在 alpha-pilot 仓库内，且已拉到最新 dev
-git rev-parse --show-toplevel
-git fetch origin && git log --oneline -1 origin/dev
+nproc && free -h && df -h /                     # 资源心里有数（build 需 ~2G 内存）
 ```
 
 若 Docker 未装 → 停，让老板装。
 
 ---
 
-## 阶段 1：共享中间件（一次性，常驻）
-
-dev/test/prod 共用这一套 PG+Redis，靠不同 database + Redis db 隔离。
+## 阶段 1：目录 + 共享中间件（一次性，常驻）
 
 ```bash
-cd <仓库>/docker
+# 1) 构建目录（唯一；三环境共用）。仓库地址问老板或用已配好的 deployer GitHub key
+git clone <仓库地址> /workspace/alpha-pilot-build
+cd /workspace/alpha-pilot-build && git checkout dev
+
+# 2) 部署目录骨架
+mkdir -p /workspace/alpha-pilot-deploy/{dev,test,prod}/envs /workspace/alpha-pilot-deploy/middleware
+
+# 3) 中间件 compose 放到位并起栈（dev/test/prod 共用一套 PG+Redis，靠 database + Redis db 隔离）
+cp /workspace/alpha-pilot-build/docker/docker-compose.middleware.yml /workspace/alpha-pilot-deploy/middleware/
+cd /workspace/alpha-pilot-deploy/middleware
 docker compose -f docker-compose.middleware.yml up -d
 ```
 
 **验证**（必须全过）：
 
 ```bash
-# 1) 容器健康
-docker ps --filter name=ap-postgres --filter name=ap-redis --format "{{.Names}} {{.Status}}"
-# 2) 三个业务库已建（首次启动数据卷为空时由 init 脚本自动建）
+docker ps --filter name=ap-postgres --filter name=ap-redis --format "{{.Names}} {{.Status}}"   # 两容器 healthy
 docker exec ap-postgres psql -U alphapilot -tAc \
   "SELECT datname FROM pg_database WHERE datname LIKE 'alphapilot_%' ORDER BY 1"
-#   期望输出: alphapilot_dev / alphapilot_prod / alphapilot_test
-# 3) 共享网络存在
-docker network ls --filter name=ap-shared --format "{{.Name}}"
-# 4) Redis 通
-docker exec ap-redis redis-cli ping     # 期望 PONG
+#   期望: alphapilot_dev / alphapilot_prod / alphapilot_test（首启由 init 脚本自动建）
+docker network ls --filter name=ap-shared --format "{{.Name}}"                                 # ap-shared
+docker exec ap-redis redis-cli ping                                                            # PONG
 ```
 
-> 若中间件卷**已存在**（非首次）导致三库没自动建：手动建缺的库
-> `docker exec ap-postgres psql -U alphapilot -c "CREATE DATABASE alphapilot_dev"`（test/prod 同理）。
+> 若中间件卷**已存在**（非首次）导致三库没自动建：`docker exec ap-postgres createdb -U alphapilot alphapilot_dev`
+> （test/prod 同理；deploy 脚本也有幂等建库兜底）。
 
 ---
 
-## 阶段 2：dev 应用 clone + env
+## 阶段 2：dev 的 env（配置分层：只放基础设施）
 
-> **[需老板确认]** dev 应用 clone 的目标目录（下文用 `<DEV_DIR>` 代指，例如 `~/alphapilot/dev`）。
-> 这个路径之后要填进 GitHub Secret `DEPLOY_DIR_DEV`。
+env 文件位置 = **部署目录**下：`/workspace/alpha-pilot-deploy/dev/envs/dev.env`。
 
 ```bash
-# 若尚未单独 clone dev 分支目录:
-git clone <仓库地址> <DEV_DIR> && cd <DEV_DIR> && git checkout dev
-
-# 准备 env（从模板拷贝；真实值待填）
-cd <DEV_DIR>
-cp example.env envs/dev.env       # envs/ 已 gitignore，不会进 git
+cp /workspace/alpha-pilot-build/example.env /workspace/alpha-pilot-deploy/dev/envs/dev.env
 ```
 
-**填 `envs/dev.env`**（执行者按以下规则处理，逐项确认）：
+**填写规则**（逐项处理，不回显内容）：
 
-- `TRADING_MODE=testnet`（dev 用测试盘）
-- `APP_AUTH_SECRET_KEY` ← **现场生成并写入**：`python3 -c "import secrets;print(secrets.token_urlsafe(48))"`
-- `APP_CONFIG_MASTER_KEY` ← **现场生成并写入**：`python3 -c "from cryptography.fernet import Fernet;print(Fernet.generate_key().decode())"`
-- `BINANCE_API_KEY` / `BINANCE_API_SECRET` ← **[需老板填]** testnet 凭据（无则留空，启动后从前端运行时配置页填也可）
-- `LLM_API_KEY` / `LLM_BASE_URL` / `LLM_MODEL` ← **[需老板填]**
-- `DEFAULT_ADMIN_EMAIL` / `DEFAULT_ADMIN_PASSWORD` ← **[需老板填]**（首登管理员；dev 可设，prod 勿用固定密码）
-- `DATABASE_URL` / `REDIS_URL` **无需设**——compose 已指向共享中间件（alphapilot_dev / db0）
+| 字段 | 怎么填 |
+|------|--------|
+| `TRADING_MODE` | `testnet`（dev 用测试盘） |
+| `APP_AUTH_SECRET_KEY` | **现场生成**：`python3 -c "import secrets;print(secrets.token_urlsafe(48))"` |
+| `APP_CONFIG_MASTER_KEY` | **现场生成**：`docker run --rm alphapilot-backend:latest python -c "from cryptography.fernet import Fernet;print(Fernet.generate_key().decode())"`（或本机有 cryptography 时直接 python3） |
+| `DEFAULT_ADMIN_EMAIL` / `DEFAULT_ADMIN_PASSWORD` | **[需老板填]** 首登管理员（dev 可设；prod 勿用固定密码） |
+| `BINANCE_API_KEY/SECRET`、`LLM_*` | **留空**——部署后走前端设置页存 DB（DB 值优先于 env） |
+| `DATABASE_URL` / `REDIS_URL` | **无需设**——compose 已指向共享中间件（alphapilot_dev / db0） |
+| 风控参数 `MAX_*` | 模板默认即可 |
 
-> 写入这些值时**不要把文件内容回显到对话**。生成的两个随机密钥也不要打印。
+> `APP_CONFIG_MASTER_KEY` 是解密 DB 内业务密钥（Binance/LLM）的根，丢了 DB 里的密钥全部作废——
+> 让老板把两个生成的密钥**另行离线备份**（Claude 不保存不回显）。
 
 ---
 
-## 阶段 3：起 dev 应用栈 + 验证
+## 阶段 3：首次部署 dev + 验证
 
 ```bash
-cd <DEV_DIR>
-bash scripts/deploy-dev.sh
+cd /workspace/alpha-pilot-build
+bash scripts/deploy-dev.sh          # 7 步全自动，失败自动回滚（首次无回滚点则直接失败退出）
 ```
-
-该脚本会：确保中间件在 → 建库兜底 → `git pull origin dev` → 起 **backend + scheduler + frontend** → 单点迁移 → 健康三检 → 失败自动回滚。
 
 **验证**（必须全过）：
 
 ```bash
-cd <DEV_DIR>/docker
-# 1) 三个应用 service 都在跑
-docker compose -f docker-compose.dev-server.yml ps --format "{{.Service}} {{.Status}}"
-#    期望 backend / scheduler / frontend 均 Up
-# 2) scheduler 确实在跑定时任务（关键！缺它=不交易不监控）
-docker compose -f docker-compose.dev-server.yml logs scheduler --tail=20 | grep "APScheduler started"
-# 3) API 健康
-docker compose -f docker-compose.dev-server.yml exec -T backend \
-  python -c "import urllib.request;print(urllib.request.urlopen('http://localhost:8000/health').read())"
+cd /workspace/alpha-pilot-deploy/dev/docker
+DC="docker compose -f docker-compose.dev-server.yml --env-file ../envs/dev.env"
+
+# 1) 四个 service 都在跑（backend / scheduler / frontend / webapp）
+IMAGE_TAG=$(cat ../current.tag) FRONTEND_TAG=$(cat ../current.tag)-dev WEBAPP_TAG=$(cat ../current.tag) $DC ps
+# 2) API 健康（宿主机侧）
+curl -sS http://127.0.0.1:8001/health
+# 3) scheduler 启动标记 + 运行时配置从 DB 加载（配置分层生效的证据）
+docker logs $(docker ps -qf name=ap-dev-scheduler) 2>&1 | grep -E "APScheduler started|runtime settings"
+#    期望含 "APScheduler started: strategy_loop=..."；配置过设置页后还会有 "runtime settings loaded from DB"
+# 4) backend 无秘钥校验报错（InsecureSecretError 出现 = env 两个 APP_* 密钥没填对）
+docker logs $(docker ps -qf name=ap-dev-backend) --tail 30
 ```
 
 任一失败 → 打印对应 service 日志，停下报告老板。
@@ -114,29 +142,43 @@ docker compose -f docker-compose.dev-server.yml exec -T backend \
 
 ## 阶段 4：nginx（一次性）
 
-把 `docker/nginx/alpha-pilot.conf` 的 location 块并入老板的 HTTPS `server{}`，
-http{} 顶层补 `limit_req_zone` / `log_format`（文件内注释有说明）。
+把 `docker/nginx/alpha-pilot.conf` 的 location 块并入老板的 HTTPS `server{}`：
+`/ap`、`/ap-test`、`/ap-dev`、**`/ap-dev-next`（webapp → 127.0.0.1:3004）** 四段 +
+http{} 顶层 `limit_req_zone` / `log_format`（文件头注释有说明）。
 
-> **[需老板确认]** 域名与现有 nginx 主配置位置。执行者**不要猜域名**，问老板。
+> **[需老板确认]** 域名与现有 nginx 主配置位置。执行者**不要猜域名**。
 
 ```bash
 nginx -t && systemctl reload nginx
-# 验证（用老板提供的域名占位 <DOMAIN>）:
-curl -sS https://<DOMAIN>/ap-dev/api/health
+# 验证（<DOMAIN> 用老板提供的域名）:
+curl -sS https://<DOMAIN>/ap-dev/api/health          # 后端 envelope
+curl -sSI https://<DOMAIN>/ap-dev-next/ | head -3    # webapp 200
 ```
 
 ---
 
-## 阶段 5：部署用户 + GitHub 自动部署
+## 阶段 5：业务配置（老板在浏览器操作，Claude 只引导）
 
-> **架构已切换为 build-once / deploy-many**（见 [spec](superpowers/specs/2026-06-28-build-once-deploy-many-design.md)）：
-> 镜像在【构建目录】`alpha-pilot-build` 按 git SHA 构建一次，部署目录只放 compose+env。
-> CI 执行 `cd $DEPLOY_DIR_<ENV> && bash scripts/deploy-<env>.sh`，脚本在构建目录里、内部部署到 `deploy/<env>`。
-> 因此 **`DEPLOY_DIR_*` 一律填【构建目录】路径**（三环境共用一个构建目录）。
+1. 浏览器打开 `https://<DOMAIN>/ap-dev-next/` → 用 `DEFAULT_ADMIN_EMAIL/PASSWORD` 登录。
+2. **设置页**依次配置（存 DB、Fernet 加密、日志脱敏）：
+   - 交易所连接：Binance **testnet** API Key/Secret → 「测试连接」通过。
+   - AI 模型：LLM base_url / api_key / model → 「测试连接」通过。
+   - 通知（可选）：Telegram / Email。
+3. 配好后**无需重启**：api/scheduler 每个策略周期自动从 DB 刷新（也可重启 scheduler 立即生效）。
+4. 验证决策链跑起来：等一个策略周期（默认 15 分钟）后看 AI 决策流页面有新决策；
+   或 `docker logs ap-dev-scheduler-1 --tail 100` 看 strategy pipeline 日志。
+5. 之后按 [testnet验收手册](testnet验收手册.md) 走完整实盘验收 + 24h 观察。
 
-### 5A. 服务器侧：建专用部署用户 + 两把 key（执行者在服务器做）
+---
 
-用专用非 root 用户 `deployer` 跑部署（最小权限：只需 docker 组）。涉及**两把方向相反的 key**，别混：
+## 阶段 6：部署用户 + GitHub 自动部署
+
+> CI 执行 `cd $DEPLOY_DIR_<ENV> && bash scripts/deploy-<env>.sh`，**`DEPLOY_DIR_*` 一律填【构建目录】**
+> `/workspace/alpha-pilot-build`（三环境共用）。
+
+### 6A. 服务器侧：建专用部署用户 + 两把 key
+
+用专用非 root 用户 `deployer` 跑部署（最小权限：只需 docker 组）。**两把方向相反的 key**，别混：
 
 | key | 方向 | 公钥放哪 | 私钥放哪 |
 |-----|------|---------|---------|
@@ -144,33 +186,32 @@ curl -sS https://<DOMAIN>/ap-dev/api/health
 | deployer 的 GitHub key | 服务器 → GitHub（拉代码） | GitHub 仓库 **Deploy keys**（只读） | 服务器 `/home/deployer/.ssh/id_ed25519` |
 
 ```bash
-# 1) 建用户 + 加 docker 组（跑部署只需 docker 组，勿加 root/sudo）
-useradd -m -s /bin/bash deployer
-usermod -aG docker deployer
-# 2) 部署 key（GitHub Actions → 服务器）：在服务器或自己机器生成，公钥进 deployer
+# 1) 建用户 + 加 docker 组（勿加 root/sudo）
+useradd -m -s /bin/bash deployer && usermod -aG docker deployer
+# 2) 部署 key（GitHub Actions → 服务器）
 ssh-keygen -t ed25519 -C "alphapilot-deploy" -f ~/.ssh/alphapilot_deploy_key -N ""
 install -d -m700 -o deployer -g deployer /home/deployer/.ssh
 cp ~/.ssh/alphapilot_deploy_key.pub /home/deployer/.ssh/authorized_keys
 chmod 600 /home/deployer/.ssh/authorized_keys && chown -R deployer:deployer /home/deployer/.ssh
-#   私钥 ~/.ssh/alphapilot_deploy_key → 贴到 GitHub Secret DEPLOY_SSH_KEY（不要回显/进 git）
+#   私钥 ~/.ssh/alphapilot_deploy_key → 老板贴到 GitHub Secret DEPLOY_SSH_KEY（不要回显）
 # 3) deployer 的 GitHub key（服务器 → GitHub 拉代码）
 sudo -u deployer ssh-keygen -t ed25519 -C "alphapilot-deployer-github" -f /home/deployer/.ssh/id_ed25519 -N ""
-ssh-keyscan -t ed25519 github.com >> /home/deployer/.ssh/known_hosts
-#   公钥 /home/deployer/.ssh/id_ed25519.pub → 加到 GitHub 仓库 Deploy keys（见 5B，不勾 write）
-# 4) 构建/部署目录归属 deployer
-chown -R deployer:deployer <构建目录> <部署目录根>   # 如 /workspace/alpha-pilot-build /workspace/alpha-pilot-deploy
+sudo -u deployer sh -c 'ssh-keyscan -t ed25519 github.com >> /home/deployer/.ssh/known_hosts'
+#   公钥 /home/deployer/.ssh/id_ed25519.pub → 老板加到仓库 Deploy keys（不勾 write）
+# 4) 目录归属 deployer
+chown -R deployer:deployer /workspace/alpha-pilot-build /workspace/alpha-pilot-deploy
 # 5) 自检
-id deployer                                          # 应含 docker 组
+id deployer                                              # 应含 docker
 su - deployer -c 'docker ps >/dev/null && echo DOCKER_OK'
-su - deployer -c 'GIT_SSH_COMMAND="ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes" git ls-remote <构建目录的 origin> -h refs/heads/dev'  # 加完 Deploy key 后应返回 SHA
+su - deployer -c 'cd /workspace/alpha-pilot-build && git fetch origin && echo GIT_OK'  # 加完 Deploy key 后
 ```
 
-### 5B. GitHub 网页侧（老板操作）
+### 6B. GitHub 网页侧（老板操作）
 
-**① Deploy keys**（仓库 → Settings → Deploy keys → Add deploy key，**不勾** Allow write）：
-贴 `deployer` 的公钥 `/home/deployer/.ssh/id_ed25519.pub`。没这把，CI 部署会卡在 `git fetch origin`（`Permission denied (publickey)`）。
+**① Deploy keys**（Settings → Deploy keys，不勾 write）：贴 `/home/deployer/.ssh/id_ed25519.pub`。
+没这把，CI 会卡在 `git fetch origin` 报 `Permission denied (publickey)`。
 
-**② Secrets**（仓库 → Settings → Secrets and variables → Actions）：
+**② Secrets**（Settings → Secrets and variables → Actions）：
 
 | Secret | 值 |
 |--------|----|
@@ -178,42 +219,64 @@ su - deployer -c 'GIT_SSH_COMMAND="ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=ye
 | `DEPLOY_SSH_PORT` | SSH 端口（默认 22 可不建） |
 | `DEPLOY_SSH_USER` | `deployer` |
 | `DEPLOY_SSH_KEY`  | 部署私钥全文（`~/.ssh/alphapilot_deploy_key`） |
-| `DEPLOY_DIR_DEV`  | **构建目录**路径（如 `/workspace/alpha-pilot-build`） |
-| `DEPLOY_DIR_TEST` | 同构建目录路径 |
-| `DEPLOY_DIR_PROD` | 同构建目录路径 |
+| `DEPLOY_DIR_DEV` / `DEPLOY_DIR_TEST` / `DEPLOY_DIR_PROD` | 都填 `/workspace/alpha-pilot-build` |
 
-配好后，`git push origin dev` → GitHub Actions 直接 SSH（`deployer@HOST`）进服务器 → 构建目录 `git fetch origin` + build-once + 部署 dev。
-（CI 不跑测试门禁——单测/构建在本地提交前完成；`make test` + 前端 build 自查后再 push。）
+**③ prod 审批门（推荐）**：Settings → Environments → 新建 `prod` → Required reviewers 填老板。
+合并到 main 后 Deploy Prod 会暂停等网页 Approve。
+
+配好后 `git push origin dev` → Actions SSH 进服务器自动部署 dev（CI 不跑测试门禁，单测在本地 pre-commit）。
 
 ---
 
-## 阶段 6：test / prod（dev 验证通过后再做）
+## 阶段 7：test / prod（dev 验证通过后再做）
 
-- **test**：重复阶段 2-3，把 `<DEV_DIR>`→test clone、`dev.env`→`test.env`、`deploy-dev.sh`→`deploy-test.sh`、
-  compose 用 `docker-compose.test.yml`（自动连 alphapilot_test / redis db1）。
+- **test**：`cp example.env` → `/workspace/alpha-pilot-deploy/test/envs/test.env`（同阶段 2 规则，
+  **另行生成**两个 APP 密钥），然后构建目录里 `bash scripts/deploy-test.sh`。
+  同一 commit 的 backend/webapp 镜像**直接复用**（build-once 晋升），只重建 frontend（basePath 烘焙）。
 - **prod**：**[必须老板手动确认]** 接 Binance mainnet。
-  - `prod.env` 的 `TRADING_MODE=mainnet`、填真实主网凭据。
-  - 建议先在 GitHub Environments → prod 配 Required reviewers（审批门）。
-  - 服务器手动 `bash scripts/deploy-prod.sh`（会交互确认），或 push main 走审批门。
+  - `prod.env`：`TRADING_MODE=mainnet`、独立 APP 密钥、`DEFAULT_ADMIN_PASSWORD` 用强密码。
+  - 主网 Binance Key 同样走前端设置页（不进 env）。
+  - 先配好 GitHub prod 审批门；服务器手动跑 `bash scripts/deploy-prod.sh` 会交互二次确认。
 
 ---
+
+## 日常运维速查
+
+```bash
+# 手动部署 / 重部署（任何环境）
+cd /workspace/alpha-pilot-build && bash scripts/deploy-dev.sh        # test/prod 同理
+
+# 部署指定 commit（如回退到某个已验证 SHA）
+SOURCE_REF=<sha或分支> bash scripts/deploy-dev.sh
+
+# 查看当前/上一个可用版本
+cat /workspace/alpha-pilot-deploy/dev/current.tag /workspace/alpha-pilot-deploy/dev/last-good.tag
+
+# 看日志
+docker logs -f $(docker ps -qf name=ap-dev-backend)
+docker logs -f $(docker ps -qf name=ap-dev-scheduler)
+
+# 中间件永远不随应用重部署重启；确需维护时先停三环境应用栈
+```
 
 ## 验收清单（"部署打通"达成）
 
-- [ ] 中间件 `ap-postgres`/`ap-redis` 健康，三库已建，`ap-shared` 网络在。
-- [ ] dev：backend + scheduler + frontend 三 service Up；scheduler 日志见 `APScheduler started`。
-- [ ] `https://<DOMAIN>/ap-dev/api/health` 返回正常 envelope。
-- [ ] `deployer` 用户建好（仅 docker 组）；`DOCKER_OK` + 能 `git ls-remote` GitHub。
-- [ ] GitHub **Deploy key**（deployer 公钥）已加；**Secrets** 配齐（`DEPLOY_SSH_USER=deployer`、`DEPLOY_DIR_*`=构建目录）。
-- [ ] `git push origin dev` 触发 Actions 直接部署（无测试门禁），CI 绿。
-- [ ] 全程无真实凭据进 git；env 真实值只在服务器 `envs/`、私钥只在服务器与 GitHub Secrets。
+- [ ] 中间件 `ap-postgres`/`ap-redis` healthy，三库已建，`ap-shared` 网络在。
+- [ ] dev：backend + scheduler + frontend + webapp 四 service Up；scheduler 日志见 `APScheduler started`。
+- [ ] `https://<DOMAIN>/ap-dev/api/health` 返回正常 envelope；`/ap-dev-next/` 打开 webapp 登录页。
+- [ ] 老板已在设置页配好 testnet Key + LLM Key，测试连接通过；策略周期产生决策。
+- [ ] `deployer` 用户建好；GitHub Deploy key + Secrets 配齐；push dev 触发 Actions 自动部署，CI 绿。
+- [ ] 全程无真实凭据进 git / 对话；env 真实值只在服务器 `envs/`，业务 Key 只在 DB（加密）。
 
 ## 出问题时
 
-- CI 部署卡在 `git fetch origin` 报 `Permission denied (publickey)` → deployer 的公钥没加到 GitHub **Deploy keys**（注意是 Deploy keys 区，不是 Secrets）。
-- CI SSH 连不上 → 检查 `DEPLOY_SSH_HOST/PORT/USER`、`DEPLOY_SSH_KEY` 私钥全文、服务器放通公网 SSH、`deployer` 的 `authorized_keys` 有部署公钥。
-- `dubious ownership in repository` → 构建/部署目录属主不是运行用户；`chown -R deployer:deployer` 或 `git config --global --add safe.directory <repo>`。
-- scheduler crash-loop（`No module named src`）→ 后端镜像须有 `ENV PYTHONPATH=/app`（见 Dockerfile.backend）。
-- scheduler 没 `APScheduler started` → 看 `logs scheduler`，多半是 env 缺 `APP_AUTH_SECRET_KEY`/`APP_CONFIG_MASTER_KEY`（`_validate_secrets` 拒绝启动）。
-- backend 连不上 DB → 确认中间件在跑、`ap-shared` 网络、env 没覆盖掉 compose 的 DATABASE_URL。
-- 迁移失败 → `docker compose ... exec -T backend python scripts/upgrade_db.py` 单独跑看报错。
+- CI 卡 `git fetch origin` 报 `Permission denied (publickey)` → deployer 公钥没加到 GitHub **Deploy keys**。
+- CI SSH 连不上 → 查 `DEPLOY_SSH_HOST/PORT/USER/KEY`、服务器放通 SSH、`authorized_keys` 有部署公钥。
+- `dubious ownership in repository` → 目录属主不对：`chown -R deployer:deployer ...` 或 `git config --global --add safe.directory <repo>`。
+- backend/scheduler 起不来且日志见 `InsecureSecretError` → env 缺 `APP_AUTH_SECRET_KEY`/`APP_CONFIG_MASTER_KEY`。
+- scheduler crash-loop `No module named src` → 镜像须有 `ENV PYTHONPATH=/app`（Dockerfile.backend 已带，怀疑镜像旧就删掉重 build）。
+- backend 连不上 DB → 中间件在跑？`ap-shared` 网络在？env 没覆盖 compose 的 `DATABASE_URL`？
+- 迁移失败 → 部署目录里 `... exec -T backend python scripts/upgrade_db.py` 单独跑看报错（脚本已自动回滚应用栈，但**迁移不自动回退**，需人工判断）。
+- 部署失败自动回滚后 → 修复问题重新 `bash scripts/deploy-<env>.sh` 即可；回滚只回镜像不动 git。
+- 设置页保存了 Key 但决策链仍用 Mock → 看 scheduler 日志有没有 `runtime settings loaded from DB`；
+  没有则多半 `APP_CONFIG_MASTER_KEY` 与写入时不一致（解密失败会跳过并告警）。

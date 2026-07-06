@@ -35,7 +35,8 @@ feat-xxx ──PR──► dev ──PR──► test ──PR──► main
 | prod | `main` | `/ap`      | 8003/3003 | `docker-compose.prod.yml`       | `envs/prod.env` | alphapilot_prod | 2 |
 
 共享中间件 `docker-compose.middleware.yml`：`ap-postgres` 绑 `127.0.0.1:5432`、`ap-redis` 绑 `127.0.0.1:6379`（仅本机）。
-应用 compose 现含 **backend(API) + scheduler + frontend** 三 service（scheduler 跑定时/异步任务，缺它则不交易不监控）。
+应用 compose 现含 **backend(API) + scheduler + frontend** 三 service（scheduler 跑定时/异步任务，缺它则不交易不监控）；
+dev 额外含 **webapp**（Vite 新前端，`127.0.0.1:3004` → nginx `/ap-dev-next`，验收后再推广到 test/prod）。
 
 ## 3. GitHub 配置（一次性）
 
