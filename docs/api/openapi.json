@@ -4403,6 +4403,251 @@
         }
       }
     },
+    "/api/performance/summary": {
+      "get": {
+        "tags": [
+          "performance"
+        ],
+        "summary": "Performance Summary",
+        "description": "6 指标 + vs HODL 基准曲线 + 主控台聚合磁贴 (联调缺口#5)。",
+        "operationId": "performance_summary",
+        "parameters": [
+          {
+            "name": "range",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 7,
+              "default": 90,
+              "title": "Range"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "ap_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ap Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Response_PerformanceSummaryOut_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/performance/monthly": {
+      "get": {
+        "tags": [
+          "performance"
+        ],
+        "summary": "Performance Monthly",
+        "description": "月度 PnL (零轴柱图数据源)。",
+        "operationId": "performance_monthly",
+        "parameters": [
+          {
+            "name": "months",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 36,
+              "minimum": 1,
+              "default": 12,
+              "title": "Months"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "ap_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ap Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Response_list_MonthlyPnlRead__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/performance/attribution": {
+      "get": {
+        "tags": [
+          "performance"
+        ],
+        "summary": "Performance Attribution",
+        "description": "归因分解: dim=symbol|strategy|trigger。",
+        "operationId": "performance_attribution",
+        "parameters": [
+          {
+            "name": "dim",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 20,
+              "default": "symbol",
+              "title": "Dim"
+            }
+          },
+          {
+            "name": "range",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 7,
+              "default": 90,
+              "title": "Range"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "ap_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ap Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Response_list_AttributionBucketRead__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/commands/close-position/{position_id}": {
       "post": {
         "tags": [
@@ -5132,6 +5377,40 @@
           "occurred_at"
         ],
         "title": "AgentHistoryItemRead"
+      },
+      "AttributionBucketRead": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "trades": {
+            "type": "integer",
+            "title": "Trades"
+          },
+          "net_pnl": {
+            "type": "number",
+            "title": "Net Pnl"
+          },
+          "win_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Win Rate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "trades",
+          "net_pnl"
+        ],
+        "title": "AttributionBucketRead"
       },
       "AuthLoginCreate": {
         "properties": {
@@ -6632,6 +6911,29 @@
         ],
         "title": "MarketSymbolRead"
       },
+      "MonthlyPnlRead": {
+        "properties": {
+          "month": {
+            "type": "string",
+            "title": "Month"
+          },
+          "pnl": {
+            "type": "number",
+            "title": "Pnl"
+          },
+          "trades": {
+            "type": "integer",
+            "title": "Trades"
+          }
+        },
+        "type": "object",
+        "required": [
+          "month",
+          "pnl",
+          "trades"
+        ],
+        "title": "MonthlyPnlRead"
+      },
       "NotificationSettingsOut": {
         "properties": {
           "channels": {
@@ -6868,6 +7170,152 @@
         ],
         "title": "PauseCreate",
         "description": "POST /api/commands/pause | /resume 入参 (resume 复用同 schema)."
+      },
+      "PerformanceSummaryOut": {
+        "properties": {
+          "range_days": {
+            "type": "integer",
+            "title": "Range Days"
+          },
+          "net_return_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Net Return Pct"
+          },
+          "hodl_return_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hodl Return Pct"
+          },
+          "vs_hodl_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vs Hodl Pct"
+          },
+          "sharpe": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sharpe"
+          },
+          "sortino": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sortino"
+          },
+          "max_drawdown_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Drawdown Pct"
+          },
+          "win_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Win Rate"
+          },
+          "profit_factor": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profit Factor"
+          },
+          "trades": {
+            "type": "integer",
+            "title": "Trades"
+          },
+          "net_pnl": {
+            "type": "number",
+            "title": "Net Pnl"
+          },
+          "today_trades": {
+            "type": "integer",
+            "title": "Today Trades"
+          },
+          "avg_holding_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Holding Seconds"
+          },
+          "week_pnl": {
+            "type": "number",
+            "title": "Week Pnl"
+          },
+          "month_pnl": {
+            "type": "number",
+            "title": "Month Pnl"
+          },
+          "curve": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Curve"
+          }
+        },
+        "type": "object",
+        "required": [
+          "range_days",
+          "trades",
+          "net_pnl",
+          "today_trades",
+          "week_pnl",
+          "month_pnl",
+          "curve"
+        ],
+        "title": "PerformanceSummaryOut"
       },
       "PermissionGroupRead": {
         "properties": {
@@ -7749,6 +8197,59 @@
         "type": "object",
         "title": "Response[OrderPlacedOut]"
       },
+      "Response_PerformanceSummaryOut_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "default": true
+          },
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "default": "0"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "成功"
+          },
+          "detailMessage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detailmessage"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PerformanceSummaryOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          }
+        },
+        "type": "object",
+        "title": "Response[PerformanceSummaryOut]"
+      },
       "Response_PrecheckOut_": {
         "properties": {
           "success": {
@@ -8283,6 +8784,63 @@
         "type": "object",
         "title": "Response[list[AgentHistoryItemRead]]"
       },
+      "Response_list_AttributionBucketRead__": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "default": true
+          },
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "default": "0"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "成功"
+          },
+          "detailMessage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detailmessage"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/AttributionBucketRead"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          }
+        },
+        "type": "object",
+        "title": "Response[list[AttributionBucketRead]]"
+      },
       "Response_list_DecisionRead__": {
         "properties": {
           "success": {
@@ -8624,6 +9182,63 @@
         },
         "type": "object",
         "title": "Response[list[MarketSymbolRead]]"
+      },
+      "Response_list_MonthlyPnlRead__": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "default": true
+          },
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "default": "0"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "成功"
+          },
+          "detailMessage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detailmessage"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/MonthlyPnlRead"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          }
+        },
+        "type": "object",
+        "title": "Response[list[MonthlyPnlRead]]"
       },
       "Response_list_OrderListItemRead__": {
         "properties": {

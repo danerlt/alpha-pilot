@@ -154,3 +154,15 @@ def test_gap6_catchup_typed_in_openapi():
     schema = app.openapi()
     components = schema.get("components", {}).get("schemas", {})
     assert "CatchupOut" in components
+
+
+def test_gap5_performance_summary_endpoint(authed):
+    """联调缺口#5: 主控台磁贴数据由 /api/performance/summary 提供。"""
+    cli, _ = authed
+    r = cli.get("/api/performance/summary?range=30")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["success"] is True
+    data = body["data"]
+    for key in ("sharpe", "win_rate", "today_trades", "week_pnl", "month_pnl", "curve"):
+        assert key in data

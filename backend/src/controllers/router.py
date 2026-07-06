@@ -29,6 +29,7 @@ from src.controllers.api.v1.risk.risk_state import router as _risk_state_router
 # ── strategy 域 ────────────────────────────────────────────────────────
 from src.controllers.api.v1.strategy.attribution import router as _attribution_router
 from src.controllers.api.v1.strategy.decisions import router as _decisions_router
+from src.controllers.api.v1.strategy.performance import router as _performance_router
 from src.controllers.api.v1.strategy.reports import router as _reports_router
 from src.controllers.api.v1.strategy.strategy_scores import router as _strategy_scores_router
 
@@ -68,3 +69,4 @@ router.include_router(_risk_state_router)
 router.include_router(_agent_router)
 router.include_router(_settings_router)
 router.include_router(_lab_router)
+router.include_router(_performance_router)
