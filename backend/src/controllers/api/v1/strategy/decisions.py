@@ -29,7 +29,10 @@ def list_decisions(
     settings = get_settings()
     rows = (
         db.query(AIDecision)
-        .filter(AIDecision.trading_mode == settings.TRADING_MODE.value)
+        .filter(
+            AIDecision.trading_mode == settings.TRADING_MODE.value,
+            AIDecision.source != "shadow",  # 影子链决策只进实验室对比, 不混决策流
+        )
         .order_by(AIDecision.decided_at.desc())
         .limit(limit)
         .all()

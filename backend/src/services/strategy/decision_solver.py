@@ -72,6 +72,7 @@ class DecisionSolver:
         symbol: str,
         timeframe: str,
         factor_snapshot_id: int | None,
+        source: str = "ai_trader",
     ) -> tuple[DecisionProposal, int]:
         """Returns (proposal, ai_decisions_id). Never raises on normal
         error paths — fall back to HOLD and record the reason."""
@@ -119,7 +120,7 @@ class DecisionSolver:
                 strategy_mode=data.get("strategy_mode", "ai_trend"),
                 reasoning=data.get("reasoning", []) or [],
                 risk_note=data.get("risk_note"),
-                source="ai_trader",
+                source=source,
                 prompt_template_id=prompt_bundle.template_id,
                 llm_model_id=llm_result.model if llm_result else None,
                 factor_snapshot_id=factor_snapshot_id,
@@ -143,6 +144,7 @@ class DecisionSolver:
                 factor_snapshot_id=factor_snapshot_id,
             )
             proposal.prompt_template_id = prompt_bundle.template_id
+            proposal.source = source
             if llm_result is not None:
                 proposal.llm_model_id = llm_result.model
 
@@ -171,7 +173,7 @@ class DecisionSolver:
             llm_model=llm_result.model if llm_result else None,
             tokens_used=llm_result.tokens_used if llm_result else None,
             latency_ms=llm_result.latency_ms if llm_result else None,
-            source="ai_trader",
+            source=source,
             factor_snapshot_id=factor_snapshot_id,
         )
         self._session.add(decision_row)

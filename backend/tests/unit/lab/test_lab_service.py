@@ -215,3 +215,104 @@ def test_canary_auto_rollback_on_drawdown(session):
     hist = svc.history(trading_mode="testnet")
     rb = next(h for h in hist if h["action"] == "rollback")
     assert rb["operator"] == "system"
+
+
+# ── V2: llm 模式影子 (真·独立决策链) ─────────────────────────────────────
+
+
+def _seed_snapshots(session):
+    """llm 影子链输入: 指标/因子/regime/账户快照 + prompt 模板。"""
+    from decimal import Decimal
+
+    from src.models import PromptTemplate
+    from src.models.account import AccountSnapshot
+    from src.models.account_entity import RiskProfile
+    from src.models.factor import FactorSnapshot
+    from src.models.indicator import IndicatorSnapshot
+    from src.models.regime import RegimeSnapshot
+
+    now = datetime.now(tz=timezone.utc)
+    session.add(PromptTemplate(
+        name="ait_default", version=1,
+        system_template="sys ${symbol} ${regime}",
+        user_template="user ${current_price}",
+        active=True,
+    ))
+    session.add(RiskProfile(
+        account_id=1, name="default", version=1, active=True,
+        max_position_size_pct=Decimal("0.20"), max_daily_loss_pct=Decimal("0.03"),
+        max_consecutive_losses=3, max_single_risk_pct=Decimal("0.01"),
+        min_rr_ratio=Decimal("1.50"), sl_atr_min_mult=Decimal("0.50"),
+        sl_atr_max_mult=Decimal("5.00"),
+    ))
+    session.add(IndicatorSnapshot(
+        account_id=1, trading_mode="testnet", symbol="BTCUSDT", timeframe="1h",
+        snapshot_at=now, ema20=50_000, ema50=49_500, ema200=48_000,
+        rsi=55, atr=800.0,
+    ))
+    session.add(FactorSnapshot(
+        account_id=1, trading_mode="testnet", symbol="BTCUSDT", timeframe="1h",
+        open_time=now, factors_json={"trend_strength": 0.8},
+    ))
+    session.add(RegimeSnapshot(
+        account_id=1, trading_mode="testnet", symbol="BTCUSDT", timeframe="1h",
+        snapshot_at=now, regime="trending_up", confidence=0.9,
+    ))
+    session.add(AccountSnapshot(
+        account_id=1, trading_mode="testnet", snapshot_at=now,
+        total_balance_usdt=10_000, available_balance_usdt=10_000,
+        unrealized_pnl=0, daily_pnl=0, daily_pnl_pct=0,
+    ))
+    session.commit()
+
+
+def test_llm_mode_shadow_runs_independent_chain(session, monkeypatch):
+    import json
+
+    from src.core.llm.client import MockLLMClient
+
+    monkeypatch.setattr(
+        "src.configs.app_configs.get_app_config.__wrapped__", 
+        None, raising=False,
+    )
+    _seed_snapshots(session)
+    svc = LabService(session)
+    row = _submit(session, name="独立LLM影子", params={"mode": "llm"})
+    row = svc.start_shadow(candidate_id=row.id, user_id=1, trading_mode="testnet")
+
+    canned = json.dumps({
+        "action": "OPEN_LONG", "confidence": 0.7, "entry_type": "MARKET",
+        "entry_price": 50_000.0, "stop_loss": 49_600.0, "take_profit": 51_000.0,
+        "position_size_pct": 0.05, "strategy_mode": "ai_trend",
+        "reasoning": ["shadow test"],
+    })
+    runner = ShadowRunner(
+        session, _TickerAdapter(price=50_500.0), llm=MockLLMClient(canned_response=canned),
+    )
+    stats = runner.run_once(trading_mode="testnet")
+    assert stats["llm"] >= 1
+    assert stats["evaluated"] >= 1
+
+    sd = session.execute(
+        select(ShadowDecision).where(ShadowDecision.shadow_run_id == row.shadow_run_id)
+    ).scalars().all()
+    llm_rows = [r for r in sd if (r.proposal_json or {}).get("mode") == "llm"]
+    assert llm_rows and llm_rows[0].proposal_json["symbol"] == "BTCUSDT"
+    # 决策落 ai_decisions 且 source=shadow
+    dec_id = llm_rows[0].proposal_json["decision_id"]
+    assert dec_id is not None
+    dec = session.get(AIDecision, dec_id)
+    assert dec.source == "shadow"
+
+    # 幂等: 同周期再跑不重复
+    stats2 = runner.run_once(trading_mode="testnet")
+    assert stats2["llm"] == 0
+
+
+def test_llm_mode_skipped_without_llm_client(session):
+    _seed_snapshots(session)
+    svc = LabService(session)
+    row = _submit(session, name="无LLM", params={"mode": "llm"})
+    svc.start_shadow(candidate_id=row.id, user_id=1, trading_mode="testnet")
+    stats = ShadowRunner(session, _TickerAdapter()).run_once(trading_mode="testnet")
+    assert stats["llm"] == 0  # 未注入 llm → 跳过不炸

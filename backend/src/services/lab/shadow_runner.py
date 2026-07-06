@@ -1,10 +1,12 @@
 """ShadowRunner — 影子执行 + 模拟评估 + 灰度自动回滚 (handoff 3.5)。
 
-V1 采用 **mirror 模式**: 对 SHADOW 候选, 以主管道最新真实决策为基线,
-应用候选 params_json 的参数变换生成影子 proposal, 写 shadow_decisions
-(**不下单**); 评估轮用当前价对影子 proposal 模拟 PnL (pct 口径) 写
-shadow_evaluations, 与线上实际逐笔对比。
-真·独立 LLM 决策链 (每候选独立跑 prompt→solve→review) 留 V2。
+两种影子模式 (candidate.params_json.mode, 缺省 "mirror"):
+  - **mirror**: 以主管道最新真实决策为基线, 应用 params_json 参数变换
+    (sl_mult/tp_mult/size_scale/min_confidence) 生成影子 proposal, 零 LLM 成本。
+  - **llm** (V2): 每周期对 PIPELINE_SYMBOLS 用最新快照独立跑完整决策链
+    (prompt -> LLM -> review, source="shadow", 决策落 ai_decisions 但不进前端
+    决策流, **绝不下单**)。每候选每周期每 symbol 一次 LLM 调用, 提交前注意成本。
+两种模式都写 shadow_decisions; 评估轮用当前价模拟 PnL 写 shadow_evaluations。
 
 params_json 支持的变换 (无该键则不变换):
   sl_mult:   SL 距离倍数   sl' = entry - (entry-sl)×sl_mult
@@ -81,18 +83,161 @@ def simulate_pnl_pct(proposal: dict, current_price: float) -> float | None:
 
 
 class ShadowRunner:
-    def __init__(self, session: Session, adapter, outbox: OutboxWriter | None = None):
+    def __init__(
+        self, session: Session, adapter,
+        outbox: OutboxWriter | None = None, llm=None,
+    ):
         self._session = session
         self._adapter = adapter
         self._outbox = outbox
+        self._llm = llm  # llm 模式用; None 时 llm 候选跳过 (mirror 不受影响)
 
     def run_once(self, *, trading_mode: str, account_id: int = 1) -> dict:
-        """镜像最新真实决策 + 评估既有影子行 + 灰度回滚检查。返回统计。"""
+        """镜像/LLM 影子决策 + 评估既有影子行 + 灰度回滚检查。返回统计。"""
         mirrored = self._mirror_recent_decisions(trading_mode=trading_mode, account_id=account_id)
+        llm_ran = self._run_llm_candidates(trading_mode=trading_mode, account_id=account_id)
         evaluated = self._evaluate_pending(trading_mode=trading_mode)
         rolled_back = self._check_canary_rollback(trading_mode=trading_mode, account_id=account_id)
         self._session.commit()
-        return {"mirrored": mirrored, "evaluated": evaluated, "rolled_back": rolled_back}
+        return {
+            "mirrored": mirrored, "llm": llm_ran,
+            "evaluated": evaluated, "rolled_back": rolled_back,
+        }
+
+    # ── V2: 真·独立 LLM 决策链 ──────────────────────────────────────────
+
+    def _run_llm_candidates(self, *, trading_mode: str, account_id: int) -> int:
+        candidates = [
+            c for c in lab_candidate_crud.find_by_stage(
+                self._session, ["SHADOW"], trading_mode=trading_mode,
+            )
+            if (c.params_json or {}).get("mode") == "llm"
+        ]
+        if not candidates:
+            return 0
+        if self._llm is None:
+            logger.warning("llm-mode shadow candidates exist but no llm client injected; skipped")
+            return 0
+
+        from src.configs.app_configs import get_settings
+        from src.services.insight.experience.retriever import ExperienceRetriever
+        from src.services.strategy.decision_solver import DecisionSolver
+        from src.services.strategy.pipeline import AITraderPipeline
+        from src.services.strategy.prompt_composer import PromptComposer
+        from src.services.strategy.review_critic import ReviewCritic
+
+        settings = get_settings()
+        symbols = [x.strip() for x in settings.PIPELINE_SYMBOLS.split(",") if x.strip()]
+        timeframe = (settings.PIPELINE_TIMEFRAMES.split(",")[0] or "1h").strip()
+        ait = AITraderPipeline(
+            self._session,
+            composer=PromptComposer(self._session),
+            retriever=ExperienceRetriever(self._session),
+            solver=DecisionSolver(self._session, self._llm),
+            critic=ReviewCritic(self._session),
+        )
+        since = datetime.now(tz=timezone.utc) - timedelta(minutes=_LOOKBACK_MINUTES)
+        count = 0
+        for cand in candidates:
+            recent_rows = self._session.execute(
+                select(ShadowDecision).where(
+                    ShadowDecision.shadow_run_id == cand.shadow_run_id,
+                    ShadowDecision.created_at >= since,
+                )
+            ).scalars().all()
+            done_symbols = {
+                (r.proposal_json or {}).get("symbol")
+                for r in recent_rows
+                if (r.proposal_json or {}).get("mode") == "llm"
+            }
+            for symbol in symbols:
+                if symbol in done_symbols:
+                    continue  # 幂等: 本周期该 run×symbol 已跑过
+                inp = self._build_pipeline_input(
+                    trading_mode=trading_mode, account_id=account_id,
+                    symbol=symbol, timeframe=timeframe,
+                )
+                if inp is None:
+                    continue  # 主管道还没为该 symbol 产出快照
+                try:
+                    proposal, decision_id = ait.run(inp)
+                except Exception:  # noqa: BLE001
+                    logger.exception("llm shadow run failed for %s %s", cand.id, symbol)
+                    continue
+                self._session.add(ShadowDecision(
+                    shadow_run_id=cand.shadow_run_id,
+                    real_decision_id=None,
+                    proposal_json={
+                        "mode": "llm",
+                        "decision_id": decision_id,
+                        "symbol": symbol,
+                        "action": proposal.action,
+                        "confidence": float(proposal.confidence),
+                        "entry_price": proposal.entry_price,
+                        "stop_loss": proposal.stop_loss,
+                        "take_profit": proposal.take_profit,
+                        "position_size_pct": proposal.position_size_pct,
+                        "is_fallback": proposal.is_fallback,
+                    },
+                ))
+                count += 1
+        self._session.flush()
+        return count
+
+    def _build_pipeline_input(
+        self, *, trading_mode: str, account_id: int, symbol: str, timeframe: str,
+    ):
+        """用最新快照构造独立决策链输入; 任一快照缺失返回 None。"""
+        from src.cruds.account_crud import account_snapshot_crud
+        from src.cruds.factor_crud import factor_snapshot_crud
+        from src.cruds.indicator_crud import indicator_snapshot_crud
+        from src.cruds.regime_crud import regime_snapshot_crud
+        from src.services.strategy.pipeline import PipelineInput
+
+        ind = indicator_snapshot_crud.find_latest_by_symbol(
+            self._session, trading_mode=trading_mode, symbol=symbol, account_id=account_id,
+        )
+        factor = factor_snapshot_crud.find_latest_by_symbol(
+            self._session, trading_mode=trading_mode, symbol=symbol, account_id=account_id,
+        )
+        regime = regime_snapshot_crud.find_latest_by_symbol(
+            self._session, trading_mode=trading_mode, symbol=symbol, account_id=account_id,
+        )
+        snap = account_snapshot_crud.find_latest(
+            self._session, trading_mode=trading_mode, account_id=account_id,
+        )
+        if ind is None or factor is None or regime is None or snap is None:
+            return None
+        try:
+            price = float(self._adapter.get_ticker(symbol).price)
+        except Exception:  # noqa: BLE001
+            logger.warning("llm shadow: ticker failed for %s", symbol, exc_info=True)
+            return None
+        indicators = {
+            k: (float(getattr(ind, k)) if getattr(ind, k) is not None else None)
+            for k in (
+                "ema20", "ema50", "ema200", "rsi", "macd", "macd_signal",
+                "macd_hist", "atr", "bb_upper", "bb_middle", "bb_lower",
+                "volume_ma", "volatility",
+            )
+        }
+        return PipelineInput(
+            account_id=account_id, trading_mode=trading_mode,
+            symbol=symbol, timeframe=timeframe,
+            current_price=price,
+            indicators=indicators,
+            factors=factor.factors_json or {},
+            regime=regime.regime,
+            open_position=None,  # 影子链假设空仓评估开仓意愿
+            account_snapshot={
+                "available_usdt": float(snap.available_balance_usdt),
+                "daily_pnl": float(snap.daily_pnl),
+                "daily_pnl_pct": float(snap.daily_pnl_pct),
+            },
+            factor_snapshot_id=factor.id,
+            atr=float(ind.atr) if ind.atr is not None else 0.0,
+            source="shadow",
+        )
 
     # ── 镜像 ────────────────────────────────────────────────────────────
 

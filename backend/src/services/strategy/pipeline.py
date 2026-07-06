@@ -53,6 +53,7 @@ class PipelineInput:
     factor_snapshot_id: int | None
     atr: float  # needed by ReviewCritic
     experience_limit: int = 5
+    source: str = "ai_trader"  # "shadow" = 实验室影子链 (不下单)
 
 
 class AITraderPipeline:
@@ -128,6 +129,7 @@ class AITraderPipeline:
             symbol=inp.symbol,
             timeframe=inp.timeframe,
             factor_snapshot_id=inp.factor_snapshot_id,
+            source=inp.source,
         )
 
         # If the solver already fell back, skip review — HOLD is HOLD.

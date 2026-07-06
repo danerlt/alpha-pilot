@@ -11,7 +11,7 @@ logger = logging.getLogger("scheduler.lab")
 
 def lab_job() -> None:
     from src.configs.app_configs import get_settings
-    from src.controllers.dependencies import get_adapter
+    from src.controllers.dependencies import get_adapter, get_llm_client
     from src.db.session import get_db_session
     from src.services.events.outbox import OutboxWriter
     from src.services.lab.shadow_runner import ShadowRunner
@@ -23,6 +23,7 @@ def lab_job() -> None:
         with get_db_session() as session:
             stats = ShadowRunner(
                 session, get_adapter(), outbox=OutboxWriter(),
+                llm=get_llm_client(),
             ).run_once(trading_mode=trading_mode)
         if any(stats.values()):
             logger.info("lab_job done: %s", stats)
