@@ -6,6 +6,10 @@
 > | # | 缺口 | 前端现状 | 建议 |
 > |---|------|----------|------|
 > | 8 | **WS 握手只认 `?token=` 不读 cookie**（`/ws` 与 `/ws/market` 的 `_verify_token`） | 登录响应的 access_token 仅内存持有（`webapp/src/api/tokenStore.ts`），页面刷新后 WS 实时降级直到重新登录（REST 不受影响） | WS 握手增加 cookie（`ap_token`）回退：浏览器同源 WS upgrade 自动带 cookie，改一处 `_verify_token` 入参来源即可；落地后前端删 tokenStore |
+> | 9 | **策略受限集启停端点缺失**（`GET/PATCH /api/strategies`） | 策略与风控页「受限策略集」启停仍 mock-only（`strategyApi.list/toggle`） | 新增策略列表+启停端点（或用 symbol_config/runtime config 表达策略开关）；落地后前端接真 |
+> | 10 | **日报无 LLM 叙述字段** | 审计页 AI 日报卡由统计合成叙述（`fromWireReport`） | DailyReport 增 `narrative` 字段（attribution.narrative 过渡→LLM）；落地后前端直用 |
+>
+> **前端 66 paths 已全量接真；上述 #8/#9/#10 落地后 webapp 无 mock 兜底残留。**
 
 > **状态更新（2026-07-06 后端会话）**：**清单 #1-7 全部收口** ✅，openapi.json 已重导（66 paths），
 > 前端 `npm run gen:api` 后可删全部兼容代码。
