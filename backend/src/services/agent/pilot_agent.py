@@ -9,7 +9,8 @@
     {"final": "<回答文本>"}             → 结束
   解析失败时整段文本视为 final (兜底不空转)。工具循环上限 MAX_TOOL_ROUNDS。
 
-SSE 事件流 (V1 伪流式: final 文本切块发 delta, 契约与真流式一致):
+SSE 事件流 (LLM 支持 complete_stream 时真流式: 纯文本回答边收边发 delta;
+工具调用 JSON 需完整解析故缓冲; Mock/不支持流式的客户端回退切块伪流式):
   {"event": "tool_call", "data": {"name", "status": "start"|"done", "result"?}}
   {"event": "delta",     "data": {"text": ...}}
   {"event": "done",      "data": {"invocation_id", "pending_action_id"?}}
@@ -51,9 +52,9 @@ CONFIRMABLE_CONFIG_KEYS = {
 
 _SYSTEM_PROMPT = """你是 AlphaPilot 交易系统的驾驶舱助手 Pilot AI。用中文回答。
 
-你只能通过工具获取系统数据。每轮回复必须且只能输出一个 JSON 对象（不要 markdown 代码块），二选一：
-  {"tool": "<工具名>", "args": {<参数>}}
-  {"final": "<给用户的最终回答>"}
+你只能通过工具获取系统数据。每轮回复二选一：
+1. 需要调工具时：只输出一个 JSON 对象（不要 markdown 代码块）：{"tool": "<工具名>", "args": {<参数>}}
+2. 给用户最终回答时：**直接输出回答文本**（不要 JSON、不要代码块包裹）
 
 可用工具:
 - get_positions {} — 当前开仓持仓列表
@@ -211,13 +212,42 @@ class PilotAgentService:
         outcome = "success"
         error: str | None = None
 
+        streamed = False
         try:
             for _ in range(MAX_TOOL_ROUNDS + 1):
-                result = self._llm.complete(
-                    system=_SYSTEM_PROMPT, user=transcript,
-                    max_tokens=1024, timeout_s=timeout_s,
-                )
-                parsed = self._parse(result.raw_text)
+                stream_fn = getattr(self._llm, "complete_stream", None)
+                if stream_fn is not None:
+                    raw_text, streamed_pieces = "", []
+                    emitting = False
+                    for piece in stream_fn(
+                        system=_SYSTEM_PROMPT, user=transcript,
+                        max_tokens=1024, timeout_s=timeout_s,
+                    ):
+                        if emitting:
+                            answer += piece
+                            yield {"event": "delta", "data": {"text": piece}}
+                            continue
+                        streamed_pieces.append(piece)
+                        joined = "".join(streamed_pieces)
+                        stripped = joined.lstrip()
+                        if not stripped:
+                            continue
+                        if stripped[0] == "{" or stripped.startswith("`"):
+                            continue  # 疑似工具 JSON / 代码块 → 缓冲到完整再解析
+                        # 纯文本回答 → 切换真流式直发
+                        emitting = True
+                        answer = joined
+                        yield {"event": "delta", "data": {"text": joined}}
+                    if emitting:
+                        streamed = True
+                        break
+                    raw_text = "".join(streamed_pieces)
+                else:
+                    raw_text = self._llm.complete(
+                        system=_SYSTEM_PROMPT, user=transcript,
+                        max_tokens=1024, timeout_s=timeout_s,
+                    ).raw_text
+                parsed = self._parse(raw_text)
                 if "tool" in parsed:
                     name = parsed["tool"]
                     args = parsed.get("args") or {}
@@ -247,8 +277,9 @@ class PilotAgentService:
             error = "llm_timeout"
             answer = "抱歉, AI 服务响应超时, 请稍后重试。"
 
-        for i in range(0, len(answer), _DELTA_CHUNK):
-            yield {"event": "delta", "data": {"text": answer[i:i + _DELTA_CHUNK]}}
+        if not streamed:
+            for i in range(0, len(answer), _DELTA_CHUNK):
+                yield {"event": "delta", "data": {"text": answer[i:i + _DELTA_CHUNK]}}
 
         invocation = AgentInvocation(
             account_id=account_id,

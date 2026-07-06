@@ -82,6 +82,38 @@ class OpenAIClient:
             model=self._model, provider="openai",
         )
 
+    def complete_stream(
+        self, *, system: str, user: str,
+        max_tokens: int = 1024, timeout_s: int = 30,
+    ):
+        """流式补全 — 逐段 yield 文本 (agent chat 真流式用)。
+
+        可选能力: 调用方用 getattr(llm, "complete_stream", None) 探测,
+        不支持的客户端 (Mock 等) 自动回退非流式。
+        """
+        try:
+            stream = self._client.chat.completions.create(
+                model=self._model,
+                max_tokens=max_tokens,
+                timeout=timeout_s,
+                stream=True,
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+            )
+            for chunk in stream:
+                if not chunk.choices:
+                    continue
+                delta = chunk.choices[0].delta
+                piece = getattr(delta, "content", None)
+                if piece:
+                    yield piece
+        except Exception as e:
+            if "timeout" in str(e).lower():
+                raise LLMTimeout(str(e)) from e
+            raise
+
 
 class MockLLMClient:
     """Test fixture. Returns `canned_response` unchanged; tracks call count."""

@@ -214,3 +214,44 @@ def test_confirm_non_whitelisted_key_rejected(session):
     from src.models.system_setting import SystemSetting
 
     assert session.execute(select(SystemSetting)).scalars().all() == []
+
+
+# ── 真流式 (complete_stream 能力探测) ────────────────────────────────────
+
+
+class _StreamLLM:
+    """支持流式的 mock: responses 每项为 chunk 列表。"""
+
+    provider = "mock"
+
+    def __init__(self, responses: list[list[str]]):
+        self._responses = list(responses)
+
+    def complete_stream(self, *, system, user, max_tokens=1024, timeout_s=30):
+        yield from self._responses.pop(0)
+
+    def complete(self, **kw):  # 不应被调用
+        raise AssertionError("streaming client should not fall back to complete()")
+
+
+def test_streaming_plain_text_emits_incremental_deltas(session):
+    svc = PilotAgentService(session, _StreamLLM([["当前", "持仓", "为空。"]]), _NullAdapter())
+    events = list(svc.chat(message="持仓?", user_id=1, trading_mode="testnet"))
+    deltas = [e["data"]["text"] for e in events if e["event"] == "delta"]
+    # 真流式: 逐 chunk 转发 (非 64 字符切块)
+    assert deltas == ["当前", "持仓", "为空。"]
+    assert events[-1]["event"] == "done"
+    inv = session.execute(select(AgentInvocation)).scalars().one()
+    assert inv.output_json["answer"] == "当前持仓为空。"
+
+
+def test_streaming_tool_json_is_buffered_then_executed(session):
+    svc = PilotAgentService(session, _StreamLLM([
+        ['{"tool": "get_risk', '_state", "args": {}}'],   # 工具 JSON 分片 → 缓冲
+        ["风控", "状态 OK。"],                              # 第二轮纯文本 → 流式
+    ]), _NullAdapter())
+    events = list(svc.chat(message="风险敞口?", user_id=1, trading_mode="testnet"))
+    tool_names = [e["data"]["name"] for e in events if e["event"] == "tool_call"]
+    assert tool_names == ["get_risk_state", "get_risk_state"]  # start + done
+    deltas = [e["data"]["text"] for e in events if e["event"] == "delta"]
+    assert deltas == ["风控", "状态 OK。"]
