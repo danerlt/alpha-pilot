@@ -43,6 +43,7 @@ def _setup_scheduler() -> BackgroundScheduler:
     )
 
     from src.schedulers.attribution_scanner import attribution_job
+    from src.schedulers.lab_scanner import lab_job
     from src.schedulers.position_monitor_scanner import position_monitor_job
     from src.schedulers.strategy_pipeline_scanner import strategy_pipeline_job
     from src.schedulers.strategy_scoring_scanner import strategy_scoring_job
@@ -66,6 +67,11 @@ def _setup_scheduler() -> BackgroundScheduler:
         attribution_job, "interval",
         hours=cfg.STRATEGY_SCORING_INTERVAL_HOURS,
         id="attribution", replace_existing=True,
+    )
+    scheduler.add_job(
+        lab_job, "interval",
+        minutes=cfg.STRATEGY_LOOP_INTERVAL_MINUTES,
+        id="lab_shadow", replace_existing=True,
     )
     scheduler.start()
     logger.info(

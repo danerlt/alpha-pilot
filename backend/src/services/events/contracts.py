@@ -282,6 +282,15 @@ class CircuitBreakerTriggered(_Event):
     reason: str
 
 
+class LabUpdate(_Event):
+    """实验室候选状态变化 (handoff 3.5/3.9): 影子进度/promote/自动回滚。"""
+
+    event_type: ClassVar[str] = "lab.update"
+    candidate_id: int
+    stage: Literal["QUEUED", "SHADOW", "CANARY", "LIVE", "ROLLED_BACK", "RETIRED"]
+    reason: str | None = None
+
+
 class ManualOverride(_Event):
     event_type: ClassVar[str] = "manual.override"
     operator_user_id: int
@@ -390,6 +399,7 @@ def _all_event_classes() -> list[type[_Event]]:
         PositionOpened, PositionUpdated, PositionClosed,
         TradeClosed,
         RiskState, RiskEventTriggered, CircuitBreakerTriggered, ManualOverride,
+        LabUpdate,
         AccountSnapshotTaken,
         TaskStatusChanged,
         ControlCommand,

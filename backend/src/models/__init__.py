@@ -14,6 +14,7 @@ from src.models.experience import ExperienceRecord
 from src.models.experience_v2 import ExperienceSummary, ExperienceV2
 from src.models.factor import FactorCandidate, FactorDefinition, FactorSnapshot
 from src.models.indicator import IndicatorSnapshot
+from src.models.lab_candidate import LabCandidate
 from src.models.ops_diagnosis import OpsDiagnosis
 from src.models.order import Order
 from src.models.position import Position
@@ -37,6 +38,7 @@ __all__ = [
     "AccountSnapshot",
     "AgentInvocation",
     "AgentPendingAction",
+    "LabCandidate",
     "AIDecision",
     "AuditLog",
     "Candle",

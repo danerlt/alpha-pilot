@@ -16,6 +16,9 @@ from src.controllers.api.v1.execution.orders import router as _orders_router
 from src.controllers.api.v1.execution.positions import router as _positions_router
 from src.controllers.api.v1.execution.trades import router as _trades_router
 
+# ── lab 域 (handoff P5) ────────────────────────────────────────────────
+from src.controllers.api.v1.lab.lab import router as _lab_router
+
 # ── market 域 (handoff P2) ─────────────────────────────────────────────
 from src.controllers.api.v1.market.market import router as _market_router
 
@@ -64,3 +67,4 @@ router.include_router(_orders_router)
 router.include_router(_risk_state_router)
 router.include_router(_agent_router)
 router.include_router(_settings_router)
+router.include_router(_lab_router)
