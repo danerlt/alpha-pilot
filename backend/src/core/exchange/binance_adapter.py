@@ -239,26 +239,41 @@ class BinanceAdapter(ExchangeAdapter):
         return float(raw.get("free", 0.0))
 
     def get_account_permissions(self, *, raise_on_error: bool = False) -> dict | None:
-        """API Key 权限探测 (handoff 3.6): 能调通 get_account 即有 read。
+        """API Key 权限探测 (handoff 3.6)。
+
+        主网用 /sapi/v1/account/apiRestrictions 读 **API Key 真实权限**
+        (enableReading / enableSpotAndMarginTrading / enableWithdrawals) —
+        这才是 Key 的授权位。**不能**用 spot account 的 canTrade/canWithdraw:
+        那是**账户状态** (账户没被冻结基本恒为 true), 与 Key 是否勾选提现权限无关,
+        用它会把"没开提现权限的 Key"误报为"带提现权限"。
+
+        测试网 (testnet.binance.vision) 不支持 sapi 端点, 回退 spot account 探测
+        read/trade; withdraw 无法从 Key 层判断 → 保守 False 不误报 (测试网本就不能真提现)。
 
         默认吞异常返回 None (决策链探测权限时不因交易所抖动崩溃)。
-        raise_on_error=True 时把真实异常上抛 — 供设置页「测试连接」透出
-        具体原因 (币安错误码 -2014 格式无效 / -2015 无效或 IP 白名单 /
-        -1021 时间戳偏移 等), 否则前端只能看到笼统"连接失败"。
+        raise_on_error=True 时把真实异常上抛 — 供设置页「测试连接」透出具体原因
+        (币安错误码 -2014 格式无效 / -2015 无效或 IP 白名单 / -1021 时间戳偏移 等)。
         """
         try:
             self._limiter.acquire(10)
+            if self._trading_mode == "mainnet":
+                perm = self._client.get_account_api_permissions()
+                return {
+                    "read": bool(perm.get("enableReading", True)),
+                    "trade": bool(perm.get("enableSpotAndMarginTrading")),
+                    "withdraw": bool(perm.get("enableWithdrawals")),
+                }
             raw = self._client.get_account()
+            return {
+                "read": True,
+                "trade": bool(raw.get("canTrade")),
+                "withdraw": False,
+            }
         except Exception:
             logger.warning("get_account_permissions failed (non-fatal)", exc_info=True)
             if raise_on_error:
                 raise
             return None
-        return {
-            "read": True,
-            "trade": bool(raw.get("canTrade")),
-            "withdraw": bool(raw.get("canWithdraw")),
-        }
 
     # --------------------------------------------------------------
     # Helpers

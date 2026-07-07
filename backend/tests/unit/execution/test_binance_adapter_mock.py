@@ -115,3 +115,53 @@ def test_klines_parse_binance_raw_rows():
     assert len(klines) == 2
     assert klines[0].close == 105.0
     assert klines[1].volume == 800.0
+
+
+def _adapter_mode(mock_client, mode):
+    return BinanceAdapter(
+        api_key="k", api_secret="s", trading_mode=mode,
+        _client_override=mock_client,
+    )
+
+
+def test_permissions_mainnet_reads_api_key_restrictions():
+    """主网用 API Key 权限接口 — enableWithdrawals 才是 Key 的提现权限。"""
+    mc = MagicMock()
+    mc.get_account_api_permissions.return_value = {
+        "enableReading": True,
+        "enableSpotAndMarginTrading": True,
+        "enableWithdrawals": False,
+    }
+    a = _adapter_mode(mc, "mainnet")
+    perms = a.get_account_permissions()
+    assert perms == {"read": True, "trade": True, "withdraw": False}
+    mc.get_account_api_permissions.assert_called_once()
+    mc.get_account.assert_not_called()
+
+
+def test_permissions_mainnet_withdraw_true_only_when_key_enabled():
+    mc = MagicMock()
+    mc.get_account_api_permissions.return_value = {
+        "enableReading": True, "enableSpotAndMarginTrading": True,
+        "enableWithdrawals": True,
+    }
+    assert _adapter_mode(mc, "mainnet").get_account_permissions()["withdraw"] is True
+
+
+def test_permissions_testnet_never_reports_withdraw_from_account_state():
+    """测试网回退 spot account; canWithdraw 是账户状态, 不得当成 Key 提现权限。"""
+    mc = MagicMock()
+    mc.get_account.return_value = {"canTrade": True, "canWithdraw": True}
+    a = _adapter_mode(mc, "testnet")
+    assert a.get_account_permissions() == {"read": True, "trade": True, "withdraw": False}
+    mc.get_account_api_permissions.assert_not_called()
+
+
+def test_permissions_raise_on_error_surfaces_real_exception():
+    """默认吞异常返 None; raise_on_error=True 上抛真实异常供测试连接透出。"""
+    mc = MagicMock()
+    mc.get_account_api_permissions.side_effect = _mk_binance_exception(401)
+    a = _adapter_mode(mc, "mainnet")
+    assert a.get_account_permissions() is None
+    with pytest.raises(BinanceAPIException):
+        a.get_account_permissions(raise_on_error=True)

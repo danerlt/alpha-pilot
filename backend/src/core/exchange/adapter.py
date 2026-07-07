@@ -61,6 +61,9 @@ class ExchangeAdapter(ABC):
     def get_futures_metrics(self, symbol: str) -> FuturesMetrics | None:
         return None
 
-    def get_account_permissions(self) -> dict | None:
-        """API Key 权限探测 (handoff 3.6): {read, trade, withdraw}; 不可用返 None。"""
+    def get_account_permissions(self, *, raise_on_error: bool = False) -> dict | None:
+        """API Key 权限探测 (handoff 3.6): {read, trade, withdraw}; 不可用返 None。
+
+        raise_on_error=True 时上抛真实异常 (供设置页测试连接透出具体原因)。
+        """
         return None
