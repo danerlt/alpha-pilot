@@ -171,6 +171,24 @@ function ExchangeSection() {
       </Card>
 
       <Card title="Binance · 网络与 API" right={<TestButton state={test} onTest={runTest} />}>
+        {/* 测试结果醒目横幅 */}
+        {test === "fail" && testResult?.error && (
+          <div className="mb-3.5 flex items-start gap-2 rounded-sm border border-rose/30 bg-rose-soft px-3 py-2.5">
+            <AlertTriangle size={14} className="mt-px shrink-0 text-rose" />
+            <div className="min-w-0 flex-1">
+              <div className="mb-0.5 text-xs font-semibold text-rose">测试失败</div>
+              <div className="break-words font-mono text-[11px] leading-relaxed text-fg-2">
+                {testResult.error}
+              </div>
+            </div>
+          </div>
+        )}
+        {test === "ok" && (
+          <div className="mb-3.5 flex items-center gap-2 rounded-sm border border-mint/30 bg-mint-soft px-3 py-2.5">
+            <Check size={14} className="shrink-0 text-mint" />
+            <span className="text-xs font-semibold text-mint">连接成功 · 权限已实测（见下方清单）</span>
+          </div>
+        )}
         <Field
           label="运行网络"
           hint={isTestnet ? "· 测试盘使用模拟资金，安全演练" : "· 主网为真实资金交易，请谨慎"}
@@ -267,9 +285,6 @@ function ExchangeSection() {
         </Field>
         {testResult?.warning && (
           <div className="mb-2 text-xs text-amber">{testResult.warning}</div>
-        )}
-        {testResult?.error && (
-          <div className="mb-2 text-xs text-rose">{testResult.error}</div>
         )}
 
         <div className="mt-1.5 flex items-center gap-2">
@@ -392,9 +407,29 @@ function LlmSection() {
       </Card>
 
       <Card title="模型配置" right={<TestButton state={test} onTest={runTest} />}>
+        {/* 测试结果醒目横幅：失败时完整显示后端返回的真实原因 */}
+        {test === "fail" && testError && (
+          <div className="mb-3.5 flex items-start gap-2 rounded-sm border border-rose/30 bg-rose-soft px-3 py-2.5">
+            <AlertTriangle size={14} className="mt-px shrink-0 text-rose" />
+            <div className="min-w-0 flex-1">
+              <div className="mb-0.5 text-xs font-semibold text-rose">测试失败</div>
+              <div className="break-words font-mono text-[11px] leading-relaxed text-fg-2">
+                {testError}
+              </div>
+            </div>
+          </div>
+        )}
+        {test === "ok" && (
+          <div className="mb-3.5 flex items-center gap-2 rounded-sm border border-mint/30 bg-mint-soft px-3 py-2.5">
+            <Check size={14} className="shrink-0 text-mint" />
+            <span className="text-xs font-semibold text-mint">
+              连接成功{latency != null ? ` · 延迟 ${latency}ms` : ""}
+            </span>
+          </div>
+        )}
         <div className="grid grid-cols-1 gap-3.5 min-[700px]:grid-cols-2">
-          <Field label="模型">
-            <Input value={model} onChange={setModel} placeholder="deepseek-v4-pro" />
+          <Field label="模型" hint="· DeepSeek 用 deepseek-chat / deepseek-reasoner">
+            <Input value={model} onChange={setModel} placeholder="deepseek-chat" />
           </Field>
           <Field label="API Base URL">
             <Input value={baseUrl} onChange={setBaseUrl} placeholder="https://.../v1" />
@@ -426,10 +461,10 @@ function LlmSection() {
           </Field>
           <Field label="连通性">
             <div className="py-2 font-mono text-xs">
-              {testError ? (
-                <span className="text-rose">{testError}</span>
-              ) : latency != null ? (
-                <span className="text-mint">上次测试延迟 {latency}ms</span>
+              {test === "ok" && latency != null ? (
+                <span className="text-mint">延迟 {latency}ms</span>
+              ) : test === "fail" ? (
+                <span className="text-rose">失败（见上方原因）</span>
               ) : (
                 <span className="text-fg-3">尚未测试</span>
               )}
