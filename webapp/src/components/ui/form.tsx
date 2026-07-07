@@ -31,6 +31,8 @@ export function Input({
   type = "text",
   right,
   readOnly = false,
+  autoComplete,
+  name,
 }: {
   value: string;
   onChange?: (v: string) => void;
@@ -39,6 +41,8 @@ export function Input({
   type?: string;
   right?: ReactNode;
   readOnly?: boolean;
+  autoComplete?: string;
+  name?: string;
 }) {
   const [focus, setFocus] = useState(false);
   return (
@@ -47,6 +51,11 @@ export function Input({
         type={type}
         value={value}
         readOnly={readOnly}
+        name={name}
+        autoComplete={autoComplete}
+        // 阻止密码管理器（1Password/LastPass/Bitwarden）自动填充敏感字段
+        data-1p-ignore={autoComplete === "off" ? "" : undefined}
+        data-lpignore={autoComplete === "off" ? "true" : undefined}
         onChange={(e) => onChange?.(e.target.value)}
         placeholder={placeholder}
         onFocus={() => setFocus(true)}
@@ -68,10 +77,12 @@ export function MaskedInput({
   value,
   onChange,
   placeholder,
+  name,
 }: {
   value: string;
   onChange?: (v: string) => void;
   placeholder?: string;
+  name?: string;
 }) {
   const [show, setShow] = useState(false);
   return (
@@ -80,6 +91,9 @@ export function MaskedInput({
       onChange={onChange}
       placeholder={placeholder}
       type={show ? "text" : "password"}
+      name={name}
+      // new-password 让浏览器/密码管理器不自动回填已有凭据
+      autoComplete="new-password"
       right={
         <button
           onClick={() => setShow((s) => !s)}

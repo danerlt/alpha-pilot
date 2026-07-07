@@ -101,11 +101,22 @@ function ExchangeSection() {
 
   const runTest = async () => {
     setTest("testing");
+    setTestResult(null);
     try {
-      const r = await settingsApi.testExchange();
+      const r = await settingsApi.testExchange({
+        network: net,
+        apiKey: key || undefined,
+        apiSecret: secret || undefined,
+      });
       setTestResult(r);
       setTest(r.ok ? "ok" : "fail");
-    } catch {
+    } catch (e) {
+      setTestResult({
+        ok: false,
+        permissions: null,
+        warning: null,
+        error: e instanceof Error ? e.message : "请求失败",
+      });
       setTest("fail");
     }
   };
@@ -195,10 +206,21 @@ function ExchangeSection() {
         )}
 
         <Field label="API Key" hint={ex?.apiKeyMasked ? `· 当前 ${ex.apiKeyMasked}，留空不修改` : "· 尚未配置"}>
-          <Input value={key} onChange={setKey} placeholder="输入新的 Binance API Key" />
+          <Input
+            value={key}
+            onChange={setKey}
+            placeholder="输入新的 Binance API Key"
+            name="ap-bn-key"
+            autoComplete="off"
+          />
         </Field>
         <Field label="API Secret" hint={ex?.hasSecret ? "· 已加密存储，留空不修改" : "· 尚未配置"}>
-          <MaskedInput value={secret} onChange={setSecret} placeholder="输入新的 Binance API Secret" />
+          <MaskedInput
+            value={secret}
+            onChange={setSecret}
+            placeholder="输入新的 Binance API Secret"
+            name="ap-bn-secret"
+          />
         </Field>
 
         <Field label="权限校验" hint="· 点右上「测试连接」实测 API 权限">
@@ -303,13 +325,21 @@ function LlmSection() {
   const provider =
     PROVIDER_PRESETS.find((p) => p.base && baseUrl.startsWith(p.base))?.id ?? "custom";
 
+  const [testError, setTestError] = useState<string | null>(null);
   const runTest = async () => {
     setTest("testing");
+    setTestError(null);
     try {
-      const r = await settingsApi.testLlm();
+      const r = await settingsApi.testLlm({
+        model,
+        baseUrl,
+        apiKey: key || undefined,
+      });
       setLatency(r.latencyMs);
+      setTestError(r.error);
       setTest(r.ok ? "ok" : "fail");
-    } catch {
+    } catch (e) {
+      setTestError(e instanceof Error ? e.message : "请求失败");
       setTest("fail");
     }
   };
@@ -371,7 +401,7 @@ function LlmSection() {
           </Field>
         </div>
         <Field label="API Key" hint={llm?.apiKeyMasked ? `· 当前 ${llm.apiKeyMasked}，留空不修改` : "· 尚未配置"}>
-          <MaskedInput value={key} onChange={setKey} placeholder="sk-..." />
+          <MaskedInput value={key} onChange={setKey} placeholder="sk-..." name="ap-llm-key" />
         </Field>
         <Field label={`温度 · ${temp.toFixed(2)}`} hint="· 越低越确定，交易决策建议 0.2–0.4">
           <div className="flex items-center gap-3.5">
@@ -395,8 +425,14 @@ function LlmSection() {
             <Input value={timeoutSec} onChange={setTimeoutSec} />
           </Field>
           <Field label="连通性">
-            <div className="py-2 font-mono text-xs text-fg-3">
-              {latency != null ? `上次测试延迟 ${latency}ms` : "尚未测试"}
+            <div className="py-2 font-mono text-xs">
+              {testError ? (
+                <span className="text-rose">{testError}</span>
+              ) : latency != null ? (
+                <span className="text-mint">上次测试延迟 {latency}ms</span>
+              ) : (
+                <span className="text-fg-3">尚未测试</span>
+              )}
             </div>
           </Field>
         </div>

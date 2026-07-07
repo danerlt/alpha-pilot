@@ -476,15 +476,17 @@ export const mockUsers: User[] = [
   { id: "u_3", name: "王观察", email: "viewer@example.com", role: "viewer", status: "pending", twoFa: false, lastActive: "—" },
 ];
 
+// 与后端 src/services/system/permissions.py PERMISSION_MATRIX 严格同构（key 一致）
 export const mockPermissions: PermissionRow[] = [
+  { key: "trade.view", label: "查看持仓与行情", group: "trade", granted: { owner: true, admin: true, trader: true, viewer: true } },
   { key: "trade.manual_order", label: "手动下单 / 平仓", group: "trade", granted: { owner: true, admin: true, trader: true, viewer: false } },
-  { key: "trade.engine_toggle", label: "启停交易引擎", group: "trade", granted: { owner: true, admin: true, trader: true, viewer: false } },
-  { key: "trade.resolve_breaker", label: "解除熔断", group: "trade", granted: { owner: true, admin: true, trader: false, viewer: false } },
-  { key: "strategy.toggle", label: "策略启停", group: "strategy", granted: { owner: true, admin: true, trader: true, viewer: false } },
-  { key: "strategy.lab_submit", label: "提交实验候选", group: "strategy", granted: { owner: true, admin: true, trader: true, viewer: false } },
-  { key: "strategy.lab_promote", label: "批准灰度 / 上线", group: "strategy", granted: { owner: true, admin: true, trader: false, viewer: false } },
-  { key: "risk.edit_hard_limits", label: "修改硬风控", group: "system", granted: { owner: true, admin: true, trader: false, viewer: false } },
-  { key: "system.exchange_config", label: "交易所 / LLM 配置", group: "system", granted: { owner: true, admin: true, trader: false, viewer: false } },
-  { key: "system.user_manage", label: "用户管理", group: "system", granted: { owner: true, admin: true, trader: false, viewer: false } },
-  { key: "system.read", label: "只读查看全部页面", group: "system", granted: { owner: true, admin: true, trader: true, viewer: true } },
+  { key: "trade.engine_toggle", label: "启停自动交易", group: "trade", granted: { owner: true, admin: true, trader: true, viewer: false } },
+  { key: "risk.edit_hard_limits", label: "修改硬风控阈值", group: "trade", granted: { owner: true, admin: true, trader: false, viewer: false } },
+  { key: "lab.view", label: "查看策略与实验室", group: "strategy", granted: { owner: true, admin: true, trader: true, viewer: true } },
+  { key: "lab.submit_candidate", label: "提交策略候选", group: "strategy", granted: { owner: true, admin: true, trader: true, viewer: false } },
+  { key: "lab.approve_promote", label: "批准灰度 / 上线", group: "strategy", granted: { owner: true, admin: true, trader: false, viewer: false } },
+  { key: "system.exchange_config", label: "交易所 API 配置", group: "system", granted: { owner: true, admin: true, trader: false, viewer: false } },
+  { key: "system.llm_config", label: "LLM 模型配置", group: "system", granted: { owner: true, admin: true, trader: false, viewer: false } },
+  { key: "system.user_management", label: "用户与权限管理", group: "system", granted: { owner: true, admin: true, trader: false, viewer: false } },
+  { key: "system.emergency_stop", label: "紧急停止引擎", group: "system", granted: { owner: true, admin: true, trader: true, viewer: false } },
 ];

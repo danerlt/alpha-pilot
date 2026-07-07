@@ -333,9 +333,15 @@ export const settingsApi = {
         api_secret: u.apiSecret,
       }),
     }).then(fromWireExchangeSettings),
-  testExchange: () =>
+  // 后端 body 必填：用当前表单值测试，未填字段后端回退落库/env 值
+  testExchange: (u: ExchangeSettingsUpdate = {}) =>
     http<WireExchangeTest>("/api/settings/exchange/test", {
       method: "POST",
+      body: JSON.stringify({
+        network: u.network,
+        api_key: u.apiKey,
+        api_secret: u.apiSecret,
+      }),
     }).then(fromWireExchangeTest),
   getLlm: () =>
     http<WireLlmSettings>("/api/settings/llm").then(fromWireLlmSettings),
@@ -351,10 +357,15 @@ export const settingsApi = {
         agent_models: u.agentModels,
       }),
     }).then(fromWireLlmSettings),
-  testLlm: () =>
-    http<WireLlmTest>("/api/settings/llm/test", { method: "POST" }).then(
-      fromWireLlmTest,
-    ),
+  testLlm: (u: LlmSettingsUpdate = {}) =>
+    http<WireLlmTest>("/api/settings/llm/test", {
+      method: "POST",
+      body: JSON.stringify({
+        model: u.model,
+        base_url: u.baseUrl,
+        api_key: u.apiKey,
+      }),
+    }).then(fromWireLlmTest),
   getNotifications: () =>
     http<WireNotificationSettings>("/api/settings/notifications").then(
       fromWireNotificationSettings,

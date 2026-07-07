@@ -34,7 +34,7 @@ describe("usePermission", () => {
     loginAs("viewer");
     const { result } = renderHook(() => usePermission(), { wrapper });
     await waitFor(() => expect(result.current.role).toBe("viewer"));
-    await waitFor(() => expect(result.current.can("system.read")).toBe(true));
+    await waitFor(() => expect(result.current.can("trade.view")).toBe(true));
     expect(result.current.can("trade.manual_order")).toBe(false);
     expect(result.current.can("risk.edit_hard_limits")).toBe(false);
   });
