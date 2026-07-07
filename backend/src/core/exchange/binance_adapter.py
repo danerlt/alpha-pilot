@@ -238,13 +238,21 @@ class BinanceAdapter(ExchangeAdapter):
             return 0.0
         return float(raw.get("free", 0.0))
 
-    def get_account_permissions(self) -> dict | None:
-        """API Key 权限探测 (handoff 3.6): 能调通 get_account 即有 read。"""
+    def get_account_permissions(self, *, raise_on_error: bool = False) -> dict | None:
+        """API Key 权限探测 (handoff 3.6): 能调通 get_account 即有 read。
+
+        默认吞异常返回 None (决策链探测权限时不因交易所抖动崩溃)。
+        raise_on_error=True 时把真实异常上抛 — 供设置页「测试连接」透出
+        具体原因 (币安错误码 -2014 格式无效 / -2015 无效或 IP 白名单 /
+        -1021 时间戳偏移 等), 否则前端只能看到笼统"连接失败"。
+        """
         try:
             self._limiter.acquire(10)
             raw = self._client.get_account()
         except Exception:
             logger.warning("get_account_permissions failed (non-fatal)", exc_info=True)
+            if raise_on_error:
+                raise
             return None
         return {
             "read": True,

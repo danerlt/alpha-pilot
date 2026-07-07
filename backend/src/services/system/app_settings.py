@@ -155,7 +155,8 @@ class AppSettingsService:
             adapter = self._adapter_factory(
                 api_key=key, api_secret=secret, trading_mode=target,
             )
-            perms = adapter.get_account_permissions()
+            # raise_on_error: 让真实异常 (币安错误码/网络) 透出到前端, 而非笼统 None
+            perms = adapter.get_account_permissions(raise_on_error=True)
         except Exception as exc:  # noqa: BLE001
             return {"ok": False, "error": str(exc)[:200]}
         if perms is None:
