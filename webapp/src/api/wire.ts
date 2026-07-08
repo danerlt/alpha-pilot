@@ -502,10 +502,16 @@ export type WireNotificationSettings = S["NotificationSettingsOut"];
 export function fromWireExchangeSettings(
   w: WireExchangeSettings,
 ): ExchangeSettings {
+  const net = (n?: { api_key_masked?: string | null; has_secret?: boolean }) => ({
+    apiKeyMasked: n?.api_key_masked ?? null,
+    hasSecret: n?.has_secret ?? false,
+  });
   return {
     network: w.network === "mainnet" ? "mainnet" : "testnet",
     apiKeyMasked: w.api_key_masked ?? null,
     hasSecret: w.has_secret ?? false,
+    mainnet: net(w.mainnet),
+    testnet: net(w.testnet),
   };
 }
 

@@ -6271,6 +6271,29 @@
         "title": "EquityPointRead",
         "description": "权益曲线单点 (联调缺口#2)。"
       },
+      "ExchangeNetworkOut": {
+        "properties": {
+          "api_key_masked": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Key Masked"
+          },
+          "has_secret": {
+            "type": "boolean",
+            "title": "Has Secret",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "ExchangeNetworkOut",
+        "description": "单个网络的脱敏配置状态。"
+      },
       "ExchangeSettingsOut": {
         "properties": {
           "network": {
@@ -6296,6 +6319,12 @@
             "type": "boolean",
             "title": "Has Secret",
             "default": false
+          },
+          "mainnet": {
+            "$ref": "#/components/schemas/ExchangeNetworkOut"
+          },
+          "testnet": {
+            "$ref": "#/components/schemas/ExchangeNetworkOut"
           }
         },
         "type": "object",

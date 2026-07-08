@@ -108,13 +108,22 @@ class AppSettingsService:
     # ── 交易所 ──────────────────────────────────────────────────────────
 
     def get_exchange(self) -> dict:
-        network = self._network()
-        api_key = self._read(f"binance.{network}.api_key")
-        secret = self._read(f"binance.{network}.api_secret")
+        def _net(n: str) -> dict:
+            return {
+                "api_key_masked": _mask(self._read(f"binance.{n}.api_key")),
+                "has_secret": bool(self._read(f"binance.{n}.api_secret")),
+            }
+
+        current = self._network()
+        cur = _net(current)
         return {
-            "network": network,
-            "api_key_masked": _mask(api_key),
-            "has_secret": bool(secret),
+            "network": current,
+            # 向后兼容: 当前运行网络的脱敏 key
+            "api_key_masked": cur["api_key_masked"],
+            "has_secret": cur["has_secret"],
+            # 两网络独立状态 —— 前端按选择的网络显示, 不再串
+            "mainnet": _net("mainnet"),
+            "testnet": _net("testnet"),
         }
 
     def put_exchange(

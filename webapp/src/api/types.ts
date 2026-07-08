@@ -348,10 +348,17 @@ export interface PermissionRow {
 }
 
 // ---------- 设置（handoff/03 §3.6，与后端 P4 契约对齐） ----------
-export interface ExchangeSettings {
-  network: "testnet" | "mainnet";
+export interface ExchangeNetworkState {
   apiKeyMasked: string | null;
   hasSecret: boolean;
+}
+
+export interface ExchangeSettings {
+  network: "testnet" | "mainnet"; // 当前系统运行网络
+  apiKeyMasked: string | null; // 向后兼容：当前网络的
+  hasSecret: boolean;
+  mainnet: ExchangeNetworkState;
+  testnet: ExchangeNetworkState;
 }
 
 export interface ExchangeTestResult {

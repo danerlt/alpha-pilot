@@ -70,6 +70,24 @@ def test_exchange_put_returns_masked_never_plaintext(admin_client):
     assert r2.json()["data"]["api_key_masked"] == "****3456"
 
 
+def test_exchange_two_networks_stored_and_read_separately(admin_client):
+    """主网/测试网 key 分开存、分开读 — GET 一次返回两网络各自脱敏, 不串。"""
+    cli, _ = admin_client
+    cli.put("/api/settings/exchange", json={
+        "network": "testnet", "api_key": "TESTNETKEY0000AAAA", "api_secret": "TSEC12345678",
+    })
+    cli.put("/api/settings/exchange", json={
+        "network": "mainnet", "api_key": "MAINNETKEY1111BBBB", "api_secret": "MSEC12345678",
+    })
+    data = cli.get("/api/settings/exchange").json()["data"]
+    assert data["testnet"]["api_key_masked"] == "****AAAA"
+    assert data["mainnet"]["api_key_masked"] == "****BBBB"
+    assert data["testnet"]["has_secret"] is True
+    assert data["mainnet"]["has_secret"] is True
+    # 两网络脱敏互不相同 (老板反馈的"主网测试网显示同一个"回归防护)
+    assert data["testnet"]["api_key_masked"] != data["mainnet"]["api_key_masked"]
+
+
 def test_exchange_secret_encrypted_in_db(admin_client):
     cli, eng = admin_client
     cli.put("/api/settings/exchange", json={

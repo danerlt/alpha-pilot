@@ -6,10 +6,21 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 
-class ExchangeSettingsOut(BaseModel):
-    network: Literal["testnet", "mainnet"]
+class ExchangeNetworkOut(BaseModel):
+    """单个网络的脱敏配置状态。"""
+
     api_key_masked: str | None = None
     has_secret: bool = False
+
+
+class ExchangeSettingsOut(BaseModel):
+    network: Literal["testnet", "mainnet"]  # 当前系统运行网络
+    # 向后兼容: 当前运行网络的脱敏 key
+    api_key_masked: str | None = None
+    has_secret: bool = False
+    # 两个网络各自独立的脱敏状态 (前端按选择的网络显示, 互不串)
+    mainnet: ExchangeNetworkOut = Field(default_factory=ExchangeNetworkOut)
+    testnet: ExchangeNetworkOut = Field(default_factory=ExchangeNetworkOut)
 
 
 class ExchangeSettingsUpdate(BaseModel):

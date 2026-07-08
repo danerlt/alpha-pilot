@@ -36,8 +36,9 @@ const LATENCY = 160;
 const settingsState = {
   exchange: {
     network: "testnet" as string,
-    api_key_masked: "****3f2a" as string | null,
-    has_secret: true,
+    // 两网络各自独立的脱敏（与后端 wire 契约同构）
+    mainnet: { api_key_masked: "****9zK1" as string | null, has_secret: true },
+    testnet: { api_key_masked: "****3f2a" as string | null, has_secret: true },
   },
   llm: {
     model: "deepseek-v4-pro",
@@ -64,6 +65,19 @@ const settingsState = {
     min_severity: "info",
   },
 };
+
+/** 交易所设置出参：两网络各自脱敏 + 向后兼容当前网络字段（与后端 wire 同构） */
+function exchangeOut() {
+  const ex = settingsState.exchange;
+  const cur = ex.network === "mainnet" ? ex.mainnet : ex.testnet;
+  return {
+    network: ex.network,
+    api_key_masked: cur.api_key_masked,
+    has_secret: cur.has_secret,
+    mainnet: { ...ex.mainnet },
+    testnet: { ...ex.testnet },
+  };
+}
 
 export const handlers = [
   // ---------- 风控 / 账户（wire 形状，与真实后端同构） ----------
@@ -414,20 +428,25 @@ export const handlers = [
   // ---------- 设置（P4，模块态持久到会话内） ----------
   http.get("/api/settings/exchange", async () => {
     await delay(LATENCY);
-    return ok({ ...settingsState.exchange });
+    return ok(exchangeOut());
   }),
   http.put("/api/settings/exchange", async ({ request }) => {
     await delay(300);
-    const b = (await request.json()) as {
-      network?: string;
-      api_key?: string;
-    };
-    if (b.network === "mainnet" || b.network === "testnet")
-      settingsState.exchange.network = b.network;
-    if (b.api_key)
-      settingsState.exchange.api_key_masked = `****${b.api_key.slice(-4)}`;
-    settingsState.exchange.has_secret = true;
-    return ok({ ...settingsState.exchange });
+    const b = (await request.json()) as { network?: string; api_key?: string };
+    const target =
+      b.network === "mainnet" || b.network === "testnet"
+        ? b.network
+        : settingsState.exchange.network;
+    settingsState.exchange.network = target;
+    const slot =
+      target === "mainnet"
+        ? settingsState.exchange.mainnet
+        : settingsState.exchange.testnet;
+    if (b.api_key) {
+      slot.api_key_masked = `****${b.api_key.slice(-4)}`;
+      slot.has_secret = true;
+    }
+    return ok(exchangeOut());
   }),
   http.post("/api/settings/exchange/test", async () => {
     await delay(1000);

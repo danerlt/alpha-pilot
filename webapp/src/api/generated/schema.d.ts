@@ -1170,6 +1170,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/strategies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Strategies
+         * @description 受限策略集卡片: 启停状态 + 适用 regime (要求登录)。
+         */
+        get: operations["get_strategies"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/strategies/{mode}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Toggle Strategy
+         * @description 启停策略 (trader+): 被禁用模式的 OPEN_LONG 会被守卫 REJECT (真实生效)。
+         */
+        patch: operations["toggle_strategy"];
+        trace?: never;
+    };
     "/api/commands/close-position/{position_id}": {
         parameters: {
             query?: never;
@@ -1589,6 +1629,19 @@ export interface components {
             /** Equity */
             equity: number;
         };
+        /**
+         * ExchangeNetworkOut
+         * @description 单个网络的脱敏配置状态。
+         */
+        ExchangeNetworkOut: {
+            /** Api Key Masked */
+            api_key_masked?: string | null;
+            /**
+             * Has Secret
+             * @default false
+             */
+            has_secret: boolean;
+        };
         /** ExchangeSettingsOut */
         ExchangeSettingsOut: {
             /**
@@ -1603,6 +1656,8 @@ export interface components {
              * @default false
              */
             has_secret: boolean;
+            mainnet?: components["schemas"]["ExchangeNetworkOut"];
+            testnet?: components["schemas"]["ExchangeNetworkOut"];
         };
         /** ExchangeSettingsUpdate */
         ExchangeSettingsUpdate: {
@@ -2500,6 +2555,29 @@ export interface components {
             /** Request Id */
             request_id?: string | null;
         };
+        /** Response[StrategyToggleOut] */
+        Response_StrategyToggleOut_: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            data?: components["schemas"]["StrategyToggleOut"] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
         /** Response[TickerOut] */
         Response_TickerOut_: {
             /**
@@ -2880,6 +2958,30 @@ export interface components {
             /** Request Id */
             request_id?: string | null;
         };
+        /** Response[list[StrategyCardRead]] */
+        Response_list_StrategyCardRead__: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /**
+             * Code
+             * @default 0
+             */
+            code: string;
+            /**
+             * Message
+             * @default 成功
+             */
+            message: string;
+            /** Detailmessage */
+            detailMessage?: string | null;
+            /** Data */
+            data?: components["schemas"]["StrategyCardRead"][] | null;
+            /** Request Id */
+            request_id?: string | null;
+        };
         /** Response[list[TradeRead]] */
         Response_list_TradeRead__: {
             /**
@@ -3028,6 +3130,32 @@ export interface components {
             stop_loss?: number | null;
             /** Take Profit */
             take_profit?: number | null;
+        };
+        /**
+         * StrategyCardRead
+         * @description 受限策略集卡片 (风控页, 与前端 StrategyCard 同构)。
+         */
+        StrategyCardRead: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Enabled */
+            enabled: boolean;
+            /** Regimes */
+            regimes: string[];
+            /** Desc */
+            desc: string;
+        };
+        /** StrategyToggleOut */
+        StrategyToggleOut: {
+            /** Ok */
+            ok: boolean;
+        };
+        /** StrategyToggleUpdate */
+        StrategyToggleUpdate: {
+            /** Enabled */
+            enabled: boolean;
         };
         /**
          * SymbolConfigCreate
@@ -5556,6 +5684,78 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Response_list_AttributionBucketRead__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_strategies: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_list_StrategyCardRead__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    toggle_strategy: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                mode: string;
+            };
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StrategyToggleUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_StrategyToggleOut_"];
                 };
             };
             /** @description Validation Error */

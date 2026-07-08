@@ -100,6 +100,8 @@ function ExchangeSection() {
   }, [ex]);
 
   const isTestnet = net === "testnet";
+  // 按当前选择的网络取脱敏状态（两网络独立，不再串）
+  const cur = net === "mainnet" ? ex?.mainnet : ex?.testnet;
 
   const runTest = async () => {
     setTest("testing");
@@ -160,8 +162,8 @@ function ExchangeSection() {
             >
               {exch.active && (
                 <div className="absolute right-3 top-3">
-                  <Pill tone={ex?.hasSecret ? "mint" : "amber"}>
-                    {ex?.hasSecret ? "已配置" : "未配置"}
+                  <Pill tone={cur?.hasSecret ? "mint" : "amber"}>
+                    {cur?.hasSecret ? "已配置" : "未配置"}
                   </Pill>
                 </div>
               )}
@@ -198,8 +200,12 @@ function ExchangeSection() {
           <Segmented
             value={net}
             onChange={(v) => {
+              // 切网络：清空输入 + 重置测试态（避免把 A 网络输入的 key 误配到 B）
               setNet(v);
               setTest("idle");
+              setTestResult(null);
+              setKey("");
+              setSecret("");
             }}
             options={[
               { v: "mainnet", l: "主网 Mainnet", dot: "var(--ap-rose)" },
@@ -225,16 +231,19 @@ function ExchangeSection() {
           </div>
         )}
 
-        <Field label="API Key" hint={ex?.apiKeyMasked ? `· 当前 ${ex.apiKeyMasked}，留空不修改` : "· 尚未配置"}>
+        <Field
+          label={`API Key · ${isTestnet ? "测试网" : "主网"}`}
+          hint={cur?.apiKeyMasked ? `· 当前 ${cur.apiKeyMasked}，留空不修改` : "· 该网络尚未配置"}
+        >
           <Input
             value={key}
             onChange={setKey}
-            placeholder="输入新的 Binance API Key"
+            placeholder={`输入${isTestnet ? "测试网" : "主网"} Binance API Key`}
             name="ap-bn-key"
             autoComplete="off"
           />
         </Field>
-        <Field label="API Secret" hint={ex?.hasSecret ? "· 已加密存储，留空不修改" : "· 尚未配置"}>
+        <Field label="API Secret" hint={cur?.hasSecret ? "· 已加密存储，留空不修改" : "· 该网络尚未配置"}>
           <MaskedInput
             value={secret}
             onChange={setSecret}
