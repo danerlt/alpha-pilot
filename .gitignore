@@ -67,5 +67,10 @@ config/agent_runners.json
 memory/
 runs/
 skills/
+# 放行 Claude Code 配置目录（.claude/agents 与 .claude/memory 被上面 agents//memory/ 通配误伤，需入库共享）
+!.claude/agents/
+!.claude/agents/**
+!.claude/memory/
+!.claude/memory/**
 # 仅忽略根级 agent runtime 的 workflows/, 放行 .github/workflows/ (CI)
 /workflows/
