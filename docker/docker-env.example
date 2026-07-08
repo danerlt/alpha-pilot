@@ -1,0 +1,29 @@
+# =============================================================================
+# docker/.env 模板 —— compose 变量替换专用（本模板提交 git，真实 docker/.env 不提交）
+#
+# 用途：docker compose 从 docker/ 目录运行时会自动加载本目录下的 .env，用于对
+#   docker-compose.*.yml 里 ${VAR} 做替换（中间件密码、宿主机映射端口等）。
+#   这与应用层的 envs/<env>.env（容器内业务配置）是两套东西，勿混。
+#
+# 用法（服务器一次性）：
+#   cd docker && cp docker-env.example .env && vi .env   # 填真实强随机值
+#   docker compose -f docker-compose.middleware.yml up -d
+#
+# ⚠️ 一致性要求（否则应用连不上中间件）：
+#   DB_PASSWORD    必须 == 各 envs/*.env 里的 PG_PASSWORD
+#   REDIS_PASSWORD 必须 == 各 envs/*.env 里 REDIS_URL 的密码段（redis://:<此值>@host:port/db）
+#
+# ⚠️ docker/.env 已被根 .gitignore 的 `.env` 规则忽略；再次自查 `git status` 别误提交。
+# =============================================================================
+
+# PostgreSQL 超级用户密码（强随机 40+ 位，别用特殊字符省得 URL 转义）
+#   生成：python -c "import secrets,string;a=string.ascii_letters+string.digits;print(''.join(secrets.choice(a) for _ in range(40)))"
+DB_PASSWORD=
+
+# Redis 密码（强随机；middleware redis 用 --requirepass 强制鉴权）
+REDIS_PASSWORD=
+
+# 宿主机映射端口：仅绑 127.0.0.1，本地看数据走 SSH 隧道，不在防火墙对公网开放。
+# 用非默认端口（别用 5432/6379），进一步躲开自动化扫描。
+PG_HOST_PORT=1122
+REDIS_HOST_PORT=2233

@@ -1,11 +1,20 @@
 # 共享中间件（dev/test/prod 三环境共用一套，靠不同 database + Redis db 隔离）
 # 常驻，独立于应用部署生命周期：应用重部署不动这套中间件。
 #
+# 🔐 密钥/端口来自同目录 gitignored 的 docker/.env（compose 从 docker/ 运行时自动加载做
+#    变量替换），绝不写死进本文件。docker/.env 必填字段（模板见 docker/docker-env.example）：
+#      DB_PASSWORD       PostgreSQL 密码（强随机；须与各 envs/*.env 的 PG_PASSWORD 一致）
+#      REDIS_PASSWORD    Redis 密码（强随机；须与各 envs/*.env REDIS_URL 里的密码段一致）
+#      PG_HOST_PORT      PG 映射到宿主机 127.0.0.1 的端口（非默认，别用 5432）
+#      REDIS_HOST_PORT   Redis 映射到宿主机 127.0.0.1 的端口（非默认，别用 6379）
+#
 # 启动（服务器一次性）：
 #   cd docker && docker compose -f docker-compose.middleware.yml up -d
 # 首次启动（数据卷为空）自动建 alphapilot_dev / alphapilot_test / alphapilot_prod 三库。
 #
 # 端口仅绑 127.0.0.1：nginx / 应用容器内部访问，不暴露公网。
+# 本地看数据走 SSH 隧道（无需在防火墙开 DB 端口）：
+#   ssh -L 15432:127.0.0.1:${PG_HOST_PORT} user@server   # 然后 DBeaver 连 localhost:15432
 
 name: ap-middleware
 
@@ -15,13 +24,13 @@ services:
     container_name: ap-postgres
     environment:
       POSTGRES_USER: alphapilot
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-alphapilot}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD required in docker/.env}
       POSTGRES_DB: alphapilot          # 默认库；三环境业务库由 init 脚本另建
     volumes:
       - postgres_shared_data:/var/lib/postgresql/data
       - ./postgres-init:/docker-entrypoint-initdb.d:ro
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:${PG_HOST_PORT:-1122}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U alphapilot"]
       interval: 5s
@@ -34,12 +43,16 @@ services:
   redis:
     image: redis:7-alpine
     container_name: ap-redis
+    # 启用密码：无密码的 redis-cli 命令一律被拒；健康检查用 -a 带密码探活
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD required in docker/.env}"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD required in docker/.env}
     volumes:
       - redis_shared_data:/data
     ports:
-      - "127.0.0.1:6379:6379"
+      - "127.0.0.1:${REDIS_HOST_PORT:-2233}:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
       interval: 5s
       timeout: 5s
       retries: 5
