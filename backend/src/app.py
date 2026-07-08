@@ -33,7 +33,10 @@ from src.controllers.websocket_market import market_websocket_endpoint
 from src.db.session import get_db_session
 from src.middleware.error_logging_middleware import ErrorLoggingMiddleware
 from src.middleware.request_logging_middleware import RequestLoggingMiddleware
-from src.services.admin_bootstrap import ensure_default_admin
+from src.services.admin_bootstrap import (
+    ensure_default_admin,
+    ensure_default_risk_profile,
+)
 from src.utils.log import init_logger
 from src.utils.uuid import get_uuid_without_hyphen
 
@@ -60,6 +63,8 @@ async def lifespan(app: FastAPI):
 
     with get_db_session() as db:
         ensure_default_admin(db, settings)
+        # 开箱确保有 active risk_profile,否则策略调度链每轮 skipped 永不交易
+        ensure_default_risk_profile(db, settings)
 
     # DB runtime 配置加载 (前端设置页写入的交易所/LLM/风控配置; env 只做 fallback)
     from src.services.system.runtime_config import refresh_runtime_settings_safe
