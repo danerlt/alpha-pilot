@@ -9,7 +9,9 @@ import {
   BrainCircuit,
   Check,
   Layers,
+  Lock,
   Settings as SettingsIcon,
+  X,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { PageShell } from "@/components/shell/PageShell";
@@ -255,25 +257,23 @@ function ExchangeSection() {
                   className={`flex h-4 w-4 items-center justify-center rounded-[4px] ${
                     p.v === undefined
                       ? "bg-bg-4"
-                      : p.wantOff
-                        ? p.v
-                          ? "bg-rose-soft"
-                          : "bg-mint-soft"
-                        : p.v
-                          ? "bg-mint-soft"
-                          : "bg-rose-soft"
+                      : (p.wantOff ? !p.v : p.v)
+                        ? "bg-mint-soft"
+                        : "bg-rose-soft"
                   }`}
                 >
-                  {p.v !== undefined &&
-                    (p.wantOff && p.v ? (
+                  {p.v === undefined ? null : p.wantOff ? (
+                    // 提现权限：开启=危险(红三角)，关闭=安全(绿锁，而非易混淆的绿勾)
+                    p.v ? (
                       <AlertTriangle size={11} strokeWidth={2.6} className="text-rose" />
                     ) : (
-                      <Check
-                        size={11}
-                        strokeWidth={2.6}
-                        className={(p.wantOff ? !p.v : p.v) ? "text-mint" : "text-rose"}
-                      />
-                    ))}
+                      <Lock size={11} strokeWidth={2.6} className="text-mint" />
+                    )
+                  ) : p.v ? (
+                    <Check size={11} strokeWidth={2.6} className="text-mint" />
+                  ) : (
+                    <X size={11} strokeWidth={2.6} className="text-rose" />
+                  )}
                 </span>
                 <span className={`flex-1 ${p.wantOff && p.v ? "text-rose" : "text-fg-2"}`}>{p.l}</span>
                 <span className="font-mono text-micro text-fg-4">
