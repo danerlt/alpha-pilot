@@ -14,8 +14,8 @@ services:
     env_file:
       - ../envs/test.env
     environment:
-      DATABASE_URL: postgresql://alphapilot:${DB_PASSWORD:?DB_PASSWORD required in docker/.env}@ap-postgres:5432/alphapilot_test
-      REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD required in docker/.env}@ap-redis:6379/1
+      DATABASE_URL: postgresql://alphapilot:${DB_PASSWORD:?DB_PASSWORD required in envs/test.env}@ap-postgres:5432/alphapilot_test
+      REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD required in envs/test.env}@ap-redis:6379/1
       ROOT_PATH: /ap-test
     ports:
       - "127.0.0.1:8002:8000"
@@ -28,8 +28,8 @@ services:
     env_file:
       - ../envs/test.env
     environment:
-      DATABASE_URL: postgresql://alphapilot:${DB_PASSWORD:?DB_PASSWORD required in docker/.env}@ap-postgres:5432/alphapilot_test
-      REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD required in docker/.env}@ap-redis:6379/1
+      DATABASE_URL: postgresql://alphapilot:${DB_PASSWORD:?DB_PASSWORD required in envs/test.env}@ap-postgres:5432/alphapilot_test
+      REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD required in envs/test.env}@ap-redis:6379/1
     command: ["python", "scripts/start_scheduler.py"]
     depends_on:
       - backend

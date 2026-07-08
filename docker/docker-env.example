@@ -1,19 +1,25 @@
 # =============================================================================
-# docker/.env 模板 —— compose 变量替换专用（本模板提交 git，真实 docker/.env 不提交）
+# 中间件 .env 模板 —— compose 变量替换专用（本模板提交 git，真实 .env 不提交）
 #
-# 用途：docker compose 从 docker/ 目录运行时会自动加载本目录下的 .env，用于对
-#   docker-compose.*.yml 里 ${VAR} 做替换（中间件密码、宿主机映射端口等）。
-#   这与应用层的 envs/<env>.env（容器内业务配置）是两套东西，勿混。
+# 用途：docker compose 会自动加载与 docker-compose.middleware.yml 同目录的 .env，
+#   对 ${VAR} 做替换（中间件密码、宿主机映射端口）。这与应用层 envs/<env>.env
+#   （app 容器走 --env-file 注入）是两套东西，勿混。
+#
+# 📁 部署布局（.env 放哪）：
+#   - 仓库里模板在 docker/docker-env.example
+#   - 服务器上中间件在 /workspace/alpha-pilot-deploy/middleware/（deploy_common.sh 的
+#     MIDDLEWARE_DIR），真实 .env 就放这里：/workspace/alpha-pilot-deploy/middleware/.env
 #
 # 用法（服务器一次性）：
-#   cd docker && cp docker-env.example .env && vi .env   # 填真实强随机值
-#   docker compose -f docker-compose.middleware.yml up -d
+#   cd /workspace/alpha-pilot-deploy/middleware
+#   cp /workspace/alpha-pilot-build/docker/docker-env.example .env && vi .env   # 填真实强随机值
+#   docker compose -f docker-compose.middleware.yml up -d --force-recreate
 #
 # ⚠️ 一致性要求（否则应用连不上中间件）：
-#   DB_PASSWORD    必须 == 各 envs/*.env 里的 PG_PASSWORD
+#   DB_PASSWORD    必须 == 各 envs/*.env 里的 PG_PASSWORD（也 == 服务器上 ALTER USER 设的值）
 #   REDIS_PASSWORD 必须 == 各 envs/*.env 里 REDIS_URL 的密码段（redis://:<此值>@host:port/db）
 #
-# ⚠️ docker/.env 已被根 .gitignore 的 `.env` 规则忽略；再次自查 `git status` 别误提交。
+# ⚠️ 真实 .env 已被根 .gitignore 的 `.env` 规则忽略；再次自查 `git status` 别误提交。
 # =============================================================================
 
 # PostgreSQL 超级用户密码（强随机 40+ 位，别用特殊字符省得 URL 转义）

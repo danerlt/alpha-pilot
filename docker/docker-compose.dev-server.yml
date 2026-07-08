@@ -18,8 +18,8 @@ services:
     env_file:
       - ../envs/dev.env
     environment:
-      DATABASE_URL: postgresql://alphapilot:${DB_PASSWORD:?DB_PASSWORD required in docker/.env}@ap-postgres:5432/alphapilot_dev
-      REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD required in docker/.env}@ap-redis:6379/0
+      DATABASE_URL: postgresql://alphapilot:${DB_PASSWORD:?DB_PASSWORD required in envs/dev.env}@ap-postgres:5432/alphapilot_dev
+      REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD required in envs/dev.env}@ap-redis:6379/0
       ROOT_PATH: /ap-dev
     ports:
       - "127.0.0.1:8001:8000"
@@ -32,8 +32,8 @@ services:
     env_file:
       - ../envs/dev.env
     environment:
-      DATABASE_URL: postgresql://alphapilot:${DB_PASSWORD:?DB_PASSWORD required in docker/.env}@ap-postgres:5432/alphapilot_dev
-      REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD required in docker/.env}@ap-redis:6379/0
+      DATABASE_URL: postgresql://alphapilot:${DB_PASSWORD:?DB_PASSWORD required in envs/dev.env}@ap-postgres:5432/alphapilot_dev
+      REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD required in envs/dev.env}@ap-redis:6379/0
     # 覆盖镜像默认 API CMD：跑 scheduler 进程（APScheduler + 任务队列 + EventShuttle + notifier）
     command: ["python", "scripts/start_scheduler.py"]
     depends_on:
