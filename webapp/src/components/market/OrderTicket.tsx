@@ -101,12 +101,12 @@ export function OrderTicket({ symbol, price }: { symbol: string; price: number }
   const qtyOk = payload.qty > 0;
   // 开仓缺止损铁律 (仅买入开仓; 平仓/reduce-only 不要求)
   const missingSl = buySide && !reduceOnly && !parseFloat(sl);
-  // 熔断中且非平仓 → 硬禁 (仅允许 reduce-only 平仓, 前端不提供强行覆盖熔断状态)
-  const haltBlocked = halted && !reduceOnly;
 
-  // 三类死禁用 (灰禁, 不弹确认): 无权限 / 物理失败 / 开仓缺 SL (haltBlocked 一并归入)
+  // 三类死禁用 (灰禁, 不弹确认): 无权限 / 物理失败 / 开仓缺 SL。
+  // HALTED 开新仓不再灰禁: precheck 的 kill_switch(category=breaker) 落入 breakerFails,
+  // 走与其它熔断项一致的 amber + 强口令覆盖路径 (与后端 allowlist 对齐)。
   const hardBlocked =
-    !canTrade || physicalFails.length > 0 || missingSl || haltBlocked;
+    !canTrade || physicalFails.length > 0 || missingSl;
 
   // 直下 (绿/红, 无二次确认): 后端判 PASS, 或 HALTED 下 reduce-only 平仓
   const directPass =
@@ -326,19 +326,12 @@ export function OrderTicket({ symbol, price }: { symbol: string; price: number }
                 ? "余额不足 / 无持仓，无法下单"
                 : missingSl
                   ? "请先填止损"
-                  : haltBlocked
-                    ? "熔断中 · 仅允许平仓"
-                    : canOverride
-                      ? `强行下单（覆盖 ${overrideCount} 项）`
-                      : directPass
-                        ? `${buySide ? "买入" : "卖出"} ${coin}`
-                        : "守卫未通过"}
+                  : canOverride
+                    ? `强行下单（覆盖 ${overrideCount} 项）`
+                    : directPass
+                      ? `${buySide ? "买入" : "卖出"} ${coin}`
+                      : "守卫未通过"}
       </button>
-      {haltBlocked && (
-        <div className="mt-2 text-center font-mono text-[10.5px] text-rose">
-          熔断中 · 仅允许 Reduce-Only 平仓
-        </div>
-      )}
 
       {/* 覆盖守卫二次确认: 含熔断项走强口令 OVERRIDE, 纯软约束普通确认 */}
       <ConfirmDialog
