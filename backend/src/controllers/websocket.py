@@ -20,6 +20,7 @@ from src.db.engines import get_session_factory
 from src.models.event_store import EventOutbox
 from src.services.auth import decode_access_token
 from src.services.ws_manager import ws_manager as manager
+from src.utils.log import mask_url_credentials
 
 logger = logging.getLogger(__name__)
 
@@ -155,7 +156,7 @@ async def redis_subscriber(redis_url: str) -> None:
     events:<event_type> 是 Plan 5 加的细粒度通道, trading_events 是旧版兼容
     通道, 同一条事件双发 (见 EventShuttle._pubsub 旁路).
     """
-    logger.info("Redis subscriber task starting, url=%s", redis_url)
+    logger.info("Redis subscriber task starting, url=%s", mask_url_credentials(redis_url))
     while True:
         try:
             r: aioredis.Redis = aioredis.from_url(redis_url, decode_responses=True)

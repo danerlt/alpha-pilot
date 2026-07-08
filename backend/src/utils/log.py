@@ -10,6 +10,28 @@ from __future__ import annotations
 import logging
 import os
 from typing import Optional
+from urllib.parse import urlsplit, urlunsplit
+
+
+def mask_url_credentials(url: str) -> str:
+    """把连接串里的密码段打码用于日志，避免明文泄露。
+
+    ``redis://:pwd@h:6379/0``      -> ``redis://:***@h:6379/0``
+    ``postgresql://user:pwd@h/db`` -> ``postgresql://user:***@h/db``
+    无密码 / 非法 URL 原样返回。
+    """
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        return url
+    if parts.password is None:
+        return url
+    host = parts.hostname or ""
+    if parts.port is not None:
+        host = f"{host}:{parts.port}"
+    username = parts.username or ""
+    netloc = f"{username}:***@{host}"
+    return urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
 
 
 class ContextFilter(logging.Filter):
