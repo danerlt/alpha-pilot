@@ -18,6 +18,10 @@ class ManualOrderCreate(BaseModel):
     tp: float | None = Field(default=None, gt=0)
     reduce_only: bool = False
     client_order_id: str | None = Field(default=None, min_length=1, max_length=40)
+    override_checks: list[str] = Field(
+        default_factory=list,
+        description="人工覆盖的守卫失败项 key 列表 (服务端按 allowlist 交集裁决, 物理项与缺 SL 铁律不可覆盖)",
+    )
 
 
 class SltpUpdate(BaseModel):

@@ -62,6 +62,7 @@ class GuardCheckItem(BaseModel):
     check: str
     pass_: bool = Field(alias="pass")
     note: str
+    category: str  # physical | breaker | soft (服务端权威分类, 前端据此判定按钮态)
 
 
 class PrecheckOut(BaseModel):

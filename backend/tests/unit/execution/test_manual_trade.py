@@ -248,6 +248,158 @@ def test_place_order_sell_closes_position(session):
     assert pos.status == PositionStatus.CLOSED.value
 
 
+# ── 人工覆盖 AI 守卫 (2026-07-08) ──────────────────────────────────────
+
+
+def test_precheck_to_dict_includes_category(session):
+    """每项 check 带 category: physical / breaker / soft (与服务端裁决常量同源)。"""
+    checks = _svc(session).precheck(body=_buy(), trading_mode="testnet").to_dict()["checks"]
+    cat = {c["check"]: c["category"] for c in checks}
+    assert cat["kill_switch"] == "breaker"
+    assert cat["balance"] == "physical"
+    assert cat["duplicate_position"] == "physical"
+    assert cat["position_size"] == "soft"
+    assert cat["single_risk"] == "soft"
+    assert cat["sl_distance"] == "soft"
+
+
+def test_place_order_physical_override_rejected_duplicate(session):
+    """物理项 duplicate_position 即便传 override 仍拒。"""
+    from sqlalchemy import select as _select
+
+    from src.common.exception.errors import RiskRejectedException
+    from src.models.order import Order
+
+    session.add(Position(
+        account_id=1, trading_mode="testnet", symbol="BTCUSDT",
+        status=PositionStatus.OPEN.value, side="LONG",
+        quantity=0.02, entry_price=49_000.0, stop_loss=48_000.0,
+        opened_at=datetime.now(tz=timezone.utc),
+    ))
+    session.commit()
+    with pytest.raises(RiskRejectedException):
+        _place(
+            session,
+            _buy(client_order_id="d1", override_checks=["duplicate_position"]),
+        )
+    assert session.execute(_select(Order)).scalars().all() == []
+
+
+def test_place_order_physical_override_rejected_balance(session):
+    """物理项 balance 即便同时覆盖 balance+position_size 仍拒 (物理不可越)。"""
+    from sqlalchemy import select as _select
+
+    from src.common.exception.errors import RiskRejectedException
+    from src.models.order import Order
+
+    with pytest.raises(RiskRejectedException):
+        _place(
+            session,
+            _buy(qty=1.0, client_order_id="b1",
+                 override_checks=["balance", "position_size"]),
+        )
+    assert session.execute(_select(Order)).scalars().all() == []
+
+
+def test_place_order_open_long_no_sl_override_rejected(session):
+    """OPEN_LONG 缺 SL 铁律: 传 override 仍拒。"""
+    from sqlalchemy import select as _select
+
+    from src.common.exception.errors import RiskRejectedException
+    from src.models.order import Order
+
+    with pytest.raises(RiskRejectedException):
+        _place(
+            session,
+            _buy(sl=None, client_order_id="n1",
+                 override_checks=["single_risk", "sl_distance"]),
+        )
+    assert session.execute(_select(Order)).scalars().all() == []
+
+
+def test_place_order_soft_override_places_and_audited(session):
+    """软项 rr_ratio 传 override → 放行下单, 审计 action=manual_order_override。"""
+    from sqlalchemy import select as _select
+
+    from src.models.audit_log import AuditLog
+    from src.models.order import Order
+
+    # tp=50050 → reward 50 / risk 100 = rr 0.5 < 1.5 → 仅 rr_ratio 失败
+    out = _place(
+        session,
+        _buy(tp=50_050.0, client_order_id="s1", override_checks=["rr_ratio"]),
+    )
+    assert out["order_id"] is not None
+    assert len(session.execute(_select(Order)).scalars().all()) == 1
+    log = next(
+        row for row in session.execute(_select(AuditLog)).scalars().all()
+        if row.action == "manual_order_override"
+    )
+    assert any(f["check"] == "rr_ratio" for f in log.before_json["failed"])
+    assert log.before_json["verdict"] == "REJECT"
+    assert log.after_json["override_checks"] == ["rr_ratio"]
+    assert log.after_json["operator_user_id"] == 1
+
+
+def test_place_order_breaker_override_audit_and_killswitch_unchanged(session):
+    """熔断项 daily_loss 覆盖 → action=manual_order_override_breaker,
+    且 KillSwitch 状态前后不变 (覆盖是单次放行, 不解除熔断)。"""
+    from sqlalchemy import select as _select
+
+    from src.models.audit_log import AuditLog
+    from src.services.risk.kill_switch import KillSwitchService
+
+    # 更晚一条快照: 日亏 -5% 触发 daily_loss 熔断
+    session.add(AccountSnapshot(
+        account_id=1, trading_mode="testnet",
+        snapshot_at=datetime(2030, 1, 1, tzinfo=timezone.utc),
+        total_balance_usdt=10_000.0, available_balance_usdt=10_000.0,
+        unrealized_pnl=0, daily_pnl=-500.0, daily_pnl_pct=-0.05,
+    ))
+    session.commit()
+
+    before = KillSwitchService(session).should_block_new_trades(
+        account_id=1, trading_mode="testnet",
+    )
+    out = _place(
+        session,
+        _buy(client_order_id="k1", override_checks=["daily_loss"]),
+    )
+    after = KillSwitchService(session).should_block_new_trades(
+        account_id=1, trading_mode="testnet",
+    )
+    assert out["order_id"] is not None
+    assert before is False and after is False  # 覆盖不改 KillSwitch
+    assert any(
+        row.action == "manual_order_override_breaker"
+        for row in session.execute(_select(AuditLog)).scalars().all()
+    )
+
+
+def test_place_order_override_idempotent_same_client_order_id(session):
+    """先被拒 → 带 override 用同 client_order_id 重提正常下单, 再提幂等, 不产生双单。"""
+    from sqlalchemy import select as _select
+
+    from src.common.exception.errors import RiskRejectedException
+    from src.models.order import Order
+
+    # 1) 无 override → rr_ratio 失败被拒, 不写单
+    with pytest.raises(RiskRejectedException):
+        _place(session, _buy(tp=50_050.0, client_order_id="idem"))
+    assert session.execute(_select(Order)).scalars().all() == []
+
+    # 2) 同 client_order_id + override → 正常下单
+    out1 = _place(
+        session, _buy(tp=50_050.0, client_order_id="idem", override_checks=["rr_ratio"]),
+    )
+    # 3) 再提 → 同 trace_id 幂等短路, 不产生双单
+    out2 = _place(
+        session, _buy(tp=50_050.0, client_order_id="idem", override_checks=["rr_ratio"]),
+    )
+    assert out1["order_id"] == out2["order_id"]
+    assert len(session.execute(_select(Order)).scalars().all()) == 1
+
+
 # ── update_sltp (handoff P2 Task 7) ─────────────────────────────────────
 
 

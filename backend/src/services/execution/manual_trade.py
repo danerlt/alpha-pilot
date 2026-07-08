@@ -46,6 +46,27 @@ from src.services.strategy.proposal import DecisionProposal
 logger = logging.getLogger(__name__)
 
 
+# ── 服务端权威分类常量 (唯一真相; 前端只读展示, 判定权全在后端) ────────────
+# 物理约束 / 资金安全: 永不可覆盖, 即便前端把 key 塞进 override_checks。
+NON_OVERRIDABLE = {"balance", "position_exists", "close_quantity", "duplicate_position"}
+# 熔断类: 可单次覆盖放行 (前端触发强口令), 但不写 KillSwitch / 不解除熔断。
+OVERRIDABLE_BREAKER = {"kill_switch", "daily_loss", "consecutive_losses"}
+# 软约束: 可单次覆盖放行 (前端普通二次确认)。
+OVERRIDABLE_SOFT = {
+    "review", "chaotic_regime", "rr_ratio", "sl_distance",
+    "position_size", "single_risk", "strategy_enabled",
+}
+
+
+def _category_for(check: str) -> str:
+    """由服务端分类常量派生 precheck 下发的 category (与 place_order 裁决同源)。"""
+    if check in NON_OVERRIDABLE:
+        return "physical"
+    if check in OVERRIDABLE_BREAKER:
+        return "breaker"
+    return "soft"
+
+
 @dataclass
 class PrecheckOutcome:
     verdict: str  # PASS | REJECT | DEGRADE
@@ -60,7 +81,10 @@ class PrecheckOutcome:
             "verdict": self.verdict,
             "halted": self.halted,
             "checks": [
-                {"check": c.check, "pass": c.passed, "note": c.note}
+                {
+                    "check": c.check, "pass": c.passed, "note": c.note,
+                    "category": _category_for(c.check),
+                }
                 for c in self.checks
             ],
             "context": self.context,
@@ -224,9 +248,30 @@ class ManualTradeService:
         outcome = self.precheck(
             body=body, trading_mode=trading_mode, account_id=account_id,
         )
-        if outcome.verdict != "PASS":
-            first_fail = next(c for c in outcome.checks if not c.passed)
-            raise RiskRejectedException(f"{first_fail.check}:{first_fail.note}")
+
+        # 铁律: OPEN_LONG 缺 SL → 一律拒, override 无效 (独立硬拒, 先于物理裁决)。
+        if body.side == "BUY" and body.sl is None:
+            raise RiskRejectedException(
+                "missing_sl:OPEN_LONG 必须提供 stop_loss, 不可覆盖"
+            )
+
+        # 逐项裁决 (只信服务端 allowlist 交集, 不信前端传入):
+        #   物理项 → 永远拒; 覆盖清单内的熔断/软项 → 放行; 其余未覆盖/未知 key → 拒。
+        override_set = set(body.override_checks)
+        allowlist = OVERRIDABLE_BREAKER | OVERRIDABLE_SOFT
+        failed = [c for c in outcome.checks if not c.passed]
+        failed_detail = [
+            {"check": c.check, "note": c.note, "severity": c.severity}
+            for c in failed
+        ]
+        overridden: list[str] = []
+        for c in failed:
+            if c.check in NON_OVERRIDABLE:
+                raise RiskRejectedException(f"{c.check}:{c.note}")
+            if c.check in override_set and c.check in allowlist:
+                overridden.append(c.check)
+            else:
+                raise RiskRejectedException(f"{c.check}:{c.note}")
 
         executor = OrderExecutor(self._session, self._adapter, outbox=self._outbox)
         if body.side == "BUY":
@@ -258,6 +303,8 @@ class ManualTradeService:
         self._audit(
             operator_user_id=operator_user_id, account_id=account_id,
             trading_mode=trading_mode, body=body, trace_id=trace_id,
+            verdict=outcome.verdict, overridden=overridden,
+            failed_detail=failed_detail,
         )
         self._session.commit()
         return summary
@@ -275,26 +322,53 @@ class ManualTradeService:
     def _audit(
         self, *, operator_user_id: int, account_id: int,
         trading_mode: str, body: ManualOrderCreate, trace_id: str,
+        verdict: str, overridden: list[str], failed_detail: list[dict],
     ) -> None:
-        """审计行 + manual.override 事件 (与 ManualOpsService 同模式)。"""
-        detail = {
+        """审计行 + manual.override 事件, 按覆盖强度分级 action (与 ManualOpsService 同模式)。
+
+        无覆盖 → manual_order; 仅软项 → manual_order_override;
+        含熔断项 → manual_order_override_breaker (WARNING 级留痕)。
+        覆盖为单次放行, 不写 KillSwitch、不解除熔断。
+        """
+        breaker_overridden = set(overridden) & OVERRIDABLE_BREAKER
+        if not overridden:
+            action = "manual_order"
+        elif breaker_overridden:
+            action = "manual_order_override_breaker"
+        else:
+            action = "manual_order_override"
+
+        if breaker_overridden:
+            logger.warning(
+                "manual_order 覆盖熔断项: user=%s trace=%s overridden=%s",
+                operator_user_id, trace_id, overridden,
+            )
+
+        before = {"verdict": verdict, "failed": failed_detail}
+        after = {
             "symbol": body.symbol, "side": body.side, "qty": body.qty,
             "sl": body.sl, "tp": body.tp, "reduce_only": body.reduce_only,
+            "override_checks": overridden,
+            "operator_user_id": operator_user_id,
         }
         self._session.add(AuditLog(
             account_id=account_id, user_id=operator_user_id,
-            action="manual_order", resource_type="order", resource_id=trace_id,
-            after_json=detail,
+            action=action, resource_type="order", resource_id=trace_id,
+            before_json=before, after_json=after,
         ))
         self._session.flush()
         if self._outbox is not None:
+            reason = (
+                f"override={overridden} trace_id={trace_id}"
+                if overridden else f"trace_id={trace_id}"
+            )
             self._outbox.record(
                 self._session,
                 aggregate_type="manual_op", aggregate_id=None,
                 event=ManualOverride(
                     operator_user_id=operator_user_id,
-                    action="manual_order", target=f"{body.symbol}:{body.side}",
-                    reason=f"trace_id={trace_id}",
+                    action=action, target=f"{body.symbol}:{body.side}",
+                    reason=reason,
                 ),
                 account_id=account_id, trading_mode=trading_mode,
                 trace_id=trace_id,

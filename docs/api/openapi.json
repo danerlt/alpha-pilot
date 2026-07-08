@@ -6534,13 +6534,18 @@
           "note": {
             "type": "string",
             "title": "Note"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
           }
         },
         "type": "object",
         "required": [
           "check",
           "pass",
-          "note"
+          "note",
+          "category"
         ],
         "title": "GuardCheckItem"
       },
@@ -7151,6 +7156,14 @@
               }
             ],
             "title": "Client Order Id"
+          },
+          "override_checks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Override Checks",
+            "description": "人工覆盖的守卫失败项 key 列表 (服务端按 allowlist 交集裁决, 物理项与缺 SL 铁律不可覆盖)"
           }
         },
         "type": "object",
