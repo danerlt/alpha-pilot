@@ -1,20 +1,34 @@
-# 本地开发环境（Windows / Linux 本机）
-# 访问方式: http://localhost:3000（前端） http://localhost:8000（后端 API）
-# 无需 Nginx，直接通过端口访问
+# 本地开发环境（Windows / Linux 本机）——一个文件两种模式，靠 compose profile 区分：
+#
+#   ① 依赖模式（默认，不带 profile）：只起 PG + Redis，后端/前端跑在宿主机
+#      make deps-up   →  docker compose -f docker-compose.local.yml up -d
+#      配合 make dev-backend（uv 热重载）+ 前端 npm run dev；pytest / pre-commit 前置。
+#      不会 build 后端/前端镜像，起得快。
+#
+#   ② 完整模式（--profile full）：PG + Redis + 后端 + 前端 全部容器化
+#      make local-up  →  docker compose -f docker-compose.local.yml --profile full up -d
+#      访问 http://localhost:3000（前端） / http://localhost:8000（后端 API），无需 Nginx。
+#
+# 原理：未标 profile 的 service（postgres/redis）默认就启动；标了 profiles:["full"] 的
+#       （backend/frontend）只有显式 --profile full 才起。
+#
+# name 保留 alpha-pilot：容器名 alpha-pilot-postgres-1 / -redis-1 被 conftest.py 与多处
+#   文档（docker start alpha-pilot-postgres-1）依赖，勿改。
+# 端口仅本机 loopback 用；如需从 WSL / 其他机器连，去掉 127.0.0.1: 前缀即可。
 
-name: ap-local
+name: alpha-pilot
 
 services:
   postgres:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: alphapilot
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-alphapilot}
-      POSTGRES_DB: alphapilot_dev
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-alphapilot}   # 本地 throwaway；真实环境走 envs/*.env
+      POSTGRES_DB: alphapilot                         # conftest admin 连这个库拉起隔离测试库
     volumes:
-      - postgres_local_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5442:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U alphapilot"]
       interval: 5s
@@ -24,25 +38,27 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6389:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
 
+  # ── 完整模式专属（--profile full 才起；依赖模式下不构建、不启动）──
   backend:
+    profiles: ["full"]
     build:
       context: ../backend
       dockerfile: ../docker/Dockerfile.backend
     env_file:
       - ../envs/local.env
     environment:
-      DATABASE_URL: postgresql://alphapilot:${DB_PASSWORD:-alphapilot}@postgres:5432/alphapilot_dev
+      DATABASE_URL: postgresql://alphapilot:${DB_PASSWORD:-alphapilot}@postgres:5432/alphapilot
       REDIS_URL: redis://redis:6379/0
       ROOT_PATH: ""
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -50,6 +66,7 @@ services:
         condition: service_healthy
 
   frontend:
+    profiles: ["full"]
     build:
       context: ../frontend
       dockerfile: ../docker/Dockerfile.frontend
@@ -57,9 +74,9 @@ services:
         BASE_PATH: ""
         NEXT_PUBLIC_API_BASE: /api
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     depends_on:
       - backend
 
 volumes:
-  postgres_local_data:
+  postgres_data:

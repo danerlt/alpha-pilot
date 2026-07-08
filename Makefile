@@ -1,4 +1,5 @@
 .PHONY: help \
+        deps-up deps-down \
         local-up local-down local-deploy \
         dev-up dev-down dev-deploy \
         test-up test-down \
@@ -7,8 +8,11 @@
         test test-unit test-integration hooks lint fmt
 
 # ── Docker Compose 文件 ───────────────────────────────────────────────────────
-COMPOSE_DEPS    = docker compose -f docker/docker-compose.dev.yml
-COMPOSE_LOCAL   = docker compose -f docker/docker-compose.local.yml
+# 本地依赖栈与完整栈合并为同一个 local.yml，靠 profile 区分：
+#   DEPS  = 不带 profile → 只起 PG+Redis（后端跑宿主机 / pytest 前置）
+#   LOCAL = --profile full → 追加 backend+frontend 容器化
+COMPOSE_DEPS    = docker compose -f docker/docker-compose.local.yml
+COMPOSE_LOCAL   = docker compose -f docker/docker-compose.local.yml --profile full
 COMPOSE_DEV     = docker compose -f docker/docker-compose.dev-server.yml
 COMPOSE_TEST    = docker compose -f docker/docker-compose.test.yml
 COMPOSE_PROD    = docker compose -f docker/docker-compose.prod.yml
