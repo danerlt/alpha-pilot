@@ -516,8 +516,8 @@ function LlmSection() {
           </div>
         )}
         <div className="grid grid-cols-1 gap-3.5 min-[700px]:grid-cols-2">
-          <Field label="模型" hint="· 填写提供方官方文档当前列出的模型名（会随其更新变化）">
-            <Input value={model} onChange={setModel} placeholder="模型名（见提供方文档）" />
+          <Field label="模型" hint="· DeepSeek 用 deepseek-v4-pro；其他提供方见其官方文档">
+            <Input value={model} onChange={setModel} placeholder="deepseek-v4-pro" />
           </Field>
           <Field label="API Base URL">
             <Input value={baseUrl} onChange={setBaseUrl} placeholder="https://.../v1" />
