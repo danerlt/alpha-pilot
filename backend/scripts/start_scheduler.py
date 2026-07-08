@@ -47,6 +47,7 @@ def _setup_scheduler() -> BackgroundScheduler:
     refresh_runtime_settings_safe(source="scheduler_startup")
 
     from src.schedulers.attribution_scanner import attribution_job
+    from src.schedulers.config_refresh_scanner import config_refresh_job
     from src.schedulers.lab_scanner import lab_job
     from src.schedulers.position_monitor_scanner import position_monitor_job
     from src.schedulers.strategy_pipeline_scanner import strategy_pipeline_job
@@ -76,6 +77,12 @@ def _setup_scheduler() -> BackgroundScheduler:
         lab_job, "interval",
         minutes=cfg.STRATEGY_LOOP_INTERVAL_MINUTES,
         id="lab_shadow", replace_existing=True,
+    )
+    # ADR-0001 P1: 周期从 DB 兜底刷新 runtime 配置，前端设置页改的配置 ~10s 内在 scheduler 生效
+    scheduler.add_job(
+        config_refresh_job, "interval",
+        seconds=cfg.CONFIG_REFRESH_INTERVAL_SECONDS,
+        id="config_refresh", replace_existing=True,
     )
     scheduler.start()
     logger.info(

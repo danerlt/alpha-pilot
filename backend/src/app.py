@@ -49,6 +49,25 @@ logger = logging.getLogger("app")
 _scheduler: BackgroundScheduler | None = None
 
 
+async def _periodic_config_refresh(interval_seconds: float) -> None:
+    """API 进程后台任务：每 interval_seconds 从 DB 兜底刷新 runtime 配置（ADR-0001 P1）。
+
+    每个 uvicorn worker 各跑一份，保证多 worker 都能感知前端设置页的配置变更；
+    刷新是同步 DB I/O，丢线程池执行避免阻塞事件循环。
+    """
+    from src.services.system.runtime_config import refresh_runtime_settings_safe
+
+    loop = asyncio.get_event_loop()
+    while True:
+        await asyncio.sleep(interval_seconds)
+        try:
+            await loop.run_in_executor(
+                None, lambda: refresh_runtime_settings_safe(source="api_periodic")
+            )
+        except Exception:  # noqa: BLE001
+            logger.warning("periodic config refresh failed (non-fatal)", exc_info=True)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """API 进程 lifespan。
@@ -102,13 +121,22 @@ async def lifespan(app: FastAPI):
     ws_task = asyncio.create_task(redis_subscriber(settings.REDIS_URL))
     logger.info("Redis subscriber task started")
 
+    config_refresh_task = asyncio.create_task(
+        _periodic_config_refresh(settings.CONFIG_REFRESH_INTERVAL_SECONDS)
+    )
+    logger.info(
+        "Periodic config refresh task started (interval=%ds)",
+        settings.CONFIG_REFRESH_INTERVAL_SECONDS,
+    )
+
     yield
 
-    ws_task.cancel()
-    try:
-        await ws_task
-    except asyncio.CancelledError:
-        pass
+    for _task in (ws_task, config_refresh_task):
+        _task.cancel()
+        try:
+            await _task
+        except asyncio.CancelledError:
+            pass
     if _scheduler and _scheduler.running:
         _scheduler.shutdown(wait=False)
         logger.info("Scheduler stopped")
