@@ -2,7 +2,7 @@
  * 设置（handoff/02 P11，后端 P4 契约接真）—— 四分区：交易所 / AI 模型 / 通知 / 账户偏好。
  * 密钥只显示脱敏尾 4 位（输入留空 = 不修改）；紧急停止 = close-all + 暂停引擎（口令确认）。
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   Bell,
@@ -88,20 +88,41 @@ function useSaveState() {
 function ExchangeSection() {
   const queryClient = useQueryClient();
   const { data: ex } = useExchangeSettings();
+  // net = 正在「配置/查看」哪个网络（纯视图，切换不影响系统运行网络）
   const [net, setNet] = useState<"mainnet" | "testnet">("testnet");
   const [key, setKey] = useState("");
   const [secret, setSecret] = useState("");
   const [test, setTest] = useState<TestState>("idle");
   const [testResult, setTestResult] = useState<ExchangeTestResult | null>(null);
+  const [switchOpen, setSwitchOpen] = useState(false);
+  const [switching, setSwitching] = useState(false);
   const save = useSaveState();
 
+  // 首次加载把视图默认到系统当前运行网络；之后用户自由切换，不再被拉回
+  const inited = useRef(false);
   useEffect(() => {
-    if (ex) setNet(ex.network);
+    if (ex && !inited.current) {
+      setNet(ex.network);
+      inited.current = true;
+    }
   }, [ex]);
 
   const isTestnet = net === "testnet";
   // 按当前选择的网络取脱敏状态（两网络独立，不再串）
   const cur = net === "mainnet" ? ex?.mainnet : ex?.testnet;
+  // 视图网络 ≠ 系统运行网络 → 提示可切换
+  const isRunning = ex?.network === net;
+
+  const switchActive = async () => {
+    setSwitching(true);
+    try {
+      await settingsApi.setActiveNetwork(net);
+      await queryClient.invalidateQueries({ queryKey: qk.settingsExchange });
+      setSwitchOpen(false);
+    } finally {
+      setSwitching(false);
+    }
+  };
 
   const runTest = async () => {
     setTest("testing");
@@ -193,14 +214,25 @@ function ExchangeSection() {
             <span className="text-xs font-semibold text-mint">连接成功 · 权限已实测（见下方清单）</span>
           </div>
         )}
+        {/* 系统当前运行网络（只读展示，切换是下方独立操作） */}
+        <div className="mb-3.5 flex items-center gap-2 rounded-sm bg-bg-3 px-3 py-2.5">
+          <span className="text-xs text-fg-3">系统当前运行网络</span>
+          <Pill tone={ex?.network === "mainnet" ? "rose" : "cyan"}>
+            {ex?.network === "mainnet" ? "主网 Mainnet" : "测试网 Testnet"}
+          </Pill>
+          <span className="ml-auto font-mono text-micro text-fg-4">
+            决策/下单实际走这个网络
+          </span>
+        </div>
+
         <Field
-          label="运行网络"
-          hint={isTestnet ? "· 测试盘使用模拟资金，安全演练" : "· 主网为真实资金交易，请谨慎"}
+          label="配置网络"
+          hint="· 选择要查看/配置哪个网络的 API Key（不影响系统运行网络）"
         >
           <Segmented
             value={net}
             onChange={(v) => {
-              // 切网络：清空输入 + 重置测试态（避免把 A 网络输入的 key 误配到 B）
+              // 纯视图切换：清空输入 + 重置测试态（避免把 A 网络输入的 key 误配到 B）
               setNet(v);
               setTest("idle");
               setTestResult(null);
@@ -213,6 +245,25 @@ function ExchangeSection() {
             ]}
           />
         </Field>
+
+        {/* 视图网络 ≠ 运行网络：给独立的切换入口（重操作，二次确认） */}
+        {ex && !isRunning && (
+          <div className="mb-3.5 flex items-center gap-2.5 rounded-sm border border-amber/25 bg-amber-soft px-3 py-2.5">
+            <AlertTriangle size={14} className="shrink-0 text-amber" />
+            <span className="flex-1 text-xs text-fg-2">
+              系统当前运行在
+              <b>{ex.network === "mainnet" ? "主网" : "测试网"}</b>
+              ，是否把运行网络切换到
+              <b>{isTestnet ? "测试网" : "主网"}</b>？
+            </span>
+            <button
+              onClick={() => setSwitchOpen(true)}
+              className="shrink-0 cursor-pointer rounded-sm border border-amber/40 bg-transparent px-3 py-1.5 text-xs font-semibold text-amber hover:brightness-110"
+            >
+              切换运行网络
+            </button>
+          </div>
+        )}
 
         {isTestnet ? (
           <div className="mb-3.5 flex items-start gap-2 rounded-sm border border-cyan/20 bg-cyan-soft px-3 py-2.5">
@@ -302,12 +353,40 @@ function ExchangeSection() {
             disabled={save.state === "saving"}
             className="cursor-pointer rounded-[10px] border-none bg-mint px-[18px] py-2.5 text-sm font-bold text-bg-0 hover:brightness-110 disabled:opacity-50"
           >
-            {save.state === "saving" ? "保存中…" : "保存配置"}
+            {save.state === "saving"
+              ? "保存中…"
+              : `保存${isTestnet ? "测试网" : "主网"} Key`}
           </button>
-          {save.state === "saved" && <span className="text-xs text-mint">已保存（落审计日志）</span>}
+          {save.state === "saved" && (
+            <span className="text-xs text-mint">已保存（仅存 Key，不切换运行网络）</span>
+          )}
           {save.state === "error" && <span className="text-xs text-rose">{save.msg}</span>}
         </div>
       </Card>
+
+      {/* 切换系统运行网络：重操作，主网需口令确认 */}
+      <ConfirmDialog
+        open={switchOpen}
+        onClose={() => setSwitchOpen(false)}
+        onConfirm={switchActive}
+        busy={switching}
+        title={`切换系统运行网络 → ${isTestnet ? "测试网" : "主网"}`}
+        confirmLabel="确认切换"
+        requireText={isTestnet ? undefined : "MAINNET"}
+        body={
+          isTestnet ? (
+            <>
+              系统将切到<b className="text-cyan">测试网</b>运行，后续所有决策与下单走测试盘模拟资金。
+              请确认对应网络的 API Key 已配置。
+            </>
+          ) : (
+            <>
+              系统将切到<b className="text-rose">主网</b>运行，AI 将用<b className="text-rose">真实资金</b>下单。
+              输入 <b className="font-mono text-rose">MAINNET</b> 确认。
+            </>
+          )
+        }
+      />
     </>
   );
 }

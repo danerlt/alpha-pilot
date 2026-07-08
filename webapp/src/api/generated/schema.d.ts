@@ -933,6 +933,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/settings/exchange/active-network": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set Active Network
+         * @description 切换系统运行网络 (runtime.trading_mode)。独立于 key 配置的重操作,
+         *     前端二次确认后调用。
+         */
+        post: operations["set_active_network"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/settings/exchange/test": {
         parameters: {
             query?: never;
@@ -1361,6 +1382,17 @@ export interface components {
             snapshot_at?: string | null;
             /** Message */
             message?: string | null;
+        };
+        /**
+         * ActiveNetworkUpdate
+         * @description 切换系统运行网络（独立重操作，需二次确认）。
+         */
+        ActiveNetworkUpdate: {
+            /**
+             * Network
+             * @enum {string}
+             */
+            network: "testnet" | "mainnet";
         };
         /** AgentActionConfirmOut */
         AgentActionConfirmOut: {
@@ -5140,6 +5172,43 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ExchangeSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Response_ExchangeSettingsOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_active_network: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ap_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActiveNetworkUpdate"];
             };
         };
         responses: {

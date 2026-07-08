@@ -70,6 +70,32 @@ def test_exchange_put_returns_masked_never_plaintext(admin_client):
     assert r2.json()["data"]["api_key_masked"] == "****3456"
 
 
+def test_put_exchange_does_not_switch_running_network(admin_client):
+    """配 key 不切系统运行网络 —— 只存对应网络槽位。"""
+    cli, _ = admin_client
+    before = cli.get("/api/settings/exchange").json()["data"]["network"]
+    other = "mainnet" if before == "testnet" else "testnet"
+    # 给"另一个"网络配 key，不应把系统运行网络切过去
+    cli.put("/api/settings/exchange", json={
+        "network": other, "api_key": "OTHERNETKEY9999XX", "api_secret": "OSEC12345678",
+    })
+    after = cli.get("/api/settings/exchange").json()["data"]["network"]
+    assert after == before  # 运行网络不变
+    # 但 key 确实存进了 other 槽位
+    data = cli.get("/api/settings/exchange").json()["data"]
+    assert data[other]["api_key_masked"] == "****99XX"
+
+
+def test_set_active_network_switches_running_network(admin_client):
+    """切换运行网络是独立端点。"""
+    cli, _ = admin_client
+    cur = cli.get("/api/settings/exchange").json()["data"]["network"]
+    target = "mainnet" if cur == "testnet" else "testnet"
+    r = cli.post("/api/settings/exchange/active-network", json={"network": target})
+    assert r.status_code == 200
+    assert r.json()["data"]["network"] == target
+
+
 def test_exchange_two_networks_stored_and_read_separately(admin_client):
     """主网/测试网 key 分开存、分开读 — GET 一次返回两网络各自脱敏, 不串。"""
     cli, _ = admin_client

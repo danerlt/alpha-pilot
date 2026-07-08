@@ -24,9 +24,16 @@ class ExchangeSettingsOut(BaseModel):
 
 
 class ExchangeSettingsUpdate(BaseModel):
+    # network 仅决定存哪个网络的 key，不切换系统运行网络
     network: Literal["testnet", "mainnet"] | None = None
     api_key: str | None = Field(default=None, min_length=8, max_length=200)
     api_secret: str | None = Field(default=None, min_length=8, max_length=200)
+
+
+class ActiveNetworkUpdate(BaseModel):
+    """切换系统运行网络（独立重操作，需二次确认）。"""
+
+    network: Literal["testnet", "mainnet"]
 
 
 class ExchangeTestOut(BaseModel):

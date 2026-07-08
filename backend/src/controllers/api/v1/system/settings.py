@@ -9,6 +9,7 @@ from src.common.response.response_schema import Response
 from src.controllers.dependencies import require_admin
 from src.db.session import get_db
 from src.schemas.settings import (
+    ActiveNetworkUpdate,
     ExchangeSettingsOut,
     ExchangeSettingsUpdate,
     ExchangeTestOut,
@@ -42,6 +43,19 @@ def put_exchange_settings(
     return AppSettingsService(db).put_exchange(
         operator_user_id=current_admin.id,
         network=body.network, api_key=body.api_key, api_secret=body.api_secret,
+    )
+
+
+@router.post("/exchange/active-network", response_model=Response[ExchangeSettingsOut])
+@api_response()
+def set_active_network(
+    body: ActiveNetworkUpdate,
+    db: Session = Depends(get_db), current_admin=Depends(require_admin),
+):
+    """切换系统运行网络 (runtime.trading_mode)。独立于 key 配置的重操作,
+    前端二次确认后调用。"""
+    return AppSettingsService(db).set_active_network(
+        operator_user_id=current_admin.id, network=body.network,
     )
 
 

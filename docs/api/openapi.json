@@ -3523,6 +3523,82 @@
         }
       }
     },
+    "/api/settings/exchange/active-network": {
+      "post": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Set Active Network",
+        "description": "切换系统运行网络 (runtime.trading_mode)。独立于 key 配置的重操作,\n前端二次确认后调用。",
+        "operationId": "set_active_network",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "ap_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ap Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActiveNetworkUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Response_ExchangeSettingsOut_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/settings/exchange/test": {
       "post": {
         "tags": [
@@ -5428,6 +5504,24 @@
         "type": "object",
         "title": "AccountSnapshotRead",
         "description": "无快照时只有 message 字段 (历史行为保留), 其余为 None。"
+      },
+      "ActiveNetworkUpdate": {
+        "properties": {
+          "network": {
+            "type": "string",
+            "enum": [
+              "testnet",
+              "mainnet"
+            ],
+            "title": "Network"
+          }
+        },
+        "type": "object",
+        "required": [
+          "network"
+        ],
+        "title": "ActiveNetworkUpdate",
+        "description": "切换系统运行网络（独立重操作，需二次确认）。"
       },
       "AgentActionConfirmOut": {
         "properties": {

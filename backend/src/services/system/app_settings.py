@@ -132,10 +132,11 @@ class AppSettingsService:
         api_key: str | None = None,
         api_secret: str | None = None,
     ) -> dict:
+        """保存**指定网络**的 API Key/Secret。network 仅决定存到哪个网络的槽位,
+        **不切换系统运行网络** —— 切换运行网络是独立操作 set_active_network(),
+        避免"配个 key 就把系统实盘/测试模式切了"的误操作。"""
         changes: dict[str, Any] = {}
         target = network or self._network()
-        if network is not None:
-            changes["runtime.trading_mode"] = network
         if api_key is not None:
             changes[f"binance.{target}.api_key"] = api_key
         if api_secret is not None:
@@ -146,6 +147,20 @@ class AppSettingsService:
         self._audit(
             operator_user_id=operator_user_id, section="exchange",
             changed=sorted(changes),  # 只记键名, 不记明文
+        )
+        self._session.commit()
+        self._refresh()
+        return self.get_exchange()
+
+    def set_active_network(self, *, operator_user_id: int, network: str) -> dict:
+        """切换**系统运行网络** (runtime.trading_mode) —— 独立于 key 配置的重操作,
+        前端需二次确认。testnet↔mainnet 影响后续所有决策/下单走哪个网络。"""
+        if network not in ("testnet", "mainnet"):
+            raise ServiceException("非法运行网络")
+        self._write({"runtime.trading_mode": network})
+        self._audit(
+            operator_user_id=operator_user_id, section="exchange",
+            changed=["runtime.trading_mode"],
         )
         self._session.commit()
         self._refresh()

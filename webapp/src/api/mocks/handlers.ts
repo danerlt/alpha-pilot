@@ -448,6 +448,13 @@ export const handlers = [
     }
     return ok(exchangeOut());
   }),
+  http.post("/api/settings/exchange/active-network", async ({ request }) => {
+    await delay(300);
+    const b = (await request.json()) as { network?: string };
+    if (b.network === "mainnet" || b.network === "testnet")
+      settingsState.exchange.network = b.network;
+    return ok(exchangeOut());
+  }),
   http.post("/api/settings/exchange/test", async () => {
     await delay(1000);
     return ok({

@@ -343,6 +343,12 @@ export const settingsApi = {
         api_secret: u.apiSecret,
       }),
     }).then(fromWireExchangeTest),
+  // 切换系统运行网络（独立重操作，前端二次确认后调用）
+  setActiveNetwork: (network: "testnet" | "mainnet") =>
+    http<WireExchangeSettings>("/api/settings/exchange/active-network", {
+      method: "POST",
+      body: JSON.stringify({ network }),
+    }).then(fromWireExchangeSettings),
   getLlm: () =>
     http<WireLlmSettings>("/api/settings/llm").then(fromWireLlmSettings),
   updateLlm: (u: LlmSettingsUpdate) =>
