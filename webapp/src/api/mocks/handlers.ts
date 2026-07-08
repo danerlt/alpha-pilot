@@ -126,15 +126,59 @@ export const handlers = [
   http.post("/api/orders/precheck", async ({ request }) => {
     await delay(350);
     const payload = (await request.json()) as WireOrderBody;
-    const qtyOk = payload.qty > 0;
-    const riskOk = payload.sl != null || payload.reduce_only;
-    const sizeOk = payload.qty * (payload.price ?? 68863) < 25000;
+    const price = payload.price ?? 68863;
+    const notional = payload.qty * price;
+    const isReduce = payload.reduce_only || payload.side === "SELL";
+    // 盈亏比 (仅在止损止盈都填时才可评估)
+    const rr = (() => {
+      if (payload.sl == null || payload.tp == null) return null;
+      const riskAmt = Math.abs(price - payload.sl);
+      return riskAmt > 0 ? Math.abs(payload.tp - price) / riskAmt : null;
+    })();
+    // check key / category 与后端 manual_trade._category_for 同源:
+    //   physical=balance/position_exists/close_quantity/duplicate_position (不可覆盖)
+    //   breaker=kill_switch/daily_loss/consecutive_losses (强口令覆盖)
+    //   soft=review/chaotic_regime/rr_ratio/sl_distance/position_size/single_risk/strategy_enabled (普通确认覆盖)
     const checks = [
-      { check: "qty_valid", pass: qtyOk, note: qtyOk ? "数量合法" : "数量必须大于 0" },
-      { check: "stop_loss_set", pass: riskOk, note: riskOk ? "止损已设置" : "开仓必须设置止损" },
-      { check: "max_position_size", pass: sizeOk, note: sizeOk ? "< 20% 权益" : "超出单仓位上限 20%" },
-      { check: "daily_loss_limit", pass: true, note: "-0.48% > -3.0%" },
-      { check: "halted_check", pass: true, note: "风控状态 OK" },
+      { check: "kill_switch", pass: true, note: "系统运行中", category: "breaker" },
+      { check: "daily_loss", pass: true, note: "当日亏损 -0.48% > -3.0%", category: "breaker" },
+      { check: "consecutive_losses", pass: true, note: "连亏 1/3", category: "breaker" },
+      {
+        check: "balance",
+        pass: isReduce || notional < 25000,
+        note: isReduce || notional < 25000 ? "可用余额充足" : "可用余额不足",
+        category: "physical",
+      },
+      {
+        check: "duplicate_position",
+        pass: true,
+        note: isReduce ? "持有可平仓位" : "无同向持仓",
+        category: "physical",
+      },
+      {
+        check: "position_size",
+        pass: isReduce || notional < 20000,
+        note: isReduce || notional < 20000 ? "未超单仓上限 20%" : "超出单仓上限 20%",
+        category: "soft",
+      },
+      { check: "single_risk", pass: true, note: "单笔风险合规", category: "soft" },
+      {
+        check: "sl_distance",
+        pass: payload.sl != null || isReduce,
+        note: payload.sl != null || isReduce ? "止损距离合理" : "no sl/atr",
+        category: "soft",
+      },
+      {
+        check: "rr_ratio",
+        pass: rr == null ? true : rr >= 1.5,
+        note:
+          rr == null
+            ? "缺止损止盈, 暂不评估"
+            : rr >= 1.5
+              ? `盈亏比 ${rr.toFixed(2)} ≥ 1.5`
+              : `盈亏比 ${rr.toFixed(2)} < 1.5`,
+        category: "soft",
+      },
     ];
     const pass = checks.every((i) => i.pass);
     return ok({

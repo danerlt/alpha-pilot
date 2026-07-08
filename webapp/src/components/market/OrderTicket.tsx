@@ -11,6 +11,7 @@ import { usePermission } from "@/auth/permissions";
 import { fmt } from "@/lib/format";
 import { guardDisplay } from "@/lib/guardLabels";
 import { Card, Dot, Pill } from "@/components/ui/atoms";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 const INPUT_CLS =
   "w-full box-border rounded-sm border border-line bg-bg-3 px-2.5 py-2 font-mono text-xs text-fg-1 outline-none focus:border-line";
@@ -34,12 +35,18 @@ export function OrderTicket({ symbol, price }: { symbol: string; price: number }
   const [precheck, setPrecheck] = useState<PrecheckResult | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
     setPriceStr(String(Math.round(price)));
     setSubmitted(false);
   }, [symbol, price]);
+
+  // 换交易对才关确认弹窗；价格实时跳动不应中断进行中的二次确认
+  useEffect(() => {
+    setConfirmOpen(false);
+  }, [symbol]);
 
   const payload = useMemo<OrderTicketPayload>(
     () => ({
@@ -77,19 +84,55 @@ export function OrderTicket({ symbol, price }: { symbol: string; price: number }
   })();
 
   const halted = risk?.state === "HALTED";
-  const allPass =
-    canTrade &&
-    (precheck?.verdict === "PASS" || (halted && reduceOnly)) &&
-    payload.qty > 0;
   const buySide = side === "BUY";
   const coin = symbol.replace("USDT", "");
 
-  const submit = async () => {
-    if (!allPass || busy) return;
+  // ── 守卫失败项按服务端 category 分组 (判定权全在后端, 前端仅决定按钮形态与确认强度) ──
+  const items = precheck?.items ?? [];
+  const physicalFails = items.filter((i) => i.category === "physical" && !i.pass);
+  const breakerFails = items.filter((i) => i.category === "breaker" && !i.pass);
+  const softFails = items.filter((i) => i.category === "soft" && !i.pass);
+  // 可覆盖项 = 软约束 + 熔断 (物理项永不可覆盖); 覆盖 key 列表提交给后端 override_checks
+  const overridableFails = [...softFails, ...breakerFails];
+  const overrideKeys = overridableFails.map((i) => i.check);
+  const overrideCount = overridableFails.length;
+  const hasBreakerOverride = breakerFails.length > 0;
+
+  const qtyOk = payload.qty > 0;
+  // 开仓缺止损铁律 (仅买入开仓; 平仓/reduce-only 不要求)
+  const missingSl = buySide && !reduceOnly && !parseFloat(sl);
+  // 熔断中且非平仓 → 硬禁 (仅允许 reduce-only 平仓, 前端不提供强行覆盖熔断状态)
+  const haltBlocked = halted && !reduceOnly;
+
+  // 三类死禁用 (灰禁, 不弹确认): 无权限 / 物理失败 / 开仓缺 SL (haltBlocked 一并归入)
+  const hardBlocked =
+    !canTrade || physicalFails.length > 0 || missingSl || haltBlocked;
+
+  // 直下 (绿/红, 无二次确认): 后端判 PASS, 或 HALTED 下 reduce-only 平仓
+  const directPass =
+    qtyOk && !hardBlocked && (precheck?.verdict === "PASS" || (halted && reduceOnly));
+  // 可覆盖 (amber, 弹二次确认): 无死禁用触发, 非直下, 但有软/熔断可覆盖项
+  const canOverride =
+    qtyOk && !hardBlocked && !directPass && overrideCount > 0;
+  const actionable = directPass || canOverride;
+
+  // 提交: 直下→直接下单; 可覆盖→先弹确认, 由 ConfirmDialog 的 onConfirm 携带 overrideKeys 下单
+  const submit = () => {
+    if (busy || submitted) return;
+    if (directPass) {
+      void place([]);
+    } else if (canOverride) {
+      setConfirmOpen(true);
+    }
+  };
+
+  const place = async (overrideChecks: string[]) => {
+    if (busy) return;
     setBusy(true);
     try {
-      await ordersApi.place(payload);
+      await ordersApi.place({ ...payload, overrideChecks });
       setSubmitted(true);
+      setConfirmOpen(false);
     } finally {
       setBusy(false);
     }
@@ -254,17 +297,23 @@ export function OrderTicket({ symbol, price }: { symbol: string; price: number }
 
       <button
         onClick={submit}
-        disabled={!allPass || busy}
+        disabled={!actionable || busy || submitted}
         className="w-full cursor-pointer rounded-[9px] border-none py-[11px] text-sm font-bold disabled:cursor-not-allowed"
         style={{
           background: submitted
             ? "var(--ap-bg-4)"
-            : allPass
-              ? buySide
-                ? "var(--ap-mint)"
-                : "var(--ap-rose)"
-              : "var(--ap-bg-4)",
-          color: submitted ? "var(--ap-mint)" : allPass ? "var(--ap-bg-0)" : "var(--ap-fg-4)",
+            : canOverride
+              ? "var(--ap-amber)"
+              : directPass
+                ? buySide
+                  ? "var(--ap-mint)"
+                  : "var(--ap-rose)"
+                : "var(--ap-bg-4)",
+          color: submitted
+            ? "var(--ap-mint)"
+            : actionable
+              ? "var(--ap-bg-0)"
+              : "var(--ap-fg-4)",
         }}
       >
         {submitted
@@ -273,15 +322,60 @@ export function OrderTicket({ symbol, price }: { symbol: string; price: number }
             ? "提交中…"
             : !canTrade
               ? "无手动下单权限"
-              : allPass
-                ? `${buySide ? "买入" : "卖出"} ${coin}`
-                : "守卫未通过"}
+              : physicalFails.length > 0
+                ? "余额不足 / 无持仓，无法下单"
+                : missingSl
+                  ? "请先填止损"
+                  : haltBlocked
+                    ? "熔断中 · 仅允许平仓"
+                    : canOverride
+                      ? `强行下单（覆盖 ${overrideCount} 项）`
+                      : directPass
+                        ? `${buySide ? "买入" : "卖出"} ${coin}`
+                        : "守卫未通过"}
       </button>
-      {halted && !reduceOnly && (
+      {haltBlocked && (
         <div className="mt-2 text-center font-mono text-[10.5px] text-rose">
-          熔断中 · 仅允许 Reduce-Only
+          熔断中 · 仅允许 Reduce-Only 平仓
         </div>
       )}
+
+      {/* 覆盖守卫二次确认: 含熔断项走强口令 OVERRIDE, 纯软约束普通确认 */}
+      <ConfirmDialog
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={() => void place(overrideKeys)}
+        busy={busy}
+        requireText={hasBreakerOverride ? "OVERRIDE" : undefined}
+        confirmLabel="确认强行下单"
+        title="强行下单 · 覆盖守卫拦截"
+        body={
+          <div className="flex flex-col gap-3">
+            {hasBreakerOverride && (
+              <div className="font-semibold text-rose">
+                你正在覆盖 {overrideCount} 项熔断/风控，此操作将被记录审计。
+              </div>
+            )}
+            <div className="text-fg-2">
+              确认后将<span className="font-semibold text-rose">绕过以下守卫拦截</span>直接下单：
+            </div>
+            <ul className="flex flex-col gap-1.5">
+              {overridableFails.map((it) => {
+                const g = guardDisplay(it);
+                return (
+                  <li key={it.check} className="flex items-center justify-between gap-3">
+                    <span className="text-fg-1">{g.label}</span>
+                    <span className="font-mono text-xs text-rose">{g.text}</span>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="text-xs text-rose">
+              绕过硬风控属高危操作，请确认已知晓并自行承担风险。
+            </div>
+          </div>
+        }
+      />
     </Card>
   );
 }

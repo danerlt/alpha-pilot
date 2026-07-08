@@ -1721,6 +1721,8 @@ export interface components {
             pass: boolean;
             /** Note */
             note: string;
+            /** Category */
+            category: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1926,6 +1928,11 @@ export interface components {
             reduce_only: boolean;
             /** Client Order Id */
             client_order_id?: string | null;
+            /**
+             * Override Checks
+             * @description 人工覆盖的守卫失败项 key 列表 (服务端按 allowlist 交集裁决, 物理项与缺 SL 铁律不可覆盖)
+             */
+            override_checks?: string[];
         };
         /** MarketSymbolRead */
         MarketSymbolRead: {

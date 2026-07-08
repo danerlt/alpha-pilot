@@ -115,6 +115,8 @@ export interface PrecheckItem {
   check: string;
   pass: boolean;
   note: string;
+  /** 服务端权威分类：physical=物理/资金铁律不可覆盖；breaker=熔断可强口令覆盖；soft=软约束可普通确认覆盖 */
+  category: "physical" | "breaker" | "soft";
 }
 
 export interface PrecheckResult {
@@ -131,6 +133,8 @@ export interface OrderTicketPayload {
   sl?: number;
   tp?: number;
   reduceOnly: boolean;
+  /** 人工覆盖的守卫失败项 key 列表（服务端按 allowlist 交集裁决，物理项与缺 SL 铁律不可覆盖） */
+  overrideChecks?: string[];
 }
 
 // ---------- 账户 ----------

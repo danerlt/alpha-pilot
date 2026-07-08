@@ -299,6 +299,7 @@ export function fromWirePrecheck(w: WirePrecheck): PrecheckResult {
       check: c.check,
       pass: c.pass,
       note: c.note ?? "",
+      category: (c.category as PrecheckResult["items"][number]["category"]) ?? "soft",
     })),
   };
 }

@@ -83,6 +83,7 @@ function toWireOrder(payload: OrderTicketPayload) {
     sl: payload.sl ?? null,
     tp: payload.tp ?? null,
     reduce_only: payload.reduceOnly,
+    override_checks: payload.overrideChecks ?? [],
   };
 }
 

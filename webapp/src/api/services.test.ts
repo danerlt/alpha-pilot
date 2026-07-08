@@ -6,7 +6,7 @@ import { ApiError } from "./client";
 import { authApi, ordersApi, positionsApi } from "./services";
 
 describe("守卫预检（拒绝路径必测）", () => {
-  it("开仓未设止损 → REJECT，stop_loss_set 项 fail", async () => {
+  it("开仓未设止损 → REJECT，sl_distance 项 fail（soft）", async () => {
     const res = await ordersApi.precheck({
       symbol: "BTCUSDT",
       side: "BUY",
@@ -15,20 +15,26 @@ describe("守卫预检（拒绝路径必测）", () => {
       reduceOnly: false,
     });
     expect(res.verdict).toBe("REJECT");
-    const slItem = res.items.find((i) => i.check === "stop_loss_set");
+    const slItem = res.items.find((i) => i.check === "sl_distance");
     expect(slItem?.pass).toBe(false);
+    expect(slItem?.category).toBe("soft");
   });
 
-  it("数量为 0 → REJECT", async () => {
+  it("名义超余额 → REJECT，balance 项 fail（physical 不可覆盖）", async () => {
     const res = await ordersApi.precheck({
       symbol: "BTCUSDT",
       side: "BUY",
       type: "MARKET",
-      qty: 0,
+      qty: 1,
+      price: 68863,
       sl: 64000,
+      tp: 80000,
       reduceOnly: false,
     });
     expect(res.verdict).toBe("REJECT");
+    const balItem = res.items.find((i) => i.check === "balance");
+    expect(balItem?.pass).toBe(false);
+    expect(balItem?.category).toBe("physical");
   });
 
   it("设止损 + 合法数量 → PASS", async () => {
