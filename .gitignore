@@ -22,6 +22,9 @@ env/
 *.env
 !example.env
 envs/
+# env 备份/临时文件（如 dev.env.bak）也一律不提交
+*.bak
+*.env.bak
 
 # IDE
 .idea/
