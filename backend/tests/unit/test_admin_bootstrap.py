@@ -90,3 +90,28 @@ def test_ensure_default_risk_profile_creates_and_idempotent(pg_session):
         .count()
         == 1
     )
+
+
+def test_ensure_default_symbol_configs_seeds_and_idempotent(pg_session):
+    """symbol_config 表空会导致自选列表空/价格 $0.000/ws-market 4404。
+    开箱按 env PIPELINE_SYMBOLS seed 默认启用项。"""
+    from src.models.symbol_config import SymbolConfig
+    from src.services.admin_bootstrap import ensure_default_symbol_configs
+
+    settings = Settings(_env_file=None, PIPELINE_SYMBOLS="BTCUSDT,ETHUSDT")
+    created = ensure_default_symbol_configs(pg_session, settings, account_id=1)
+    assert created == 2
+
+    rows = (
+        pg_session.query(SymbolConfig)
+        .order_by(SymbolConfig.sort_order.asc())
+        .all()
+    )
+    assert [r.symbol for r in rows] == ["BTCUSDT", "ETHUSDT"]
+    assert all(r.enabled is True for r in rows)
+    assert rows[0].base_asset == "BTC"
+    assert rows[0].quote_asset == "USDT"
+
+    # 幂等:已有任意行则不再 seed
+    assert ensure_default_symbol_configs(pg_session, settings, account_id=1) == 0
+    assert pg_session.query(SymbolConfig).count() == 2

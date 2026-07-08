@@ -96,3 +96,39 @@ def ensure_default_risk_profile(
     db.commit()
     logger.info("Bootstrapped default active risk_profile for account_id=%s", account_id)
     return True
+
+
+def ensure_default_symbol_configs(
+    db: Session, settings: Settings, account_id: int = 1,
+) -> int:
+    """开箱 seed 交易对配置。symbol_config 表空会导致:
+    - 行情自选列表(list_symbols 走 find_enabled)返回空 → 前端价格取不到 → $0.000
+    - /ws/market 的 _verify_symbol_enabled 找不到 symbol → 4404 拒连
+    - 决策链虽用 env PIPELINE_SYMBOLS 但配置面无交易对可管理
+    生产此前无 seed 入口(只有 admin 手动加 / 测试建)。这里按 env PIPELINE_SYMBOLS
+    建默认启用项。已有任意行则不动(尊重手动配置)。返回新建条数。
+    """
+    from src.models.symbol_config import SymbolConfig
+
+    if db.query(SymbolConfig).count() > 0:
+        return 0
+
+    raw = getattr(settings, "PIPELINE_SYMBOLS", "") or "BTCUSDT,ETHUSDT"
+    symbols = [s.strip().upper() for s in raw.split(",") if s.strip()]
+    tf_raw = getattr(settings, "PIPELINE_TIMEFRAMES", "") or "15m"
+    timeframe = (tf_raw.split(",")[0].strip() or "15m")
+
+    created = 0
+    for i, sym in enumerate(symbols):
+        base = sym[:-4] if sym.endswith("USDT") else sym
+        db.add(SymbolConfig(
+            account_id=account_id, symbol=sym,
+            base_asset=base, quote_asset="USDT",
+            enabled=True, timeframe=timeframe,
+            priority=100, sort_order=(i + 1) * 10,
+        ))
+        created += 1
+    if created:
+        db.commit()
+        logger.info("Bootstrapped %d default symbol_configs: %s", created, symbols)
+    return created
