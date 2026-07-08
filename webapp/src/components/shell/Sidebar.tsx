@@ -20,11 +20,11 @@ import { Dot } from "@/components/ui/atoms";
 const NAV = [
   { to: "/", label: "主控制台", icon: LayoutDashboard },
   { to: "/market", label: "行情", icon: CandlestickChart },
-  { to: "/decisions", label: "AI 决策", icon: BrainCircuit, badge: 5 },
+  { to: "/decisions", label: "AI 决策", icon: BrainCircuit },
   { to: "/positions", label: "持仓与订单", icon: Layers },
   { to: "/performance", label: "回测与绩效", icon: BarChart3 },
   { to: "/risk", label: "策略与风控", icon: Shield },
-  { to: "/lab", label: "策略实验室", icon: FlaskConical, badge: 2 },
+  { to: "/lab", label: "策略实验室", icon: FlaskConical },
   { to: "/audit", label: "审计日志", icon: ScrollText },
   { to: "/admin", label: "后台管理", icon: Users, adminOnly: true },
   { to: "/settings", label: "设置", icon: Settings },
@@ -102,11 +102,6 @@ export function Sidebar() {
                   className={isActive ? "text-mint" : "text-current"}
                 />
                 <span className="flex-1">{n.label}</span>
-                {n.badge && (
-                  <span className="rounded-pill bg-violet-soft px-1.5 py-px font-mono text-micro font-semibold text-violet">
-                    {n.badge}
-                  </span>
-                )}
               </>
             )}
           </NavLink>
