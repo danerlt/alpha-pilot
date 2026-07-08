@@ -17,6 +17,7 @@ import { qk } from "@/api/queryClient";
 import { ordersApi, positionsApi } from "@/api/services";
 import type { Position, PrecheckResult } from "@/api/types";
 import { fmt, fmtSigned } from "@/lib/format";
+import { guardDisplay } from "@/lib/guardLabels";
 
 export default function Positions() {
   const queryClient = useQueryClient();
@@ -219,13 +220,30 @@ export default function Positions() {
             </div>
             {/* 守卫预检 */}
             <div className="flex flex-col gap-1">
-              {(precheck?.items ?? []).map((c) => (
-                <div key={c.check} className="flex items-center gap-1.5 font-mono text-[10.5px]">
-                  <Dot color={c.pass ? "var(--ap-mint)" : "var(--ap-rose)"} />
-                  <span className="flex-1 text-fg-3">{c.check}</span>
-                  <span className={c.pass ? "text-fg-2" : "text-rose"}>{c.note}</span>
-                </div>
-              ))}
+              {(precheck?.items ?? []).map((c) => {
+                const g = guardDisplay(c);
+                const dotColor =
+                  g.tone === "pass"
+                    ? "var(--ap-mint)"
+                    : g.tone === "skip"
+                      ? "var(--ap-amber)"
+                      : "var(--ap-rose)";
+                const textColor =
+                  g.tone === "pass"
+                    ? "var(--ap-fg-2)"
+                    : g.tone === "skip"
+                      ? "var(--ap-amber)"
+                      : "var(--ap-rose)";
+                return (
+                  <div key={c.check} className="flex items-center gap-1.5 text-[10.5px]" title={g.raw}>
+                    <Dot color={dotColor} />
+                    <span className="flex-1 text-fg-3">{g.label}</span>
+                    <span className="text-right font-mono" style={{ color: textColor }}>
+                      {g.text}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="ghost" onClick={() => setEditing(null)}>

@@ -9,6 +9,7 @@ import { ordersApi } from "@/api/services";
 import { useApp } from "@/context/AppContext";
 import { usePermission } from "@/auth/permissions";
 import { fmt } from "@/lib/format";
+import { guardDisplay } from "@/lib/guardLabels";
 import { Card, Dot, Pill } from "@/components/ui/atoms";
 
 const INPUT_CLS =
@@ -221,13 +222,30 @@ export function OrderTicket({ symbol, price }: { symbol: string; price: number }
           <Shield size={11} /> 守卫预检 · 人工单同样受硬风控约束
         </div>
         <div className="flex flex-col gap-[3px]">
-          {(precheck?.items ?? []).map((c) => (
-            <div key={c.check} className="flex items-center gap-1.5 font-mono text-[10.5px]">
-              <Dot color={c.pass ? "var(--ap-mint)" : "var(--ap-rose)"} />
-              <span className="flex-1 text-fg-3">{c.check}</span>
-              <span className={c.pass ? "text-fg-2" : "text-rose"}>{c.note}</span>
-            </div>
-          ))}
+          {(precheck?.items ?? []).map((c) => {
+            const g = guardDisplay(c);
+            const dotColor =
+              g.tone === "pass"
+                ? "var(--ap-mint)"
+                : g.tone === "skip"
+                  ? "var(--ap-amber)"
+                  : "var(--ap-rose)";
+            const textColor =
+              g.tone === "pass"
+                ? "var(--ap-fg-2)"
+                : g.tone === "skip"
+                  ? "var(--ap-amber)"
+                  : "var(--ap-rose)";
+            return (
+              <div key={c.check} className="flex items-center gap-1.5 text-[10.5px]" title={g.raw}>
+                <Dot color={dotColor} />
+                <span className="flex-1 text-fg-3">{g.label}</span>
+                <span className="text-right font-mono" style={{ color: textColor }}>
+                  {g.text}
+                </span>
+              </div>
+            );
+          })}
           {!precheck && (
             <div className="font-mono text-[10.5px] text-fg-4">预检中…</div>
           )}
