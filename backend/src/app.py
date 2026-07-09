@@ -129,9 +129,15 @@ async def lifespan(app: FastAPI):
         settings.CONFIG_REFRESH_INTERVAL_SECONDS,
     )
 
+    # ADR-0001 P2: 订阅 config 广播，前端改配置毫秒级下发到本 worker
+    from src.services.system.config_pubsub import config_subscriber_task
+
+    config_sub_task = asyncio.create_task(config_subscriber_task(settings.REDIS_URL))
+    logger.info("Config subscriber task started")
+
     yield
 
-    for _task in (ws_task, config_refresh_task):
+    for _task in (ws_task, config_refresh_task, config_sub_task):
         _task.cancel()
         try:
             await _task

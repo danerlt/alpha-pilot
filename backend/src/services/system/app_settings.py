@@ -97,6 +97,10 @@ class AppSettingsService:
             )
         except Exception:  # noqa: BLE001
             logger.warning("runtime settings refresh failed (non-fatal)", exc_info=True)
+        # ADR-0001 P2: 广播变更，其它进程(scheduler / 别的 API worker)订到即重载
+        from src.services.system.config_pubsub import publish_config_changed
+
+        publish_config_changed()
 
     def _network(self) -> str:
         stored = self._read("runtime.trading_mode")

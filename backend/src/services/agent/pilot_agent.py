@@ -390,4 +390,8 @@ class PilotAgentService:
             )
         except Exception:  # noqa: BLE001
             logger.warning("runtime settings refresh failed after confirm (non-fatal)", exc_info=True)
+        # ADR-0001 P2: 广播变更，其它进程订到即重载
+        from src.services.system.config_pubsub import publish_config_changed
+
+        publish_config_changed()
         return {"action_id": action_id, "status": "CONFIRMED", "key": key, "value": payload.get("value")}

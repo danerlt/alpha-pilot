@@ -128,4 +128,8 @@ def update_runtime_config(
         master_key=base_settings.APP_CONFIG_MASTER_KEY,
         default_trading_mode=base_settings.TRADING_MODE,
     )
+    # ADR-0001 P2: 广播变更，其它进程订到即重载
+    from src.services.system.config_pubsub import publish_config_changed
+
+    publish_config_changed()
     return _build_runtime_config_payload(db)

@@ -135,6 +135,23 @@ def _start_notification_dispatcher() -> threading.Thread | None:
     return t
 
 
+def _start_config_subscriber() -> threading.Thread:
+    """启动 config 广播订阅 daemon thread（ADR-0001 P2）。
+
+    前端设置页改配置 → API 发 Redis 广播 → 本线程订到即从 DB 重载 runtime 配置，
+    毫秒级生效（P1 的周期刷新仍在跑，作漏消息兜底）。
+    """
+    from src.services.system.config_pubsub import config_subscriber_loop
+
+    t = threading.Thread(
+        target=config_subscriber_loop, args=(_stop_flag,),
+        name="config-subscriber", daemon=True,
+    )
+    t.start()
+    logger.info("Config subscriber daemon thread started")
+    return t
+
+
 def _consume_task_queue() -> None:
     """主线程阻塞消费 Redis 异步任务队列（task_requests 表 + alphapilot:tasks 队列）。
 
@@ -174,6 +191,7 @@ def main() -> None:
     scheduler = _setup_scheduler()
     shuttle = _start_event_shuttle()
     notifier = _start_notification_dispatcher()
+    config_sub = _start_config_subscriber()
 
     try:
         _consume_task_queue()  # 主线程阻塞
@@ -187,6 +205,7 @@ def main() -> None:
         shuttle.join(timeout=5)
         if notifier is not None:
             notifier.join(timeout=5)
+        config_sub.join(timeout=5)
         logger.info("Scheduler container exiting")
 
 
