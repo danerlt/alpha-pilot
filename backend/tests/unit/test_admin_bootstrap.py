@@ -115,3 +115,45 @@ def test_ensure_default_symbol_configs_seeds_and_idempotent(pg_session):
     # 幂等:已有任意行则不再 seed
     assert ensure_default_symbol_configs(pg_session, settings, account_id=1) == 0
     assert pg_session.query(SymbolConfig).count() == 2
+
+
+def test_ensure_default_prompt_template_seeds_and_idempotent(pg_session):
+    """prompt_templates 空 → PromptComposer raise → 决策链静默 HOLD 不落库 →
+    AI 决策页空。开箱 seed active ait_default 模板。变量占位符须与
+    PromptComposer.compose 的 variables 对齐。"""
+    from string import Template
+
+    from src.models.prompt import PromptTemplate
+    from src.services.admin_bootstrap import ensure_default_prompt_template
+
+    settings = Settings(_env_file=None)
+    assert ensure_default_prompt_template(pg_session, settings) is True
+
+    tpl = (
+        pg_session.query(PromptTemplate)
+        .filter(PromptTemplate.name == "ait_default", PromptTemplate.active.is_(True))
+        .first()
+    )
+    assert tpl is not None
+    assert tpl.version == 1
+    # 占位符可被 compose 提供的变量安全替换,渲染后不残留未替换的 ${var}
+    variables = {
+        "symbol": "BTCUSDT", "timeframe": "1h", "current_price": 63000,
+        "regime": "trending_up", "indicators_json": "{}", "factors_json": "{}",
+        "open_position_json": "null", "account_snapshot_json": "{}",
+        "recent_experience_json": "[]",
+    }
+    rendered_user = Template(tpl.user_template).safe_substitute(variables)
+    assert "${" not in rendered_user
+    assert "BTCUSDT" in rendered_user
+    # 进化机制:历史经验必须进 prompt
+    assert "recent_experience_json" in tpl.user_template
+
+    # 幂等:已存在不重复建
+    assert ensure_default_prompt_template(pg_session, settings) is False
+    assert (
+        pg_session.query(PromptTemplate)
+        .filter(PromptTemplate.name == "ait_default")
+        .count()
+        == 1
+    )

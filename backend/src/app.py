@@ -35,6 +35,7 @@ from src.middleware.error_logging_middleware import ErrorLoggingMiddleware
 from src.middleware.request_logging_middleware import RequestLoggingMiddleware
 from src.services.admin_bootstrap import (
     ensure_default_admin,
+    ensure_default_prompt_template,
     ensure_default_risk_profile,
     ensure_default_symbol_configs,
 )
@@ -87,6 +88,8 @@ async def lifespan(app: FastAPI):
         ensure_default_risk_profile(db, settings)
         # 开箱 seed 交易对,否则自选列表空/价格 $0.000/ws-market 4404
         ensure_default_symbol_configs(db, settings)
+        # 开箱 seed AI 决策 prompt,否则决策链 PromptTemplateNotFound→静默 HOLD 不落库→AI 决策页空
+        ensure_default_prompt_template(db, settings)
 
     # DB runtime 配置加载 (前端设置页写入的交易所/LLM/风控配置; env 只做 fallback)
     from src.services.system.runtime_config import refresh_runtime_settings_safe
