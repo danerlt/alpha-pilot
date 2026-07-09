@@ -68,6 +68,19 @@ def _parse_csv(value: str) -> list[str]:
     return [s.strip() for s in value.split(",") if s.strip()]
 
 
+def _load_pipeline_symbols(db: Session, settings) -> list[str]:
+    """C1(ADR-0001): 交易标的以 symbol_configs(enabled) 表为准，前端可增删/启停并实时生效。
+
+    表空时回退 env ``PIPELINE_SYMBOLS``（seed 兜底，避免决策链无标的空转）。
+    """
+    from src.cruds import symbol_config_crud
+
+    enabled = symbol_config_crud.find_enabled(db)
+    if enabled:
+        return [sc.symbol for sc in enabled]
+    return _parse_csv(settings.PIPELINE_SYMBOLS)
+
+
 def new_strategy_pipeline_job() -> None:
     """APScheduler 每 STRATEGY_LOOP_INTERVAL_MINUTES 调一次.
 
@@ -97,7 +110,7 @@ def new_strategy_pipeline_job() -> None:
             session_factory=get_session_factory(),
             account_id=1, trading_mode=settings.TRADING_MODE.value,
         )
-        symbols = _parse_csv(settings.PIPELINE_SYMBOLS)
+        symbols = _load_pipeline_symbols(db, settings)
         timeframes = _parse_csv(settings.PIPELINE_TIMEFRAMES)
         summary = run_strategy_pipeline_once(
             db=db, account_id=1,
