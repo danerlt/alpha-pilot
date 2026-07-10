@@ -1,0 +1,196 @@
+{
+  "plugins": [
+    "react",
+    "import"
+  ],
+  "rules": {
+    "react/forbid-elements": [
+      "warn",
+      {
+        "forbid": []
+      }
+    ],
+    "no-restricted-imports": [
+      "warn",
+      {
+        "patterns": [
+          {
+            "group": [
+              "ui_kits/mobile_app/**",
+              "ui_kits/mobile_app/components/**",
+              "ui_kits/web_app/components/**"
+            ],
+            "message": "Import design-system components from 'index.js', not component internals."
+          }
+        ]
+      }
+    ],
+    "no-restricted-syntax": [
+      "warn",
+      {
+        "selector": "Literal[value=/#[0-9a-fA-F]{3,8}\\b/]",
+        "message": "Raw hex color — use a design-system color token via var()."
+      },
+      {
+        "selector": "Literal[value=/\\b\\d+px\\b/]",
+        "message": "Raw px value — use a design-system spacing token via var()."
+      },
+      {
+        "selector": "Literal[value=/font-family\\s*:\\s*(?!['\\\"]?(?:Inter|JetBrains Mono|Noto Sans SC))/i]",
+        "message": "Font not provided by the design system. Available: Inter, JetBrains Mono, Noto Sans SC."
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": [
+        "**/index.js"
+      ],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    }
+  ],
+  "x-omelette": {
+    "components": {},
+    "tokens": [
+      "--ap-amber",
+      "--ap-amber-soft",
+      "--ap-bg-0",
+      "--ap-bg-1",
+      "--ap-bg-2",
+      "--ap-bg-3",
+      "--ap-bg-4",
+      "--ap-chart-1",
+      "--ap-chart-2",
+      "--ap-chart-3",
+      "--ap-chart-4",
+      "--ap-chart-5",
+      "--ap-cyan",
+      "--ap-cyan-soft",
+      "--ap-fg-1",
+      "--ap-fg-2",
+      "--ap-fg-3",
+      "--ap-fg-4",
+      "--ap-fg-5",
+      "--ap-font-mono",
+      "--ap-font-sans",
+      "--ap-fs-body",
+      "--ap-fs-display",
+      "--ap-fs-h1",
+      "--ap-fs-h2",
+      "--ap-fs-h3",
+      "--ap-fs-micro",
+      "--ap-fs-sm",
+      "--ap-fs-xs",
+      "--ap-line",
+      "--ap-line-soft",
+      "--ap-mint",
+      "--ap-mint-dim",
+      "--ap-mint-glow",
+      "--ap-mint-soft",
+      "--ap-r-lg",
+      "--ap-r-md",
+      "--ap-r-pill",
+      "--ap-r-sm",
+      "--ap-r-xl",
+      "--ap-r-xs",
+      "--ap-rose",
+      "--ap-rose-dim",
+      "--ap-rose-glow",
+      "--ap-rose-soft",
+      "--ap-s-1",
+      "--ap-s-2",
+      "--ap-s-3",
+      "--ap-s-4",
+      "--ap-s-5",
+      "--ap-s-6",
+      "--ap-s-7",
+      "--ap-s-8",
+      "--ap-shadow-1",
+      "--ap-shadow-2",
+      "--ap-shadow-3",
+      "--ap-shadow-glow-mint",
+      "--ap-shadow-glow-rose",
+      "--ap-state-degrade",
+      "--ap-state-halted",
+      "--ap-state-pass",
+      "--ap-state-reject",
+      "--ap-violet",
+      "--ap-violet-glow",
+      "--ap-violet-soft"
+    ],
+    "tokenKinds": {
+      "--ap-bg-0": "color",
+      "--ap-bg-1": "color",
+      "--ap-bg-2": "color",
+      "--ap-bg-3": "color",
+      "--ap-bg-4": "color",
+      "--ap-line": "color",
+      "--ap-line-soft": "color",
+      "--ap-fg-1": "color",
+      "--ap-fg-2": "color",
+      "--ap-fg-3": "color",
+      "--ap-fg-4": "color",
+      "--ap-fg-5": "color",
+      "--ap-mint": "color",
+      "--ap-mint-soft": "color",
+      "--ap-mint-glow": "color",
+      "--ap-mint-dim": "color",
+      "--ap-rose": "color",
+      "--ap-rose-soft": "color",
+      "--ap-rose-glow": "color",
+      "--ap-rose-dim": "color",
+      "--ap-violet": "color",
+      "--ap-violet-soft": "color",
+      "--ap-violet-glow": "color",
+      "--ap-amber": "color",
+      "--ap-amber-soft": "color",
+      "--ap-cyan": "color",
+      "--ap-cyan-soft": "color",
+      "--ap-state-pass": "color",
+      "--ap-state-reject": "color",
+      "--ap-state-degrade": "color",
+      "--ap-state-halted": "color",
+      "--ap-font-sans": "font",
+      "--ap-font-mono": "font",
+      "--ap-fs-display": "spacing",
+      "--ap-fs-h1": "spacing",
+      "--ap-fs-h2": "spacing",
+      "--ap-fs-h3": "spacing",
+      "--ap-fs-body": "spacing",
+      "--ap-fs-sm": "spacing",
+      "--ap-fs-xs": "spacing",
+      "--ap-fs-micro": "spacing",
+      "--ap-r-xs": "spacing",
+      "--ap-r-sm": "spacing",
+      "--ap-r-md": "spacing",
+      "--ap-r-lg": "spacing",
+      "--ap-r-xl": "spacing",
+      "--ap-r-pill": "spacing",
+      "--ap-s-1": "spacing",
+      "--ap-s-2": "spacing",
+      "--ap-s-3": "spacing",
+      "--ap-s-4": "spacing",
+      "--ap-s-5": "spacing",
+      "--ap-s-6": "spacing",
+      "--ap-s-7": "spacing",
+      "--ap-s-8": "spacing",
+      "--ap-shadow-1": "shadow",
+      "--ap-shadow-2": "shadow",
+      "--ap-shadow-3": "shadow",
+      "--ap-shadow-glow-mint": "shadow",
+      "--ap-shadow-glow-rose": "shadow",
+      "--ap-chart-1": "color",
+      "--ap-chart-2": "color",
+      "--ap-chart-3": "color",
+      "--ap-chart-4": "color",
+      "--ap-chart-5": "color"
+    },
+    "fontFamilies": [
+      "Inter",
+      "JetBrains Mono",
+      "Noto Sans SC"
+    ]
+  }
+}
